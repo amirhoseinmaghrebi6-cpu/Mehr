@@ -11,6 +11,7 @@ import {
 } from "@/app/(auth)/actions";
 import type { Locale } from "@/lib/i18n";
 import type { DemoCredentials } from "@/lib/demo-auth";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 type AuthMode = "login" | "register" | "forgot" | "update";
 
@@ -260,6 +261,8 @@ function noticeText(code: string, locale: Locale): string {
 }
 
 function safeNext(value: string | undefined): string {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+  return safeRedirectPath(value);
 }
+
+
 

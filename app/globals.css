@@ -346,6 +346,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .automation-destination { color: var(--accent); font-size: 9px; }
 .automation-enabled { display: inline-flex; align-items: center; gap: 5px; color: var(--positive); font-size: 9px; }
 .automation-enabled > span { width: 5px; height: 5px; border-radius: 50%; background: var(--positive); }
+.automation-enabled.is-paused { color: var(--muted); }
+.automation-enabled.is-paused > span { background: var(--muted); }
+.automation-switch { position: relative; width: 34px; height: 20px; flex: 0 0 34px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 99px; background: var(--surface-soft); cursor: pointer; transition: background .18s, border-color .18s; }
+.automation-switch > span { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .18s var(--ease-out), background .18s; }
+.automation-switch.is-enabled { border-color: var(--accent); background: var(--accent); }
+.automation-switch.is-enabled > span { background: #fff; transform: translateX(14px); }
+.app-rtl .automation-switch.is-enabled > span { transform: translateX(-14px); }
+.automation-switch:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 .add-automation { display: flex; width: 100%; min-height: 36px; align-items: center; gap: 6px; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent); cursor: pointer; font-size: 10px; font-weight: 600; }
 .automation-aside { position: relative; min-height: 235px; overflow: hidden; padding: 22px; border-radius: 7px; background: #344a3a; color: #fff; }
 .automation-aside::after { position: absolute; inset-inline-end: -39px; bottom: -55px; width: 170px; height: 170px; border: 1px solid rgb(255 255 255 / 10%); border-radius: 50%; box-shadow: 0 0 0 17px rgb(255 255 255 / 3%), 0 0 0 35px rgb(255 255 255 / 3%), 0 0 0 54px rgb(255 255 255 / 2%); content: ""; }
@@ -552,6 +560,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .plug-toggle { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; }
 .plug-toggle.selected { border-color: var(--accent-soft); background: var(--accent-soft); color: var(--accent); }
 .device-sheet-footer { display: flex; align-items: center; gap: 7px; margin-top: 15px; color: var(--muted); font-size: 8px; }
+.device-sheet-edit { margin-top: 8px; }
 .device-sheet-footer .status-pulse { width: 5px; height: 5px; flex-basis: 5px; }
 .device-sheet-footer > span:nth-child(2) { color: var(--line-strong); }
 .mobile-more-menu { position: fixed; z-index: 21; inset-inline: 14px; bottom: calc(74px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-float); }

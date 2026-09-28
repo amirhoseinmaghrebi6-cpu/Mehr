@@ -12,6 +12,7 @@ import {
   Lightbulb,
   LockKeyhole,
   Minus,
+  Pencil,
   Plus,
   Power,
   PlugZap,
@@ -39,9 +40,10 @@ type Props = {
   onClose: () => void;
   onToggle: (id: string) => void;
   onValueChange: (id: string, value: number) => void;
+  onEdit: () => void;
 };
 
-export function DeviceSheet({ device, isOn, value, locale, onClose, onToggle, onValueChange }: Props) {
+export function DeviceSheet({ device, isOn, value, locale, onClose, onToggle, onValueChange, onEdit }: Props) {
   const [draftValue, setDraftValue] = useState(value);
   const Icon = iconByKind[device.kind];
   const isRtl = locale === "fa";
@@ -134,6 +136,7 @@ export function DeviceSheet({ device, isOn, value, locale, onClose, onToggle, on
         )}
 
         <div className="device-sheet-footer"><span className="status-pulse" />{isRtl ? (device.online ? "اتصال امن خانه فعال است" : "اتصال خانه برقرار نیست") : (device.online ? "Secure home connection" : "Home connection unavailable")}<span>·</span>{isRtl ? "همین حالا" : "Just now"}</div>
+        <button type="button" className="text-action device-sheet-edit" onClick={onEdit}><Pencil size={14} />{isRtl ? "ویرایش جزئیات دستگاه" : "Edit device details"}</button>
       </motion.section>
     </motion.div>
   );

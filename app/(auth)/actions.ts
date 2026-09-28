@@ -3,12 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { createDemoSessionToken, DEMO_COOKIE_NAME, DEMO_SESSION_MAX_AGE, getDemoCredentials, isDemoAuthEnabled, verifyDemoCredentials } from "@/lib/demo-auth";
-
-function safeNext(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
-  return value;
-}
 
 function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -37,7 +33,7 @@ export async function signInAction(formData: FormData): Promise<void> {
       path: "/",
       maxAge: DEMO_SESSION_MAX_AGE,
     });
-    redirect(safeNext(formData.get("next")));
+    redirect(safeRedirectPath(formData.get("next")));
   }
 
   if (!isSupabaseConfigured()) redirect("/login?error=setup");
@@ -48,7 +44,7 @@ export async function signInAction(formData: FormData): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect("/login?error=credentials");
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeRedirectPath(formData.get("next")));
 }
 
 export async function signUpAction(formData: FormData): Promise<void> {

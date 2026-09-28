@@ -1,9 +1,11 @@
 import {
+  automations as starterAutomations,
   devices as starterDevices,
   getMockHomeSnapshot,
   properties as starterProperties,
   rooms as starterRooms,
   type Device,
+  type Automation,
   type HomeSnapshot,
   type Property,
   type Room,
@@ -21,6 +23,7 @@ export type HomeWorkspace = {
   properties: Property[];
   roomsByProperty: Record<string, Room[]>;
   devicesByProperty: Record<string, Device[]>;
+  automationsByProperty: Record<string, Automation[]>;
 };
 
 export function createDefaultWorkspace(): HomeWorkspace {
@@ -32,6 +35,7 @@ export function createDefaultWorkspace(): HomeWorkspace {
     properties: starterProperties.map((property) => ({ ...property })),
     roomsByProperty: Object.fromEntries(starterProperties.map((property) => [property.id, copyRooms()])),
     devicesByProperty: Object.fromEntries(starterProperties.map((property) => [property.id, copyDevices()])),
+    automationsByProperty: Object.fromEntries(starterProperties.map((property) => [property.id, starterAutomations.map((automation) => ({ ...automation }))])),
   };
 }
 
@@ -53,7 +57,12 @@ export function loadWorkspace(userId: string): HomeWorkspace {
       return createDefaultWorkspace();
     }
 
-    return workspace;
+    return {
+      ...workspace,
+      automationsByProperty: workspace.automationsByProperty ?? Object.fromEntries(
+        workspace.properties.map((property) => [property.id, starterAutomations.map((automation) => ({ ...automation }))]),
+      ),
+    };
   } catch {
     return createDefaultWorkspace();
   }
@@ -81,6 +90,7 @@ export function getWorkspaceSnapshot(propertyId: string, workspace: HomeWorkspac
 
   return {
     ...base,
+    automations: workspace.automationsByProperty[propertyId] ?? base.automations,
     rooms: rooms.map((room) => ({
       ...room,
       activeDevices: devices.filter((device) => device.roomId === room.id && device.online).length,

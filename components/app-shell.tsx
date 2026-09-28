@@ -37,7 +37,7 @@ import { signOutAction } from "@/app/(app)/actions";
 import { DeviceEditorDialog, PropertyManagerDialog, RoomEditorDialog } from "@/components/workspace-dialogs";
 import { translate, type Locale } from "@/lib/i18n";
 import { homeGateway } from "@/services/home-gateway";
-import { getMockHomeSnapshot, type Device, type Property, type Room } from "@/services/mock-home-service";
+import { getMockHomeSnapshot, type Automation, type Device, type Property, type Room } from "@/services/mock-home-service";
 import { createDefaultWorkspace, getWorkspaceSnapshot, loadWorkspace, saveWorkspace, type HomeWorkspace } from "@/services/workspace-store";
 
 type Theme = "light" | "dark";
@@ -95,6 +95,7 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
   const [propertyManagerOpen, setPropertyManagerOpen] = useState(false);
   const [roomEditor, setRoomEditor] = useState<Room | "new" | null>(null);
   const [deviceEditorOpen, setDeviceEditorOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [pendingRemoveDevice, setPendingRemoveDevice] = useState<Device | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
@@ -209,6 +210,7 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
       properties: [...current.properties, property],
       roomsByProperty: { ...current.roomsByProperty, [property.id]: [] },
       devicesByProperty: { ...current.devicesByProperty, [property.id]: [] },
+      automationsByProperty: { ...current.automationsByProperty, [property.id]: [] },
     }));
     setPropertyManagerOpen(false);
     changeProperty(property.id);
@@ -228,6 +230,7 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
       properties: current.properties.filter((property) => property.id !== id),
       roomsByProperty: omitKey(current.roomsByProperty, id),
       devicesByProperty: omitKey(current.devicesByProperty, id),
+      automationsByProperty: omitKey(current.automationsByProperty, id),
     }));
     if (propertyId === id) changeProperty(remaining[0].id);
     setToast(locale === "fa" ? "خانه حذف شد" : "Property removed");
@@ -247,11 +250,46 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
   };
 
   const addDevice = (device: Device) => {
-    setWorkspace((current) => ({ ...current, devicesByProperty: { ...current.devicesByProperty, [propertyId]: [...(current.devicesByProperty[propertyId] ?? []), device] } }));
-    setDeviceStates((current) => ({ ...current, [device.id]: device.initialState }));
+    setWorkspace((current) => {
+      const devices = current.devicesByProperty[propertyId] ?? [];
+      const exists = devices.some((item) => item.id === device.id);
+      return {
+        ...current,
+        devicesByProperty: {
+          ...current.devicesByProperty,
+          [propertyId]: exists ? devices.map((item) => item.id === device.id ? device : item) : [...devices, device],
+        },
+      };
+    });
+    setDeviceStates((current) => ({ ...current, [device.id]: current[device.id] ?? device.initialState }));
     if (device.value !== undefined) setDeviceValues((current) => ({ ...current, [device.id]: device.value! }));
     setDeviceEditorOpen(false);
-    setToast(locale === "fa" ? `«${device.name}» به ${device.room} اضافه شد` : `${device.name} added to ${device.room}`);
+    setEditingDevice(null);
+    setToast(editingDevice
+      ? locale === "fa" ? `اطلاعات «${device.name}» ذخیره شد` : `${device.name} updated`
+      : locale === "fa" ? `«${device.name}» به ${device.room} اضافه شد` : `${device.name} added to ${device.room}`);
+  };
+
+  const addAutomation = (automation: Automation) => {
+    setWorkspace((current) => ({
+      ...current,
+      automationsByProperty: {
+        ...current.automationsByProperty,
+        [propertyId]: [...(current.automationsByProperty[propertyId] ?? []), automation],
+      },
+    }));
+    setToast(locale === "fa" ? "روال ذخیره شد؛ برای اجرا به سرویس متصل نیاز دارد." : "Routine saved. A connected service is needed to run it.");
+  };
+
+  const toggleAutomation = (id: string) => {
+    setWorkspace((current) => ({
+      ...current,
+      automationsByProperty: {
+        ...current.automationsByProperty,
+        [propertyId]: (current.automationsByProperty[propertyId] ?? getMockHomeSnapshot(propertyId).automations)
+          .map((automation) => automation.id === id ? { ...automation, enabled: !automation.enabled } : automation),
+      },
+    }));
   };
 
   const removeDevice = (device: Device) => {
@@ -435,8 +473,10 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
             onClearSearch={() => setSearch("")}
             onAddRoom={() => setRoomEditor("new")}
             onEditRoom={setRoomEditor}
-            onAddDevice={() => setDeviceEditorOpen(true)}
+            onAddDevice={() => { setEditingDevice(null); setDeviceEditorOpen(true); }}
             onRemoveDevice={setPendingRemoveDevice}
+            onCreateAutomation={addAutomation}
+            onToggleAutomation={toggleAutomation}
           />
           <footer className="app-footer"><span>M2SMART · {isRtl ? "ساخته‌شده برای زندگی بهتر" : "MADE FOR BETTER LIVING"}</span><span>{isRtl ? "زمان محلی · تهران" : "LOCAL TIME · TEHRAN"}</span></footer>
         </div>
@@ -482,6 +522,7 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
           onClose={() => setActiveDevice(null)}
           onToggle={toggleDevice}
           onValueChange={updateDeviceValue}
+          onEdit={() => { setEditingDevice(activeDevice); setActiveDevice(null); setDeviceEditorOpen(true); }}
         />}
       </AnimatePresence>
 
@@ -505,9 +546,11 @@ export function AppShell({ userId, displayName, demoMode = false, initialSection
       />}
 
       {deviceEditorOpen && <DeviceEditorDialog
+        key={editingDevice?.id ?? "new-device"}
+        device={editingDevice}
         rooms={snapshot.rooms}
         locale={locale}
-        onClose={() => setDeviceEditorOpen(false)}
+        onClose={() => { setDeviceEditorOpen(false); setEditingDevice(null); }}
         onSave={addDevice}
       />}
 

@@ -190,27 +190,28 @@ export function RoomEditorDialog({ room, locale, onClose, onSave }: { room: Room
   );
 }
 
-export function DeviceEditorDialog({ rooms, locale, onClose, onSave }: { rooms: Room[]; locale: Locale; onClose: () => void; onSave: (device: Device) => void }) {
+export function DeviceEditorDialog({ device, rooms, locale, onClose, onSave }: { device: Device | null; rooms: Room[]; locale: Locale; onClose: () => void; onSave: (device: Device) => void }) {
   const isRtl = locale === "fa";
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<DeviceKind>("light");
-  const [roomId, setRoomId] = useState(rooms[0]?.id ?? "");
+  const [name, setName] = useState(device?.name ?? "");
+  const [kind, setKind] = useState<DeviceKind>(device?.kind ?? "light");
+  const [roomId, setRoomId] = useState(device && rooms.some((room) => room.id === device.roomId) ? device.roomId : rooms[0]?.id ?? "");
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const room = rooms.find((item) => item.id === roomId);
     if (!name.trim() || !room) return;
     const defaults: Partial<Record<DeviceKind, number>> = { climate: 22, light: 50, curtain: 0 };
+    const value = device?.kind === kind ? device.value : defaults[kind];
     onSave({
-      id: `device-${crypto.randomUUID()}`,
+      id: device?.id ?? `device-${crypto.randomUUID()}`,
       name: name.trim(),
       kind,
       roomId: room.id,
       room: room.name,
-      detail: kind === "climate" ? "22°C · Auto" : kind === "light" ? "Warm white · 50%" : kind === "curtain" ? "Closed · 0%" : isRtl ? "آماده به کار" : "Ready when you are",
-      value: defaults[kind],
-      online: true,
-      initialState: false,
+      detail: kind === "climate" ? `${value ?? 22}°C · Auto` : kind === "light" ? `Warm white · ${value ?? 50}%` : kind === "curtain" ? `Closed · ${value ?? 0}%` : device?.detail ?? (isRtl ? "آماده به کار" : "Ready when you are"),
+      value,
+      online: device?.online ?? true,
+      initialState: device?.initialState ?? false,
     });
   };
 
@@ -219,14 +220,14 @@ export function DeviceEditorDialog({ rooms, locale, onClose, onSave }: { rooms: 
       <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="device-dialog-title" dir={isRtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={onClose} aria-label={isRtl ? "بستن" : "Close"}><X size={18} /></button>
         <span className="workspace-dialog-icon"><Plus size={19} /></span><span className="panel-overline">{isRtl ? "دستگاه‌های خانه" : "HOME DEVICES"}</span>
-        <h2 id="device-dialog-title">{isRtl ? "افزودن دستگاه" : "Add a device"}</h2>
-        <p className="workspace-dialog-description">{isRtl ? "دستگاه را نام‌گذاری و به یکی از فضاها اضافه کنید." : "Name the device and choose where it belongs."}</p>
+        <h2 id="device-dialog-title">{isRtl ? (device ? "ویرایش دستگاه" : "افزودن دستگاه") : (device ? "Edit device" : "Add a device")}</h2>
+        <p className="workspace-dialog-description">{isRtl ? "نام، نوع دستگاه و فضای آن را تنظیم کنید." : "Set the device name, category and assigned space."}</p>
         {rooms.length === 0 ? <p className="form-error">{isRtl ? "ابتدا یک فضا بسازید." : "Create a space before adding a device."}</p> : (
           <form className="workspace-form" onSubmit={submit}>
             <label className="form-field"><span>{isRtl ? "نام دستگاه" : "Device name"}</span><input autoFocus required maxLength={50} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً چراغ سقفی" : "e.g. Ceiling light"} /></label>
             <label className="form-field"><span>{isRtl ? "نوع دستگاه" : "Device type"}</span><select value={kind} onChange={(event) => setKind(event.target.value as DeviceKind)}>{deviceKinds.map((item) => <option key={item.value} value={item.value}>{isRtl ? item.fa : item.en}</option>)}</select></label>
             <label className="form-field"><span>{isRtl ? "افزودن به فضا" : "Add to space"}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
-            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary"><Plus size={15} />{isRtl ? "افزودن دستگاه" : "Add device"}</button></div>
+            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary">{device ? <Check size={15} /> : <Plus size={15} />}{isRtl ? (device ? "ذخیره‌ی تغییرات" : "افزودن دستگاه") : (device ? "Save changes" : "Add device")}</button></div>
           </form>
         )}
       </section>

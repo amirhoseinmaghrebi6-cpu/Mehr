@@ -33,6 +33,21 @@ export type Property = {
   online: boolean;
 };
 
+export type Automation = {
+  id: string;
+  name: string;
+  detail: string;
+  destination: string;
+  enabled: boolean;
+  icon: "sunset" | "house" | "moon" | "zap";
+  trigger:
+    | { type: "time"; time: string; recurrence: "daily" }
+    | { type: "sunset" }
+    | { type: "motion" }
+    | { type: "presence"; event: "arrival" };
+  actions: { type: "device"; deviceId: string; command: "on" | "off" }[];
+};
+
 export const properties: Property[] = [
   { id: "tehran", name: "Tehran Villa", address: "Niavaran, Tehran", type: "villa", coverImage: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1800&q=84", online: true },
   { id: "caspian", name: "Caspian House", address: "Ramsar, Mazandaran", type: "house", coverImage: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1800&q=84", online: true },
@@ -99,10 +114,10 @@ export const scenes = [
   { id: "away", name: "Away", detail: "Secure · Energy saved", icon: "door" },
 ];
 
-export const automations = [
-  { id: "sunset", name: "A softer sunset", detail: "Every day at sunset", destination: "Garden path lights", enabled: true, icon: "sunset" },
-  { id: "arrive", name: "Welcome home", detail: "When Amir arrives", destination: "Entryway and climate", enabled: true, icon: "house" },
-  { id: "sleep", name: "A quieter night", detail: "Every day at 10:30 pm", destination: "Whole home", enabled: true, icon: "moon" },
+export const automations: Automation[] = [
+  { id: "sunset", name: "A softer sunset", detail: "Every day at sunset", destination: "Garden path lights", enabled: true, icon: "sunset", trigger: { type: "sunset" }, actions: [{ type: "device", deviceId: "garden-lights", command: "on" }] },
+  { id: "arrive", name: "Welcome home", detail: "When Amir arrives", destination: "Entryway and climate", enabled: true, icon: "house", trigger: { type: "presence", event: "arrival" }, actions: [{ type: "device", deviceId: "lights", command: "on" }, { type: "device", deviceId: "climate", command: "on" }] },
+  { id: "sleep", name: "A quieter night", detail: "Every day at 10:30 pm", destination: "Whole home", enabled: true, icon: "moon", trigger: { type: "time", time: "22:30", recurrence: "daily" }, actions: [{ type: "device", deviceId: "lights", command: "off" }, { type: "device", deviceId: "garden-lights", command: "off" }] },
 ];
 
 export type HomeSnapshot = {
@@ -110,7 +125,7 @@ export type HomeSnapshot = {
   rooms: Room[];
   devices: Device[];
   scenes: typeof scenes;
-  automations: typeof automations;
+  automations: Automation[];
   energy: {
     currentWatts: number;
     todayKwh: number;

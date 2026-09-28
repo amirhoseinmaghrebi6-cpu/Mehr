@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowDownRight,
@@ -30,12 +31,13 @@ import {
   Trash2,
   Utensils,
   Wifi,
+  X,
   Wind,
   Zap,
 } from "lucide-react";
 import { DeviceControl } from "@/components/device-control";
 import { translate, type Locale } from "@/lib/i18n";
-import type { Device, HomeSnapshot, Room } from "@/services/mock-home-service";
+import type { Automation, Device, HomeSnapshot, Room } from "@/services/mock-home-service";
 
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "automations" | "energy" | "security" | "cameras" | "notifications" | "settings";
 
@@ -60,6 +62,8 @@ type Props = {
   onEditRoom: (room: Room) => void;
   onAddDevice: () => void;
   onRemoveDevice: (device: Device) => void;
+  onCreateAutomation: (automation: Automation) => void;
+  onToggleAutomation: (id: string) => void;
 };
 
 const sectionCopy = {
@@ -98,6 +102,8 @@ export function DashboardView({
   onEditRoom,
   onAddDevice,
   onRemoveDevice,
+  onCreateAutomation,
+  onToggleAutomation,
 }: Props) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const isRtl = locale === "fa";
@@ -187,13 +193,15 @@ export function DashboardView({
           onEditRoom={onEditRoom}
           onAddDevice={onAddDevice}
           onRemoveDevice={onRemoveDevice}
+          onCreateAutomation={onCreateAutomation}
+          onToggleAutomation={onToggleAutomation}
         />
       )}
     </motion.div>
   );
 }
 
-function Overview({ snapshot, locale, propertyImage, displayName, deviceStates, deviceValues, activeScene, onToggleDevice, onOpenDevice, onActivateScene, onNavigate, onEditRoom }: Omit<Props, "section" | "propertyName" | "propertyOnline" | "query" | "onClearSearch" | "onAddRoom" | "onAddDevice" | "onRemoveDevice">) {
+function Overview({ snapshot, locale, propertyImage, displayName, deviceStates, deviceValues, activeScene, onToggleDevice, onOpenDevice, onActivateScene, onNavigate, onEditRoom }: Omit<Props, "section" | "propertyName" | "propertyOnline" | "query" | "onClearSearch" | "onAddRoom" | "onAddDevice" | "onRemoveDevice" | "onCreateAutomation" | "onToggleAutomation">) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const isRtl = locale === "fa";
   const arrow = isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />;
@@ -314,7 +322,7 @@ function DeviceCollection({ devices, states, values, locale, onToggle, onOpen, o
   );
 }
 
-function SectionContent({ section, snapshot, locale, deviceStates, deviceValues, activeScene, onToggleDevice, onOpenDevice, onActivateScene, onNavigate, onAddRoom, onEditRoom, onRemoveDevice }: Omit<Props, "propertyName" | "propertyImage" | "propertyOnline" | "displayName" | "query" | "onClearSearch">) {
+function SectionContent({ section, snapshot, locale, deviceStates, deviceValues, activeScene, onToggleDevice, onOpenDevice, onActivateScene, onNavigate, onAddRoom, onEditRoom, onRemoveDevice, onCreateAutomation, onToggleAutomation }: Omit<Props, "propertyName" | "propertyImage" | "propertyOnline" | "displayName" | "query" | "onClearSearch">) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const isRtl = locale === "fa";
 
@@ -335,7 +343,7 @@ function SectionContent({ section, snapshot, locale, deviceStates, deviceValues,
   }
 
   if (section === "automations") {
-    return <AutomationSection snapshot={snapshot} locale={locale} />;
+    return <AutomationSection snapshot={snapshot} locale={locale} onCreate={onCreateAutomation} onToggle={onToggleAutomation} />;
   }
 
   if (section === "energy") {
@@ -386,13 +394,117 @@ function RoomDetails({ rooms, locale, onNavigate }: { rooms: Room[]; locale: Loc
   );
 }
 
-function AutomationSection({ snapshot, locale }: { snapshot: HomeSnapshot; locale: Locale }) {
+function AutomationSection({ snapshot, locale, onCreate, onToggle }: { snapshot: HomeSnapshot; locale: Locale; onCreate: (automation: Automation) => void; onToggle: (id: string) => void }) {
   const isRtl = locale === "fa";
-  const icons = [Sunset, House, Moon];
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [trigger, setTrigger] = useState<"time" | "sunset" | "motion">("time");
+  const [time, setTime] = useState("19:00");
+  const [deviceId, setDeviceId] = useState(snapshot.devices.find((device) => device.kind !== "lock")?.id ?? "");
+  const [turnOn, setTurnOn] = useState(true);
   const namesFa = ["غروب دلنشین", "خوش‌آمدگویی", "آرامش شب"];
   const descriptionsFa = ["هر روز، هنگام غروب آفتاب", "با رسیدن امیر به خانه", "هر شب، ساعت ۱۰:۳۰"];
   const destinationsFa = ["چراغ‌های مسیر باغ", "ورودی و تهویه", "تمام خانه"];
-  return <section className="automation-layout"><div className="surface-panel automation-list"><div className="panel-intro"><span className="panel-overline">{isRtl ? "روال‌های هوشمند شما" : "YOUR HOME, ON AUTOPILOT"}</span><h2>{isRtl ? "جزئیات، خودش رسیدگی می‌شود." : "The details, taken care of."}</h2><p>{translate(locale, "automationSubtitle")}</p></div>{snapshot.automations.map((automation, index) => { const Icon = icons[index]; return <div className="automation-row" key={automation.id}><span className="automation-icon"><Icon size={18} /></span><span className="automation-copy"><strong>{isRtl ? namesFa[index] : automation.name}</strong><small>{isRtl ? descriptionsFa[index] : automation.detail}</small><span className="automation-destination">{isRtl ? destinationsFa[index] : automation.destination}</span></span><span className="automation-enabled"><span />{isRtl ? "فعال" : "On"}</span></div>; })}<button className="add-automation" type="button"><Plus size={16} />{isRtl ? "ساخت روال جدید" : "Create a routine"}</button></div><aside className="automation-aside"><span className="automation-aside-icon"><Sun size={21} /></span><h3>{isRtl ? "کمتر فکر کنید. بیشتر زندگی کنید." : "Think about it less."}</h3><p>{isRtl ? "خانه هر روز تا غروب، چراغ‌های باغ را خودکار روشن می‌کند." : "Your garden path lights come on every evening, just as daylight fades."}</p><div className="automation-aside-foot"><span className="status-pulse" />{toLocalizedNumber(snapshot.automations.length, locale)} {translate(locale, "activeAutomations")}</div></aside></section>;
+  const devices = snapshot.devices.filter((device) => device.kind !== "lock");
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const device = devices.find((item) => item.id === deviceId);
+    if (!name.trim() || !device) return;
+    const detail = trigger === "time"
+      ? isRtl ? `هر روز ساعت ${toPersianTime(time)}` : `Every day at ${time}`
+      : trigger === "sunset"
+        ? isRtl ? "هر روز هنگام غروب آفتاب" : "Every day at sunset"
+        : isRtl ? "هنگام تشخیص حرکت" : "When motion is detected";
+    const action = isRtl ? (turnOn ? "روشن شود" : "خاموش شود") : (turnOn ? "Turn on" : "Turn off");
+    onCreate({
+      id: `routine-${crypto.randomUUID()}`,
+      name: name.trim(),
+      detail,
+      destination: `${localizedDevice(device, locale, {}).name} · ${action}`,
+      enabled: true,
+      icon: "zap",
+      trigger: trigger === "time"
+        ? { type: "time", time, recurrence: "daily" }
+        : trigger === "sunset"
+          ? { type: "sunset" }
+          : { type: "motion" },
+      actions: [{ type: "device", deviceId: device.id, command: turnOn ? "on" : "off" }],
+    });
+    setName("");
+    setBuilderOpen(false);
+  };
+
+  return (
+    <>
+      <section className="automation-layout">
+        <div className="surface-panel automation-list">
+          <div className="panel-intro">
+            <span className="panel-overline">{isRtl ? "روال‌های هوشمند شما" : "YOUR HOME, ON AUTOPILOT"}</span>
+            <h2>{isRtl ? "جزئیات، خودش رسیدگی می‌شود." : "The details, taken care of."}</h2>
+            <p>{translate(locale, "automationSubtitle")}</p>
+          </div>
+          {snapshot.automations.map((automation, index) => {
+            const Icon = automation.icon === "sunset" ? Sunset : automation.icon === "house" ? House : automation.icon === "moon" ? Moon : Zap;
+            const nameFa = automation.icon === "zap" ? automation.name : namesFa[index] ?? automation.name;
+            const detailFa = automation.icon === "zap" ? automation.detail : descriptionsFa[index] ?? automation.detail;
+            const destinationFa = automation.icon === "zap" ? automation.destination : destinationsFa[index] ?? automation.destination;
+            return (
+              <div className="automation-row" key={automation.id}>
+                <span className="automation-icon"><Icon size={18} /></span>
+                <span className="automation-copy">
+                  <strong>{isRtl ? nameFa : automation.name}</strong>
+                  <small>{isRtl ? detailFa : automation.detail}</small>
+                  <span className="automation-destination">{isRtl ? destinationFa : automation.destination}</span>
+                </span>
+                <span className={`automation-enabled${automation.enabled ? "" : " is-paused"}`}>
+                  <span />{isRtl ? (automation.enabled ? "فعال" : "متوقف") : (automation.enabled ? "On" : "Paused")}
+                </span>
+                <button
+                  type="button"
+                  className={`automation-switch${automation.enabled ? " is-enabled" : ""}`}
+                  role="switch"
+                  aria-checked={automation.enabled}
+                  aria-label={isRtl ? `${nameFa} ${automation.enabled ? "فعال" : "متوقف"}` : `${automation.name} ${automation.enabled ? "enabled" : "paused"}`}
+                  onClick={() => onToggle(automation.id)}
+                ><span /></button>
+              </div>
+            );
+          })}
+          <button className="add-automation" type="button" onClick={() => setBuilderOpen(true)}>
+            <Plus size={16} />{isRtl ? "ساخت روال جدید" : "Create a routine"}
+          </button>
+        </div>
+        <aside className="automation-aside">
+          <span className="automation-aside-icon"><Sun size={21} /></span>
+          <h3>{isRtl ? "کمتر فکر کنید. بیشتر زندگی کنید." : "Think about it less."}</h3>
+          <p>{isRtl ? "خانه هر روز تا غروب، چراغ‌های باغ را خودکار روشن می‌کند." : "Your garden path lights come on every evening, just as daylight fades."}</p>
+          <div className="automation-aside-foot"><span className="status-pulse" />{toLocalizedNumber(snapshot.automations.filter((automation) => automation.enabled).length, locale)} {translate(locale, "activeAutomations")}</div>
+        </aside>
+      </section>
+      {builderOpen && (
+        <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setBuilderOpen(false)}>
+          <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="automation-dialog-title" dir={isRtl ? "rtl" : "ltr"}>
+            <button type="button" className="dialog-close" onClick={() => setBuilderOpen(false)} aria-label={isRtl ? "بستن" : "Close"}><X size={18} /></button>
+            <span className="workspace-dialog-icon"><Zap size={19} /></span>
+            <span className="panel-overline">{isRtl ? "خودکارسازی خانه" : "HOME AUTOMATION"}</span>
+            <h2 id="automation-dialog-title">{isRtl ? "ساخت روال جدید" : "Create a routine"}</h2>
+            <p className="workspace-dialog-description">{isRtl ? "یک زمان یا رویداد را به یک اقدام ساده وصل کنید." : "Connect a time or event to a simple device action."}</p>
+            <form className="workspace-form" onSubmit={submit}>
+              <label className="form-field"><span>{isRtl ? "نام روال" : "Routine name"}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً چراغ‌های عصرگاهی" : "e.g. Evening lights"} /></label>
+              <label className="form-field"><span>{isRtl ? "هنگام" : "When"}</span><select value={trigger} onChange={(event) => setTrigger(event.target.value as typeof trigger)}><option value="time">{isRtl ? "هر روز در ساعت مشخص" : "Every day at a time"}</option><option value="sunset">{isRtl ? "هنگام غروب آفتاب" : "At sunset"}</option><option value="motion">{isRtl ? "تشخیص حرکت" : "Motion detected"}</option></select></label>
+              {trigger === "time" && <label className="form-field"><span>{isRtl ? "ساعت" : "Time"}</span><input type="time" required value={time} onChange={(event) => setTime(event.target.value)} /></label>}
+              <div className="form-two-columns">
+                <label className="form-field"><span>{isRtl ? "دستگاه" : "Device"}</span><select required value={deviceId} onChange={(event) => setDeviceId(event.target.value)}>{devices.map((device) => <option key={device.id} value={device.id}>{localizedDevice(device, locale, {}).name}</option>)}</select></label>
+                <label className="form-field"><span>{isRtl ? "اقدام" : "Action"}</span><select value={turnOn ? "on" : "off"} onChange={(event) => setTurnOn(event.target.value === "on")}><option value="on">{isRtl ? "روشن کردن" : "Turn on"}</option><option value="off">{isRtl ? "خاموش کردن" : "Turn off"}</option></select></label>
+              </div>
+              <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={() => setBuilderOpen(false)}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary" disabled={!devices.length}><Plus size={15} />{isRtl ? "ذخیره‌ی روال" : "Save routine"}</button></div>
+            </form>
+          </section>
+        </div>
+      )}
+    </>
+  );
 }
 
 function EnergySection({ snapshot, locale }: { snapshot: HomeSnapshot; locale: Locale }) {
@@ -471,4 +583,9 @@ function toPersian(value: number): string {
 
 function toLocalizedNumber(value: number, locale: Locale): string {
   return new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function toPersianTime(value: string): string {
+  const [hours, minutes] = value.split(":").map(Number);
+  return `${new Intl.NumberFormat("fa-IR", { minimumIntegerDigits: 2 }).format(hours)}:${new Intl.NumberFormat("fa-IR", { minimumIntegerDigits: 2 }).format(minutes)}`;
 }
