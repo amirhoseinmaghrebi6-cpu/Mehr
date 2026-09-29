@@ -14,6 +14,8 @@ const configSchema = z.object({
   KRATOS_PUBLIC_URL: z.url({ protocol: /^https?$/, error: "must be an http(s) URL" }).default("http://127.0.0.1:4433"),
   // Shared secret Kratos sends with the identity webhook. Without it the webhook route is off.
   KRATOS_WEBHOOK_SECRET: z.string().min(32, { error: "must be at least 32 characters" }).optional(),
+  // Development only: simulated hub and ESP32 boards confirm commands (src/dev/hub-simulator.ts).
+  M2SMART_DEV_HUB_SIMULATOR: z.enum(["true", "false"]).default("false"),
 });
 
 export type Config = {
@@ -24,6 +26,8 @@ export type Config = {
    * production never opens them.
    */
   devRoutes: boolean;
+  /** The dev hub simulator; only ever true together with devRoutes. */
+  devHubSimulator: boolean;
   host: string;
   port: number;
   databaseUrl: string;
@@ -46,6 +50,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     nodeEnv: value.NODE_ENV,
     devRoutes: env.NODE_ENV === "development",
+    devHubSimulator: env.NODE_ENV === "development" && value.M2SMART_DEV_HUB_SIMULATOR === "true",
     host: value.API_HOST,
     port: value.API_PORT,
     databaseUrl: value.DATABASE_URL,

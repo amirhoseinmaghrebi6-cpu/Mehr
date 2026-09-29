@@ -14,7 +14,8 @@
     "api:dev": "pnpm --filter @m2smart/api dev",
     "db:migrate": "pnpm --filter @m2smart/api db:migrate",
     "db:test": "pnpm --filter @m2smart/api db:test",
-    "db:seed": "pnpm --filter @m2smart/api db:seed"
+    "db:seed": "pnpm --filter @m2smart/api db:seed",
+    "dev:board": "pnpm --filter @m2smart/api dev:board"
   },
   "dependencies": {
     "@m2smart/contracts": "workspace:*",

@@ -11,6 +11,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:test": "tsx test/run-sql-tests.ts",
     "db:seed": "tsx scripts/seed-dev.ts",
+    "dev:board": "tsx scripts/dev-board.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

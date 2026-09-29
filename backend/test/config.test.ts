@@ -6,6 +6,7 @@ describe("loadConfig", () => {
     expect(loadConfig({ DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart" })).toEqual({
       nodeEnv: "development",
       devRoutes: false,
+      devHubSimulator: false,
       host: "127.0.0.1",
       port: 4000,
       databaseUrl: "postgres://m2_api:pw@127.0.0.1:55432/m2smart",
@@ -22,6 +23,15 @@ describe("loadConfig", () => {
     expect(loadConfig(base).devRoutes).toBe(false);
     expect(loadConfig({ ...base, NODE_ENV: "production" }).devRoutes).toBe(false);
     expect(loadConfig({ ...base, NODE_ENV: "test" }).devRoutes).toBe(false);
+  });
+
+  it("runs the dev hub simulator only in explicit development with the flag on", () => {
+    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart", M2SMART_DEV_HUB_SIMULATOR: "true" };
+    expect(loadConfig({ ...base, NODE_ENV: "development" }).devHubSimulator).toBe(true);
+    expect(loadConfig({ ...base, NODE_ENV: "production" }).devHubSimulator).toBe(false);
+    expect(loadConfig(base).devHubSimulator).toBe(false);
+    expect(loadConfig({ ...base, NODE_ENV: "development", M2SMART_DEV_HUB_SIMULATOR: "false" }).devHubSimulator).toBe(false);
+    expect(() => loadConfig({ ...base, M2SMART_DEV_HUB_SIMULATOR: "yes" })).toThrow(ConfigError);
   });
 
   it("names every invalid variable", () => {

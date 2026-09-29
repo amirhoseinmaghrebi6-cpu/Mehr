@@ -7,11 +7,15 @@ import type { ApiErrorResponse } from "@m2smart/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { registerIdentityWebhook } from "./auth/identity-webhook";
+import { startCommandExpiry } from "./commands/expiry";
 import { createKratosVerifier } from "./auth/kratos-verifier";
 import { withSessionCache, type SessionVerifier } from "./auth/session-verifier";
 import { ConfigError, loadConfig, type Config } from "./config";
 import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./db/pool";
+import { startHubSimulator } from "./dev/hub-simulator";
 import { loadBackendEnv } from "./env";
+import { registerDeviceRoutes } from "./http/devices";
+import { registerDevReportRoute } from "./http/dev-report";
 import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
 import { registerHomeRoutes } from "./http/homes";
@@ -58,9 +62,13 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
   if (services.sessionVerifier) {
     registerMeRoute(app, pool, services.sessionVerifier);
     registerHomeRoutes(app, pool, services.sessionVerifier);
+    registerDeviceRoutes(app, pool, services.sessionVerifier);
   }
   if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
-  if (config.devRoutes) registerDevSmsRoute(app);
+  if (config.devRoutes) {
+    registerDevSmsRoute(app);
+    registerDevReportRoute(app, pool);
+  }
   return app;
 }
 
@@ -97,11 +105,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const stopExpiry = startCommandExpiry(pool, app.log);
+  const simulator = config.devHubSimulator ? startHubSimulator(pool, app.log) : null;
+  if (simulator) app.log.warn("Dev hub simulator enabled: simulated ESP32 boards confirm commands. Never enable in production.");
+
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     app.log.info({ signal }, "Shutting down: finishing in-flight requests, then closing the database pool");
+    stopExpiry();
+    simulator?.stop();
     try {
       await app.close();
       await pool.end();
