@@ -10,6 +10,10 @@ const configSchema = z.object({
     .regex(/^postgres(ql)?:\/\//, { error: "must be a postgres:// URL" }),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  // Kratos public API, used to check sessions (/sessions/whoami). Never the admin API.
+  KRATOS_PUBLIC_URL: z.url({ protocol: /^https?$/, error: "must be an http(s) URL" }).default("http://127.0.0.1:4433"),
+  // Shared secret Kratos sends with the identity webhook. Without it the webhook route is off.
+  KRATOS_WEBHOOK_SECRET: z.string().min(32, { error: "must be at least 32 characters" }).optional(),
 });
 
 export type Config = {
@@ -25,6 +29,8 @@ export type Config = {
   databaseUrl: string;
   databasePoolMax: number;
   logLevel: string;
+  kratosPublicUrl: string;
+  kratosWebhookSecret: string | null;
 };
 
 export class ConfigError extends Error {}
@@ -45,5 +51,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: value.DATABASE_URL,
     databasePoolMax: value.DATABASE_POOL_MAX,
     logLevel: value.LOG_LEVEL,
+    kratosPublicUrl: value.KRATOS_PUBLIC_URL.replace(/\/+$/, ""),
+    kratosWebhookSecret: value.KRATOS_WEBHOOK_SECRET ?? null,
   };
 }

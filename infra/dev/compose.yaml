@@ -74,7 +74,12 @@ services:
         condition: service_completed_successfully
     # --dev allows plain-HTTP cookies on localhost. Never use it outside local development.
     command: ["serve", "--config", "/etc/config/kratos/kratos.yml", "--dev", "--watch-courier"]
-    environment: *kratos-env
+    environment:
+      <<: *kratos-env
+      # Shared secret for the webhooks to the API (same value as KRATOS_WEBHOOK_SECRET in
+      # backend/.env.local). Fills auth.config.value of the hooks in kratos.yml.
+      SELFSERVICE_FLOWS_REGISTRATION_AFTER_CODE_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?set KRATOS_WEBHOOK_SECRET in infra/dev/.env}
+      SELFSERVICE_FLOWS_REGISTRATION_AFTER_PASSWORD_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?set KRATOS_WEBHOOK_SECRET in infra/dev/.env}
     volumes:
       - ./kratos:/etc/config/kratos:ro
     # Lets the courier reach the API's dev SMS route on the host (Docker Desktop provides this

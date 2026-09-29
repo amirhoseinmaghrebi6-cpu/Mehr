@@ -11,6 +11,8 @@ describe("loadConfig", () => {
       databaseUrl: "postgres://m2_api:pw@127.0.0.1:55432/m2smart",
       databasePoolMax: 10,
       logLevel: "info",
+      kratosPublicUrl: "http://127.0.0.1:4433",
+      kratosWebhookSecret: null,
     });
   });
 

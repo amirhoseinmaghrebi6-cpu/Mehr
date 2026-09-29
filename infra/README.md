@@ -135,4 +135,12 @@ curl -s -X POST "http://127.0.0.1:4433/self-service/registration?flow=$FLOW" \
   -d '{"method":"code","code":"<CODE>","traits":{"phone":"+989121234567"}}'
 ```
 
+**Webhooks to the API.** `KRATOS_WEBHOOK_SECRET` must have the same value in `infra/dev/.env` (Kratos) and `backend/.env.local` (API). The API accepts the webhooks only from loopback/private addresses with that secret:
+
+- After an SMS-code registration, Kratos calls `POST /internal/kratos/identity`; the API creates the user's row in the app database (and with it the profile and personal organization). If this call is missed, `GET /v1/me` creates the row on first use.
+- A registration **with a password** is refused: Kratos calls `POST /internal/kratos/registration/password` before saving anything and the API always answers with an error. Nobody may claim a phone number without the SMS code; a password can be added after signing in.
+- Kratos's `profile` settings method is off, so a phone number cannot be changed without an SMS check.
+
+**Check a session with the API:** `curl -H "Authorization: Bearer <session_token>" http://127.0.0.1:4000/v1/me` (or forward the `ory_kratos_session` cookie).
+
 **Iran-only operation.** `SQA_OPT_OUT=true` (telemetry) and `haveibeenpwned_enabled: false` keep Kratos from calling foreign hosts. Keep both in every environment. `--dev` (plain-HTTP cookies) is for local development only.

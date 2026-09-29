@@ -32,6 +32,10 @@ selfservice:
         haveibeenpwned_enabled: false
         min_password_length: 12
         identifier_similarity_check_enabled: true
+    # Off: it would let a signed-in user change their phone number without an SMS check.
+    # A verified phone-change flow comes later.
+    profile:
+      enabled: false
 
   flows:
     error:
@@ -43,9 +47,40 @@ selfservice:
       ui_url: http://localhost:3000/register
       lifespan: 10m
       after:
+        # The webhook secret (auth.config.value) is set from KRATOS_WEBHOOK_SECRET via the
+        # environment in compose.yaml; "set-by-environment" is only a placeholder.
         code:
           hooks:
+            # Mirror the new identity into the app database (the API also recovers a missed call).
+            - hook: web_hook
+              config:
+                url: http://host.docker.internal:4000/internal/kratos/identity
+                method: POST
+                body: file:///etc/config/kratos/webhook-identity.jsonnet
+                auth:
+                  type: api_key
+                  config:
+                    name: X-Webhook-Secret
+                    value: set-by-environment
+                    in: header
             - hook: session
+        password:
+          hooks:
+            # Registration with a password is refused before anything is saved: nobody proved
+            # they own the phone number. Users sign up with an SMS code and add a password later.
+            - hook: web_hook
+              config:
+                url: http://host.docker.internal:4000/internal/kratos/registration/password
+                method: POST
+                body: file:///etc/config/kratos/webhook-identity.jsonnet
+                response:
+                  parse: true
+                auth:
+                  type: api_key
+                  config:
+                    name: X-Webhook-Secret
+                    value: set-by-environment
+                    in: header
     settings:
       ui_url: http://localhost:3000/dashboard
       privileged_session_max_age: 15m

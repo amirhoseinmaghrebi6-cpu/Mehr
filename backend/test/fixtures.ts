@@ -88,3 +88,23 @@ export async function createTenants(): Promise<void> {
 export async function dropTenants(): Promise<void> {
   await withAdmin(deleteTenants);
 }
+
+/** Removes test users and their personal organizations (users must own no properties). */
+export async function deleteUsers(ids: string[]): Promise<void> {
+  await withAdmin(async (admin) => {
+    await admin.query(
+      "delete from public.organizations where id in (select organization_id from public.organization_members where user_id = any($1::uuid[]))",
+      [ids],
+    );
+    await admin.query("delete from auth.users where id = any($1::uuid[])", [ids]);
+  });
+}
+
+/** Superuser read for assertions. */
+export async function adminQuery<R extends Record<string, unknown>>(sql: string, values: unknown[] = []): Promise<R[]> {
+  let rows: R[] = [];
+  await withAdmin(async (admin) => {
+    rows = (await admin.query(sql, values)).rows as R[];
+  });
+  return rows;
+}

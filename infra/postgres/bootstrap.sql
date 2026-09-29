@@ -97,6 +97,9 @@ $$;
 
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
+-- The API mirrors Kratos identities into auth.users (withSystemTx): read, create, update only.
+-- No DELETE: removing a user is a separate, deliberate operation.
+grant select, insert, update on auth.users to service_role;
 grant usage on schema public to anon, authenticated, service_role;
 
 -- Supabase default privileges: new public objects are fully granted to the request roles.

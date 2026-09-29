@@ -5,25 +5,43 @@
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
+import { registerIdentityWebhook } from "./auth/identity-webhook";
+import { createKratosVerifier } from "./auth/kratos-verifier";
+import { withSessionCache, type SessionVerifier } from "./auth/session-verifier";
 import { ConfigError, loadConfig, type Config } from "./config";
 import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./db/pool";
 import { loadBackendEnv } from "./env";
 import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
+import { registerMeRoute } from "./http/me";
 
-export function buildServer(config: Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes">>, pool: Pool): FastifyInstance {
+export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
+export type ServerServices = {
+  /** Required for authenticated routes (/v1/*); omitted in tests that only need health. */
+  sessionVerifier?: SessionVerifier;
+};
+
+export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.logLevel,
       // Defence in depth: request logs never include credentials, cookies or session data.
       redact: {
-        paths: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
+        paths: [
+          "req.headers.authorization",
+          "req.headers.cookie",
+          'req.headers["x-session-token"]',
+          'req.headers["x-webhook-secret"]',
+          'res.headers["set-cookie"]',
+        ],
         censor: "[redacted]",
       },
     },
   });
 
   registerHealthRoutes(app, pool);
+  if (services.sessionVerifier) registerMeRoute(app, pool, services.sessionVerifier);
+  if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
   if (config.devRoutes) registerDevSmsRoute(app);
   return app;
 }
@@ -45,12 +63,14 @@ async function main(): Promise<void> {
   // The pool logs through the server's structured logger, created right after it.
   let logTarget: FastifyInstance | undefined;
   const pool = createPool(config, { error: (object, message) => logTarget?.log.error(object, message) });
-  const app = buildServer(config, pool);
+  const sessionVerifier = withSessionCache(createKratosVerifier(config.kratosPublicUrl));
+  const app = buildServer(config, pool, { sessionVerifier });
   logTarget = app;
 
   try {
     const role = await assertSafeDatabaseRole(pool);
     app.log.info({ role }, "Database role verified");
+    if (!config.kratosWebhookSecret) app.log.warn("KRATOS_WEBHOOK_SECRET not set: identity webhook disabled; /v1/me still creates missing users.");
     if (config.devRoutes) app.log.warn("Development routes enabled (POST /internal/dev/sms logs SMS codes). Never enable in production.");
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;
