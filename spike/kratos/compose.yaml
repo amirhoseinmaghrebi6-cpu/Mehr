@@ -1,0 +1,39 @@
+# Phase 2D-2 Kratos spike (throwaway branch). Everything runs on an internal Docker network with
+# no route to the internet, to prove Kratos needs no foreign service at runtime.
+#   docker compose -f spike/kratos/compose.yaml up -d --wait
+#   docker compose -f spike/kratos/compose.yaml exec sink node /spike/test.mjs
+name: m2smart-kratos-spike
+
+networks:
+  isolated:
+    internal: true
+
+services:
+  kratos:
+    image: oryd/kratos:v25.4.0
+    command: serve --config /etc/config/kratos/kratos.yml --dev --watch-courier
+    environment:
+      DSN: memory
+      # Disable Ory's anonymous usage telemetry (would call a foreign host).
+      SQA_OPT_OUT: "true"
+    volumes:
+      - ./config:/etc/config/kratos:ro
+    networks: [isolated]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4434/admin/health/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Stands in for the SMS provider and the M2smart API webhook; also runs the test script.
+  sink:
+    image: node:20.19-alpine
+    command: node /spike/sink.mjs
+    volumes:
+      - ./:/spike:ro
+    networks: [isolated]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4455/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20

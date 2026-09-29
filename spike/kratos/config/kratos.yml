@@ -1,0 +1,105 @@
+# Spike-only configuration. Secrets below are throwaway values for an isolated test network.
+serve:
+  public:
+    base_url: http://kratos:4433/
+    cors:
+      enabled: false
+  admin:
+    base_url: http://kratos:4434/
+
+selfservice:
+  default_browser_return_url: http://app.m2smart.test:3000/
+  allowed_return_urls:
+    - http://app.m2smart.test:3000
+
+  methods:
+    # D1: SMS one-time code is the primary login...
+    code:
+      enabled: true
+      passwordless_enabled: true
+      config:
+        lifespan: 10m
+    # ...and a password is optional.
+    password:
+      enabled: true
+      config:
+        # HaveIBeenPwned is a foreign service; must stay off for Iran-only operation.
+        haveibeenpwned_enabled: false
+        min_password_length: 12
+        identifier_similarity_check_enabled: true
+
+  flows:
+    error:
+      ui_url: http://app.m2smart.test:3000/error
+    login:
+      ui_url: http://app.m2smart.test:3000/login
+      lifespan: 10m
+    registration:
+      ui_url: http://app.m2smart.test:3000/register
+      lifespan: 10m
+      after:
+        code:
+          hooks:
+            - hook: web_hook
+              config:
+                url: http://sink:4455/hooks/registration
+                method: POST
+                body: file:///etc/config/kratos/webhook-registration.jsonnet
+                auth:
+                  type: api_key
+                  config:
+                    name: X-Webhook-Secret
+                    value: spike-webhook-secret
+                    in: header
+            - hook: session
+    settings:
+      ui_url: http://app.m2smart.test:3000/settings
+      privileged_session_max_age: 15m
+    recovery:
+      enabled: true
+      use: code
+      ui_url: http://app.m2smart.test:3000/recovery
+    verification:
+      enabled: false
+    logout:
+      after:
+        default_browser_return_url: http://app.m2smart.test:3000/login
+
+courier:
+  channels:
+    - id: sms
+      type: http
+      request_config:
+        url: http://sink:4455/sms
+        method: POST
+        body: file:///etc/config/kratos/courier-sms.jsonnet
+        headers:
+          Content-Type: application/json
+
+identity:
+  default_schema_id: m2smart
+  schemas:
+    - id: m2smart
+      url: file:///etc/config/kratos/identity.schema.json
+
+session:
+  lifespan: 720h
+
+secrets:
+  cookie:
+    - spike-cookie-secret-0123456789abcdef
+  cipher:
+    - spike-cipher-secret-0123456789ab
+
+ciphers:
+  algorithm: xchacha20-poly1305
+
+hashers:
+  algorithm: bcrypt
+  bcrypt:
+    cost: 8
+
+log:
+  level: info
+  format: json
+  leak_sensitive_values: false
