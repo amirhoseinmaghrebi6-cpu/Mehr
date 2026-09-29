@@ -20,7 +20,10 @@ export interface MeResponse {
   };
 }
 
-/** Error body for 401 (no or invalid session) and 503 (auth service unavailable). */
+/**
+ * Error body for every error response: 401 (no or invalid session), 403, 404 (also for homes the
+ * user may not see, so their existence is never revealed), 400, 409 and 503 (auth unavailable).
+ */
 export interface ApiErrorResponse {
-  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "invalid_request" | "conflict";
+  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "not_found" | "invalid_request" | "conflict";
 }

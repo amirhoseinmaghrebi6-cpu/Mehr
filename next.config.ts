@@ -4,6 +4,8 @@ const apiInternalUrl = (process.env.M2SMART_API_INTERNAL_URL ?? "http://127.0.0.
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Published as TypeScript sources (packages/contracts); Next.js compiles them with the app.
+  transpilePackages: ["@m2smart/contracts"],
   reactStrictMode: true,
   // Same-origin access to the public M2smart API for browser code: /api/v1/* → API /v1/*.
   // Only /v1 is forwarded: the API's /internal/* routes (webhooks, dev SMS) must never be
