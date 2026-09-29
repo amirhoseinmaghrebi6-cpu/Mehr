@@ -1,5 +1,12 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750&display=swap");
 @import "tailwindcss";
+
+/* Fonts are served by this app, never by Google Fonts. Variable fonts, latin and latin-ext subsets with
+ * Google Fonts' unicode ranges; OFL licences are next to the files in app/fonts. Persian text falls back
+ * to the system font, as before. */
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400 700; font-display: swap; src: url("./fonts/dm-sans-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400 700; font-display: swap; src: url("./fonts/dm-sans-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("./fonts/manrope-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("./fonts/manrope-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
 :root {
   color-scheme: light;
@@ -177,7 +184,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .welcome-banner { position: relative; isolation: isolate; display: flex; min-height: 256px; align-items: center; overflow: hidden; border-radius: 7px; background: #343d34; color: #fff; }
 .welcome-photo, .welcome-wash { position: absolute; z-index: -1; inset: 0; }
-.welcome-photo { background-image: url("https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=2200&q=88"); background-position: center 54%; background-size: cover; transform: scale(1.015); animation: hero-arrive 1.2s var(--ease-out) both; }
+.welcome-photo { background-image: url("/images/living-1920.webp"); background-position: center 54%; background-size: cover; transform: scale(1.015); animation: hero-arrive 1.2s var(--ease-out) both; }
 .welcome-wash { background: var(--hero-gradient); }
 .welcome-content { position: relative; z-index: 1; max-width: 440px; padding: 31px 39px; }
 .welcome-kicker { display: inline-flex; align-items: center; gap: 8px; color: rgb(255 255 255 / 71%); font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; }
@@ -407,8 +414,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .camera-image, .camera-scrim { position: absolute; z-index: -1; inset: 0; }
 .camera-image { background-position: center; background-size: cover; transition: transform .5s var(--ease-out); }
 .camera-tile:hover .camera-image { transform: scale(1.04); }
-.camera-image-entry { background-image: url("https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1000&q=82"); }
-.camera-image-garden { background-image: url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=82"); background-position: 52% center; }
+.camera-image-entry { background-image: url("/images/exterior-960.webp"); }
+.camera-image-garden { background-image: url("/images/kitchen-960.webp"); background-position: 52% center; }
 .camera-scrim { background: linear-gradient(180deg, rgb(13 19 14 / 45%), transparent 38%, rgb(11 17 12 / 64%)); }
 .camera-top { position: absolute; inset-inline: 12px; top: 12px; display: flex; align-items: center; justify-content: space-between; }
 .camera-recording, .camera-live-label { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-display); font-size: 8px; font-weight: 700; letter-spacing: .7px; }
@@ -789,7 +796,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .auth-page { display: grid; min-height: 100dvh; grid-template-columns: minmax(330px, .9fr) minmax(440px, 1.1fr); background: var(--page); color: var(--ink); }
 .auth-visual { position: relative; isolation: isolate; display: flex; min-height: 100dvh; flex-direction: column; overflow: hidden; padding: 31px clamp(26px, 4.2vw, 64px); background: #344638; color: #fff; }
 .auth-photo, .auth-photo-shade { position: absolute; z-index: -1; inset: 0; }
-.auth-photo { background-image: url("https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=86"); background-position: center; background-size: cover; }
+.auth-photo { background-image: url("/images/living-1920.webp"); background-position: center; background-size: cover; }
 .auth-photo-shade { background: linear-gradient(180deg, rgb(15 23 17 / 40%) 0%, rgb(15 23 17 / 15%) 28%, rgb(14 23 17 / 76%) 100%); }
 .auth-brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-size: 17px; font-weight: 750; letter-spacing: -.35px; }
 .auth-brand .m2-mark, .auth-mobile-brand .m2-mark { width: 30px; height: 30px; border: 1px solid rgb(255 255 255 / 22%); border-radius: 8px; background: rgb(25 42 31 / 78%); color: #edf3e8; font-size: 9px; }

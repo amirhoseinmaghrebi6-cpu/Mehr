@@ -1,6 +1,7 @@
 import {
   devices as starterDevices,
   getMockHomeSnapshot,
+  photos,
   properties as starterProperties,
   rooms as starterRooms,
   type Device,
@@ -35,6 +36,30 @@ export function createDefaultWorkspace(): HomeWorkspace {
   };
 }
 
+// Workspaces saved before Phase 2F point at images.unsplash.com, which may be unreachable from Iran.
+// Map those starter photos to the copies this app serves; other image values are kept as they are.
+const legacyPhotos: Record<string, string> = {
+  "1600210492486-724fe5c67fb0": photos.livingLarge,
+  "1600607687939-ce8a6c25118c": photos.exteriorLarge,
+  "1600585154340-be6161a56a0c": photos.kitchen,
+  "1616486338812-3dadae4b4ace": photos.bedroom,
+};
+
+function localPhoto(url: string): string {
+  const match = /^https:\/\/images\.unsplash\.com\/photo-([\w-]+)/.exec(url);
+  return match ? (legacyPhotos[match[1]] ?? photos.living) : url;
+}
+
+function withLocalPhotos(workspace: HomeWorkspace): HomeWorkspace {
+  return {
+    ...workspace,
+    properties: workspace.properties.map((property) => ({ ...property, coverImage: localPhoto(property.coverImage) })),
+    roomsByProperty: Object.fromEntries(
+      Object.entries(workspace.roomsByProperty).map(([propertyId, rooms]) => [propertyId, rooms.map((room) => ({ ...room, image: localPhoto(room.image) }))]),
+    ),
+  };
+}
+
 export function loadWorkspace(userId: string): HomeWorkspace {
   if (typeof window === "undefined") return createDefaultWorkspace();
 
@@ -53,7 +78,7 @@ export function loadWorkspace(userId: string): HomeWorkspace {
       return createDefaultWorkspace();
     }
 
-    return workspace;
+    return withLocalPhotos(workspace);
   } catch {
     return createDefaultWorkspace();
   }

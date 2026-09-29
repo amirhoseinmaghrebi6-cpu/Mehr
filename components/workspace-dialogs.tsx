@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Building2, Check, ChevronRight, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
-import type { Device, DeviceKind, Property, PropertyType, Room } from "@/services/mock-home-service";
+import { photos, type Device, type DeviceKind, type Property, type PropertyType, type Room } from "@/services/mock-home-service";
 
 const propertyTypes: { value: PropertyType; en: string; fa: string }[] = [
   { value: "house", en: "House", fa: "خانه" },
@@ -84,7 +84,7 @@ export function PropertyManagerDialog({
             <p className="workspace-dialog-description">{isRtl ? "نام، نوع، نشانی و تصویر خانه را تنظیم کنید." : "Set a name, type, address and cover photo for this place."}</p>
             <PropertyFormView
               key={editing?.id ?? "new-property"}
-              initial={editing ?? { name: "", address: "", type: "house", coverImage: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=82" }}
+              initial={editing ?? { name: "", address: "", type: "house", coverImage: photos.livingLarge }}
               locale={locale}
               error={error}
               onBack={() => { setCreating(false); setEditing(null); setError(""); }}
@@ -155,7 +155,7 @@ function PropertyFormView({ initial, locale, error, onBack, onError, onSave }: {
 export function RoomEditorDialog({ room, locale, onClose, onSave }: { room: Room | null; locale: Locale; onClose: () => void; onSave: (room: Room) => void }) {
   const isRtl = locale === "fa";
   const [name, setName] = useState(room?.name ?? "");
-  const [image, setImage] = useState(room?.image ?? "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=82");
+  const [image, setImage] = useState(room?.image ?? photos.bedroom);
   const [error, setError] = useState("");
 
   const submit = (event: FormEvent<HTMLFormElement>) => {

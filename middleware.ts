@@ -47,6 +47,6 @@ export const config = {
   // Node runtime: the Edge sandbox rejects the demo session's HMAC check (SubtleCrypto cross-realm buffers).
   runtime: "nodejs",
   // /api/* is proxied to the M2smart API, which authenticates every request itself (401 JSON,
-  // never a login redirect).
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)"],
+  // never a login redirect). /images/* are public static files (public/images).
+  matcher: ["/((?!api/|images/|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)"],
 };

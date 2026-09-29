@@ -33,9 +33,19 @@ export type Property = {
   online: boolean;
 };
 
+/** Starter photos, served by this app from public/images (sources and licences: docs/assets.md). */
+export const photos = {
+  livingLarge: "/images/living-1920.webp",
+  exteriorLarge: "/images/exterior-1920.webp",
+  living: "/images/living-960.webp",
+  kitchen: "/images/kitchen-960.webp",
+  bedroom: "/images/bedroom-960.webp",
+  exterior: "/images/exterior-960.webp",
+} as const;
+
 export const properties: Property[] = [
-  { id: "tehran", name: "Tehran Villa", address: "Niavaran, Tehran", type: "villa", coverImage: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1800&q=84", online: true },
-  { id: "caspian", name: "Caspian House", address: "Ramsar, Mazandaran", type: "house", coverImage: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1800&q=84", online: true },
+  { id: "tehran", name: "Tehran Villa", address: "Niavaran, Tehran", type: "villa", coverImage: photos.livingLarge, online: true },
+  { id: "caspian", name: "Caspian House", address: "Ramsar, Mazandaran", type: "house", coverImage: photos.exteriorLarge, online: true },
 ];
 
 export const rooms: Room[] = [
@@ -45,8 +55,7 @@ export const rooms: Room[] = [
     temperature: 22,
     humidity: 41,
     activeDevices: 5,
-    image:
-      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=82",
+    image: photos.living,
     imagePosition: "center 54%",
   },
   {
@@ -55,8 +64,7 @@ export const rooms: Room[] = [
     temperature: 21,
     humidity: 46,
     activeDevices: 4,
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=82",
+    image: photos.kitchen,
     imagePosition: "center 58%",
   },
   {
@@ -65,8 +73,7 @@ export const rooms: Room[] = [
     temperature: 20,
     humidity: 43,
     activeDevices: 6,
-    image:
-      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=82",
+    image: photos.bedroom,
     imagePosition: "center 53%",
   },
   {
@@ -75,8 +82,7 @@ export const rooms: Room[] = [
     temperature: 19,
     humidity: 52,
     activeDevices: 3,
-    image:
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=82",
+    image: photos.exterior,
     imagePosition: "center 60%",
   },
 ];
