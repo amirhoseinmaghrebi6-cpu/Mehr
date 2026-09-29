@@ -45,11 +45,11 @@ begin
   raise exception 'FAIL %: statement succeeded, expected %', label, state;
 end $$;
 
--- Fixtures (as postgres). Owner/member/viewer of property A; outsider owns property B.
+-- Fixtures (as postgres). Owner/member/admin of property A; outsider owns property B.
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'owner-a@test.local'),
   ('aaaaaaaa-0000-4000-8000-000000000002', 'member-a@test.local'),
-  ('aaaaaaaa-0000-4000-8000-000000000003', 'viewer-a@test.local'),
+  ('aaaaaaaa-0000-4000-8000-000000000003', 'admin-a@test.local'),
   ('bbbbbbbb-0000-4000-8000-000000000001', 'owner-b@test.local');
 
 insert into public.properties (id, organization_id, name, created_by, slug)
@@ -62,7 +62,7 @@ from public.organization_members where user_id = 'bbbbbbbb-0000-4000-8000-000000
 insert into public.property_members (property_id, user_id, role) values
   ('aaaaaaaa-1111-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000001', 'owner'),
   ('aaaaaaaa-1111-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000002', 'member'),
-  ('aaaaaaaa-1111-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000003', 'viewer'),
+  ('aaaaaaaa-1111-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000003', 'admin'),
   ('bbbbbbbb-1111-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000001', 'owner');
 
 insert into public.hubs (id, property_id, name, hardware_id) values
@@ -94,7 +94,7 @@ do $$
 declare
   owner_a uuid := 'aaaaaaaa-0000-4000-8000-000000000001';
   member_a uuid := 'aaaaaaaa-0000-4000-8000-000000000002';
-  viewer_a uuid := 'aaaaaaaa-0000-4000-8000-000000000003';
+  admin_a uuid := 'aaaaaaaa-0000-4000-8000-000000000003';
   owner_b uuid := 'bbbbbbbb-0000-4000-8000-000000000001';
   prop_a text := 'aaaaaaaa-1111-4000-8000-000000000001';
   prop_b text := 'bbbbbbbb-1111-4000-8000-000000000001';
@@ -106,8 +106,8 @@ begin
   foreach t in array array['hubs','devices','device_capabilities','device_states','device_commands','realtime_events'] loop
     perform pg_temp.expect_count(member_a, format('select count(*) from public.%I', t),
       case t when 'device_capabilities' then 4 else 1 end, 'member A reads only property A ' || t);
-    perform pg_temp.expect_count(viewer_a, format('select count(*) from public.%I', t),
-      case t when 'device_capabilities' then 4 else 1 end, 'viewer A reads property A ' || t);
+    perform pg_temp.expect_count(admin_a, format('select count(*) from public.%I', t),
+      case t when 'device_capabilities' then 4 else 1 end, 'admin A reads property A ' || t);
     perform pg_temp.expect_count(owner_b, format('select count(*) from public.%I where property_id = %L', t, prop_a), 0, 'outsider B reads nothing of A in ' || t);
     perform pg_temp.expect_error(null, format('select count(*) from public.%I', t), '42501', 'anon denied on ' || t);
   end loop;
@@ -128,7 +128,7 @@ begin
   -- Command inserts
   perform pg_temp.expect_ok(member_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_a, dev_a, 'brightness', '40', 'member-key-0001'), 'member A inserts absolute command');
   perform pg_temp.expect_ok(owner_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_a, dev_a, 'mode', '"cool"', 'owner-key-0001'), 'owner A inserts enum command');
-  perform pg_temp.expect_error(viewer_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_a, dev_a, 'power', 'true', 'viewer-key-0001'), '42501', 'viewer cannot insert commands');
+  perform pg_temp.expect_ok(admin_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_a, dev_a, 'power', 'true', 'admin-key-0001'), 'admin A inserts command');
   perform pg_temp.expect_error(member_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_b, dev_b, 'power', 'true', 'cross-key-0001'), '42501', 'member A cannot command property B');
   perform pg_temp.expect_error(member_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key) values (%L, %L, %L, %L, %L)', prop_a, dev_b, 'power', 'true', 'cross-key-0002'), '23503', 'property_id/device mismatch rejected');
   perform pg_temp.expect_error(member_a, format('insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key, status) values (%L, %L, %L, %L, %L, %L)', prop_a, dev_a, 'power', 'true', 'status-key-0001', 'applied'), '42501', 'client cannot set status');
