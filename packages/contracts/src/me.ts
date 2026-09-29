@@ -22,8 +22,9 @@ export interface MeResponse {
 
 /**
  * Error body for every error response: 401 (no or invalid session), 403, 404 (also for homes the
- * user may not see, so their existence is never revealed), 400, 409 and 503 (auth unavailable).
+ * user may not see, so their existence is never revealed), 400, 409, 500 (never with details) and
+ * 503 (auth unavailable).
  */
 export interface ApiErrorResponse {
-  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "not_found" | "invalid_request" | "conflict";
+  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "internal_error";
 }

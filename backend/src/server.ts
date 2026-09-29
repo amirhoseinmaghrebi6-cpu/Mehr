@@ -3,6 +3,7 @@
  *
  * Usage: pnpm api:dev (watch mode) or, after pnpm --filter @m2smart/api build, node dist/server.js
  */
+import type { ApiErrorResponse } from "@m2smart/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { registerIdentityWebhook } from "./auth/identity-webhook";
@@ -13,6 +14,7 @@ import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./d
 import { loadBackendEnv } from "./env";
 import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
+import { registerHomeRoutes } from "./http/homes";
 import { registerMeRoute } from "./http/me";
 
 export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
@@ -39,8 +41,24 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     },
   });
 
+  // Every error uses the API's error body. Client errors (malformed JSON, oversized body, wrong
+  // content type) become invalid_request; anything else is logged and answered without details,
+  // so database or internal messages never reach clients.
+  app.setErrorHandler((error, request, reply) => {
+    const status = (error as { statusCode?: number } | null)?.statusCode ?? 500;
+    if (status >= 400 && status < 500) {
+      return reply.code(status).send({ error: "invalid_request" } satisfies ApiErrorResponse);
+    }
+    request.log.error({ err: error }, "Request failed");
+    return reply.code(500).send({ error: "internal_error" } satisfies ApiErrorResponse);
+  });
+  app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: "not_found" } satisfies ApiErrorResponse));
+
   registerHealthRoutes(app, pool);
-  if (services.sessionVerifier) registerMeRoute(app, pool, services.sessionVerifier);
+  if (services.sessionVerifier) {
+    registerMeRoute(app, pool, services.sessionVerifier);
+    registerHomeRoutes(app, pool, services.sessionVerifier);
+  }
   if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
   if (config.devRoutes) registerDevSmsRoute(app);
   return app;
