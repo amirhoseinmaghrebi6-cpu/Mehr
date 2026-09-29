@@ -30,19 +30,28 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
    pnpm infra:up         # PostgreSQL, Mosquitto and Kratos, bound to 127.0.0.1
    pnpm db:migrate       # applies infra/postgres/bootstrap.sql and supabase/migrations/*.sql
    pnpm db:test          # RLS test suite
-   pnpm db:seed          # dev user, sample property, hub and devices
+   pnpm db:seed          # dev user, sample home, hub and sample boards (sample-* models)
    ```
 
 3. **Start the API and the web app**, in two terminals:
 
    ```bash
-   pnpm api:dev          # API on http://127.0.0.1:4000
+   pnpm api:dev          # API on http://127.0.0.1:4000 (with M2SMART_DEV_HUB_SIMULATOR=true, simulated ESP32s confirm commands)
    pnpm dev              # web app on http://localhost:3000
    ```
 
 4. **Sign in.** Open http://localhost:3000 and use either account:
    - **Your own account:** create one with your name and a mobile number. The SMS code is not sent in development; copy it from the `DEV SMS (not sent)` line in the `pnpm api:dev` terminal.
    - **Demo account:** use the "Enter the demo" card on the login page (`demo@m2smart.local` / `M2smart-Demo-2026!`, sample data only).
+
+5. **Try devices.** A new account starts with no home: create one, then give it a simulated board:
+
+   ```bash
+   pnpm dev:board                                         # lists homes and board models
+   pnpm dev:board <home-id> sample-switch-2ch-rev-a       # adds a simulated board to that home
+   ```
+
+   Real boards are added through the hub by QR code (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).
 
 **Checks:**
 
@@ -60,7 +69,7 @@ pnpm --filter @m2smart/api typecheck && pnpm --filter @m2smart/api lint && pnpm 
 | `app/` | Route composition, document metadata, the PWA manifest. Also the self-hosted fonts (`app/fonts`). |
 | `components/` | Application shell and shared UI primitives. |
 | `features/` | Domain-specific experiences and presentation. |
-| `services/` | Replaceable boundaries for API and realtime adapters. The app still uses local mock data. |
+| `services/` | `HomeGateway`: the API for real users, a browser-only sample home for the demo; command tracking (`use-home-data.ts`). |
 | `lib/auth/` | The `AuthGateway` (Kratos and the demo account). App code imports only `@/lib/auth`. |
 | `backend/` | The M2smart API (`@m2smart/api`): Fastify, `pg`, the migration runner and the seed. |
 | `packages/contracts/` | Request and response schemas shared by the API and the web app. |
@@ -75,8 +84,10 @@ pnpm --filter @m2smart/api typecheck && pnpm --filter @m2smart/api lint && pnpm 
 | [docs/auth.md](docs/auth.md) | Sign-in by SMS code and optional password, sessions, the demo account. |
 | [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md) | Who talks to whom, including the future hub and LAN channels. |
 | [docs/product-architecture.md](docs/product-architecture.md) | Product map, routes, state boundaries, responsive design. |
+| [docs/hardware-catalog.md](docs/hardware-catalog.md) | Board models, pin rules, command deadlines; how to add a board or a device type. |
 | [docs/assets.md](docs/assets.md) | Fonts and images, with sources and licences. |
 | [infra/README.md](infra/README.md) | The local stack, ports, registry mirrors inside Iran. |
 | [docs/plans/phase-2.md](docs/plans/phase-2.md) | The Phase 2 plan and its decisions. |
+| [docs/plans/phase-3.md](docs/plans/phase-3.md) | The Phase 3 plan: hardware model, homes, devices and commands. |
 
 The browser never receives database, broker or Kratos admin credentials. Authentication, permissions and device authorization are enforced by the API.

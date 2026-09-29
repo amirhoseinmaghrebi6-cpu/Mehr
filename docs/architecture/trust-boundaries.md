@@ -31,6 +31,20 @@ This page defines who may talk to whom in M2smart and what each side must prove.
   1. It asks Kratos who the session belongs to.
   2. It authorizes in code.
   3. It runs user queries under `withUserTx`, which sets the `authenticated` role and the user's claims with `SET LOCAL`, so RLS enforces tenant isolation as a second layer.
+- **Home data** (Phase 3):
+  - Every request under `/v1/properties/:id` checks the user's role in that home against the permission table in `packages/contracts/src/permissions.ts`:
+    - owner: everything;
+    - admin: everything except deleting the home;
+    - member: view and control devices.
+  - Then it runs under RLS.
+  - A home the user does not belong to is always 404, never 403.
+  - Composite foreign keys keep every room, board, device and command inside its home.
+- **Commands:**
+  - Clients can only create pending commands.
+  - Their deadline is set by the database (30 s for the network + the hardware's time), not by the client.
+  - Only the backend (and, later, the hub path) marks them sent or applied, and "applied" requires the ESP32's report.
+  - A device accepts at most 20 open commands.
+- **Hardware catalog:** pin maps, capability templates and interlocks are backend-only. Users never read or change which GPIO does what.
 - **Backend-only work** runs under `withSystemTx` (`service_role`, bypasses RLS). Keep its use rare and easy to find.
 - **Kratos → API webhooks** (identity sync, refusing password registration):
   - Accepted only from loopback or private addresses.

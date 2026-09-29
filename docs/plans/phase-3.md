@@ -1,6 +1,6 @@
 # Phase 3 plan: real homes, hardware catalog, devices and commands
 
-Status: approved 2026-09-29. Implementation in progress, starting with 3A.
+Status: approved 2026-09-29; implemented (3A–3F). Command deadlines were added after 3D: 30 s network + the hardware's time.
 
 **Goal:** a signed-in user's homes, rooms and devices come from the M2smart API and PostgreSQL instead of browser storage. Devices are defined by M2smart's own hardware catalog. Commands go through the API and count as done only when the ESP32 reports the real state. Real hubs and pairing (Phase 4) and firmware (Phases 6–7) are not part of this phase; a dev simulator stands in for them.
 

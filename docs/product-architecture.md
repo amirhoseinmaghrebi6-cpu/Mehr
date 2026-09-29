@@ -25,7 +25,9 @@ As the product grows, split domain owners into `features/homes`, `rooms`, `devic
 
 ## State and backend boundary
 
-Route state identifies the active home and section. Local component state is limited to transient controls, presentation preferences, and optimistic mock interactions. Replace the mock gateway with a typed HTTP adapter that attaches the authenticated session, tenant scope, idempotency keys for commands, timeouts, and normalized user-safe errors. Mutations must be confirmed by the gateway before being described as successful; security-sensitive actions require server authorization and explicit user confirmation.
+Route state identifies the active home and section (`/homes/:homeId/:section`). Homes, rooms and devices come from the M2smart API through `HomeGateway` (`services/api-gateway.ts`): same-origin `/api/v1`, request timeouts, user-safe errors in English and Persian. The demo account uses the same interface with sample data kept in its browser (`services/demo-gateway.ts`). Local component state is limited to transient controls and presentation preferences (language, theme).
+
+Device commands are requests, not facts. A control shows the target at once, marked as sending, then in progress once the ESP32 has started (e.g. a door motor is running), and keeps the value only when the ESP32 reports it. Each command has a deadline set by the database: 30 s for the network plus the hardware's own time (a parking door gets minutes, a light seconds). The client waits until that deadline and falls back to the last reported value if nothing is confirmed. Commands are retried on a lost connection with the same idempotency key, so a command never runs twice. Parking doors and the alarm ask for confirmation first. Device lists refresh every 15 seconds, which picks up wall switches and sensors until realtime push exists (`services/use-home-data.ts`).
 
 Inject a production `RealtimeClient` behind the declared port. It should subscribe only to the active property, coalesce high-frequency sensor events, expose connection state, retry with backoff, and release subscriptions on scope changes. Realtime payloads are hints to refresh authoritative state, never proof of authorization.
 
@@ -52,4 +54,20 @@ English and Persian messages currently exercise LTR/RTL switching. Add Arabic th
 9. Realtime, authenticated API adapters, offline policy, and PWA validation.
 10. Accessibility, security, responsive, performance, and end-to-end review.
 
-The current delivery implements the app foundation, the interactive mock-backed slices in steps 1–4, and (Phase 2) a fully self-hosted base: PostgreSQL with the organization/property RLS migrations, a Fastify API, and Ory Kratos sign-in by SMS code with an optional password. Fonts and images are served by the app itself. Property, room, and device management is still stored in a versioned browser-local workspace scoped by authenticated user ID; it is not yet synchronized across devices. Room/device API endpoints and tables, hub connectivity over MQTT, realtime transport, offline command policy, administration, and full localized calendar/unit handling remain to be implemented.
+The current delivery implements:
+- the app foundation and the slices in steps 1–4;
+- (Phase 2) a fully self-hosted base: PostgreSQL with RLS, a Fastify API, Ory Kratos sign-in by SMS code with an optional password, and fonts and images served by the app itself;
+- (Phase 3) real homes, rooms, devices and commands:
+  - The home roles are owner, admin and member.
+  - A hardware catalog describes M2smart's own ESP32 boards and their fixed pin maps (`docs/hardware-catalog.md`).
+  - Devices are built from the board models.
+  - Command deadlines follow the hardware's time.
+  - A development simulator plays the hub and the ESP32s.
+
+Scenes, routines, energy history, security and cameras still use sample data, in the demo only; real users see "coming soon" there. Still to be implemented:
+- hub connectivity over MQTT and QR pairing of boards;
+- firmware;
+- realtime push;
+- member invitations;
+- administration;
+- full localized calendar and unit handling.
