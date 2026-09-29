@@ -12,7 +12,10 @@ function siteUrl(): string {
 }
 
 export const supabaseAdapter = {
-  isConfigured: isSupabaseConfigured,
+  /** Used only when M2SMART_AUTH_PROVIDER=supabase (development). */
+  isConfigured(): boolean {
+    return process.env.M2SMART_AUTH_PROVIDER === "supabase" && isSupabaseConfigured();
+  },
 
   async getCurrentPrincipal(): Promise<Principal | null> {
     if (!isSupabaseConfigured()) return null;
@@ -29,10 +32,10 @@ export const supabaseAdapter = {
   async signInWithPassword(email: string, password: string): Promise<LoginResult> {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { ok: false, error: "credentials" } : { ok: true };
+    return error ? { ok: false, error: "credentials" } : { ok: true, status: "signed_in" };
   },
 
-  async signUp({ fullName, email, password }: RegistrationInput): Promise<RegistrationResult> {
+  async signUp({ fullName, email, password }: Extract<RegistrationInput, { method: "email_password" }>): Promise<RegistrationResult> {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.signUp({
       email,

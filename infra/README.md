@@ -141,6 +141,8 @@ curl -s -X POST "http://127.0.0.1:4433/self-service/registration?flow=$FLOW" \
 - A registration **with a password** is refused: Kratos calls `POST /internal/kratos/registration/password` before saving anything and the API always answers with an error. Nobody may claim a phone number without the SMS code; a password can be added after signing in.
 - Kratos's `profile` settings method is off, so a phone number cannot be changed without an SMS check.
 
+**Sign in to the web app.** With `pnpm infra:up`, `pnpm api:dev` and `pnpm dev` running, open http://localhost:3000, create an account with your name and a mobile number (e.g. `0912 345 6789`; Persian digits work too), and copy the 6-digit code from the `DEV SMS (not sent)` line in the `pnpm api:dev` terminal. The demo account stays available on the login page.
+
 **Check a session with the API:** `curl -H "Authorization: Bearer <session_token>" http://127.0.0.1:4000/v1/me` (or forward the `ory_kratos_session` cookie).
 
 **Iran-only operation.** `SQA_OPT_OUT=true` (telemetry) and `haveibeenpwned_enabled: false` keep Kratos from calling foreign hosts. Keep both in every environment. `--dev` (plain-HTTP cookies) is for local development only.

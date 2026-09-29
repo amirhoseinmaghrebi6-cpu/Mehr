@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveRequestSession } from "@/lib/auth";
 
-const publicRoutes = ["/login", "/register", "/forgot-password", "/update-password", "/auth/callback"];
+// /update-password is not public: setting a password needs a signed-in user (after an SMS-code
+// sign-in with Kratos, or the recovery link session with Supabase).
+const publicRoutes = ["/login", "/register", "/forgot-password", "/auth/callback"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -44,5 +46,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Node runtime: the Edge sandbox rejects the demo session's HMAC check (SubtleCrypto cross-realm buffers).
   runtime: "nodejs",
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)"],
+  // /api/* is proxied to the M2smart API, which authenticates every request itself (401 JSON,
+  // never a login redirect).
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)"],
 };

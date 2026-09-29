@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Fingerprint, House, Languages, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Fingerprint, House, KeyRound, Languages, LockKeyhole, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
 import {
   requestPasswordResetAction,
+  sendLoginCodeAction,
+  sendRegistrationCodeAction,
   signInAction,
   signUpAction,
   updatePasswordAction,
+  verifyLoginCodeAction,
+  verifyRegistrationCodeAction,
 } from "@/app/(auth)/actions";
 import type { Locale } from "@/lib/i18n";
-import type { DemoCredentials } from "@/lib/auth";
+import type { DemoCredentials, LoginMethod, RecoveryMethod, RegistrationMethod } from "@/lib/auth";
+import { maskPhone } from "@/lib/auth/phone";
 
 type AuthMode = "login" | "register" | "forgot" | "update";
 
@@ -20,18 +25,31 @@ const messages = {
     signInSubtitle: "Your home is right where you left it.",
     register: "A home, made yours.",
     registerSubtitle: "Create your M2smart account to bring your spaces together.",
+    registerSmsSubtitle: "We’ll text you a code to confirm your number. You can add a password later.",
     forgot: "Let’s get you back in.",
     forgotSubtitle: "We’ll send a secure link to the email on your account.",
+    forgotSmsSubtitle: "No problem. Sign in with a code we text to your phone, then choose a new password.",
     update: "Choose a new password.",
     updateSubtitle: "Make it long, unique, and yours alone.",
     email: "Email address",
     emailPlaceholder: "you@example.com",
+    phone: "Mobile number",
+    phonePlaceholder: "0912 345 6789",
+    code: "6-digit code",
+    codeSentTo: "We texted a code to",
     password: "Password",
     passwordPlaceholder: "At least 12 characters",
     fullName: "Your name",
     fullNamePlaceholder: "How should we greet you?",
     confirmPassword: "Confirm password",
     signInButton: "Sign in",
+    sendCode: "Send code",
+    verifySignIn: "Verify and sign in",
+    verifyCreate: "Verify and create account",
+    resendCode: "Send a new code",
+    changeNumber: "Change number",
+    usePassword: "Sign in with a password",
+    useCode: "Sign in with an SMS code",
     createAccount: "Create account",
     sendLink: "Send secure link",
     savePassword: "Update password",
@@ -45,22 +63,30 @@ const messages = {
     secure: "Your homes stay private to your account.",
     demoTitle: "Demo account · shared sandbox",
     demoNote: "For walkthroughs only. This account uses sample data and cannot access real homes.",
-    demoFill: "Fill demo sign-in",
+    demoEnter: "Enter the demo",
     errorDemoCredentials: "Those demo credentials don’t match. Use the credentials shown above.",
     privateByDesign: "A little more at home.",
     privateSubtitle: "Every home. Every little detail. Just yours.",
-    errorSetup: "Authentication is not connected yet. Add the Supabase project URL and publishable key to the server environment to enable sign-in.",
-    errorCredentials: "That email and password don’t match. Check them and try again.",
+    errorSetup: "Sign-in isn’t set up on this server yet.",
+    errorUnavailable: "The sign-in service isn’t reachable right now. Please try again in a moment.",
+    errorCredentials: "Those sign-in details don’t match. Check them and try again.",
     errorRequired: "Please complete all required fields.",
     errorWeakPassword: "Use a password with at least 12 characters.",
     errorPasswordMismatch: "Those passwords don’t match.",
     errorSignup: "We couldn’t create that account. Check the details or try signing in.",
     errorVerification: "That verification link has expired or was already used. Request a new one.",
     errorResetSession: "That password-reset link is no longer valid. Request another secure link.",
-    errorUpdate: "We couldn’t update the password. Request a new reset link and try again.",
+    errorUpdate: "We couldn’t update the password. Please try again.",
+    errorPhoneInvalid: "Enter a valid mobile number, like 0912 345 6789.",
+    errorNoAccount: "There’s no account for this number yet. Create one to get started.",
+    errorPhoneTaken: "This number already has an account. Sign in instead.",
+    errorCodeInvalid: "That code isn’t right. Check the SMS and try again.",
+    errorCodeAttempts: "Too many wrong codes. Request a new code to try again.",
+    errorFlowExpired: "That code has expired. Enter your number to get a new one.",
     noticeVerify: "Check your inbox for a verification link to finish creating your account.",
     noticeReset: "If an account exists for that address, a password-reset link is on its way.",
     noticeSignedOut: "You’ve signed out securely.",
+    noticeReauth: "For your security, sign in again with an SMS code to set your password.",
     featureHome: "One account, all your homes",
     featureSecurity: "Private by design",
     featureControl: "Your home, in sync",
@@ -70,18 +96,31 @@ const messages = {
     signInSubtitle: "خانه همان‌جاست که رهایش کرده‌اید.",
     register: "خانه‌ای به سلیقه‌ی شما.",
     registerSubtitle: "حساب M2smart بسازید و فضاهایتان را یک‌جا داشته باشید.",
+    registerSmsSubtitle: "برای تأیید شماره یک کد برایتان پیامک می‌کنیم. بعداً می‌توانید رمز عبور هم بگذارید.",
     forgot: "دوباره وارد خانه شوید.",
     forgotSubtitle: "پیوند امن را به ایمیل حساب‌تان می‌فرستیم.",
+    forgotSmsSubtitle: "مشکلی نیست. با کدی که پیامک می‌کنیم وارد شوید و رمز تازه انتخاب کنید.",
     update: "رمز تازه انتخاب کنید.",
     updateSubtitle: "رمزی طولانی و منحصربه‌فرد انتخاب کنید.",
     email: "نشانی ایمیل",
     emailPlaceholder: "you@example.com",
+    phone: "شماره‌ی موبایل",
+    phonePlaceholder: "0912 345 6789",
+    code: "کد ۶ رقمی",
+    codeSentTo: "کد به این شماره پیامک شد:",
     password: "رمز عبور",
     passwordPlaceholder: "حداقل ۱۲ نویسه",
     fullName: "نام شما",
     fullNamePlaceholder: "دوست دارید چطور صدایتان کنیم؟",
     confirmPassword: "تکرار رمز عبور",
     signInButton: "ورود",
+    sendCode: "ارسال کد",
+    verifySignIn: "تأیید و ورود",
+    verifyCreate: "تأیید و ساخت حساب",
+    resendCode: "ارسال دوباره‌ی کد",
+    changeNumber: "تغییر شماره",
+    usePassword: "ورود با رمز عبور",
+    useCode: "ورود با کد پیامکی",
     createAccount: "ساخت حساب",
     sendLink: "ارسال پیوند امن",
     savePassword: "به‌روزرسانی رمز",
@@ -95,39 +134,91 @@ const messages = {
     secure: "خانه‌های شما فقط در دسترس حساب خودتان هستند.",
     privateByDesign: "کمی بیشتر در خانه.",
     privateSubtitle: "تمام خانه‌ها و جزئیات، فقط برای شما.",
-    errorSetup: "احراز هویت هنوز وصل نشده است. برای فعال‌شدن ورود، نشانی پروژه و کلید عمومی Supabase را در محیط سرور تنظیم کنید.",
-    errorCredentials: "ایمیل و رمز عبور با هم مطابقت ندارند. دوباره بررسی کنید.",
+    errorSetup: "ورود هنوز روی این سرور راه‌اندازی نشده است.",
+    errorUnavailable: "سرویس ورود الان در دسترس نیست. لحظاتی بعد دوباره تلاش کنید.",
+    errorCredentials: "اطلاعات ورود درست نیست. دوباره بررسی کنید.",
     errorRequired: "لطفاً همه‌ی فیلدهای الزامی را کامل کنید.",
     errorWeakPassword: "رمزی با حداقل ۱۲ نویسه انتخاب کنید.",
     errorPasswordMismatch: "رمزها با هم یکسان نیستند.",
     errorSignup: "ساخت حساب انجام نشد. اطلاعات را بررسی کنید یا وارد شوید.",
     errorVerification: "پیوند تأیید منقضی شده یا قبلاً استفاده شده است. پیوند تازه‌ای بگیرید.",
     errorResetSession: "پیوند بازیابی دیگر معتبر نیست. یک پیوند امن تازه درخواست کنید.",
-    errorUpdate: "به‌روزرسانی رمز انجام نشد. پیوند بازیابی تازه‌ای بگیرید.",
+    errorUpdate: "به‌روزرسانی رمز انجام نشد. دوباره تلاش کنید.",
+    errorPhoneInvalid: "یک شماره‌ی موبایل معتبر وارد کنید، مثل ۰۹۱۲۳۴۵۶۷۸۹.",
+    errorNoAccount: "هنوز حسابی با این شماره نیست. برای شروع حساب بسازید.",
+    errorPhoneTaken: "این شماره قبلاً حساب دارد. وارد شوید.",
+    errorCodeInvalid: "کد درست نیست. پیامک را بررسی کنید و دوباره وارد کنید.",
+    errorCodeAttempts: "تعداد تلاش‌های اشتباه زیاد شد. یک کد تازه بگیرید.",
+    errorFlowExpired: "مهلت این کد تمام شده. شماره را وارد کنید تا کد تازه بگیرید.",
     noticeVerify: "برای تکمیل ساخت حساب، پیوند تأیید را در ایمیل‌تان بررسی کنید.",
     noticeReset: "اگر حسابی با این ایمیل باشد، پیوند بازیابی رمز برایتان فرستاده می‌شود.",
     noticeSignedOut: "با امنیت از حساب خارج شدید.",
+    noticeReauth: "برای امنیت حساب، دوباره با کد پیامکی وارد شوید تا رمز را تنظیم کنید.",
     featureHome: "یک حساب، تمام خانه‌ها",
     featureSecurity: "حریم خصوصی از ابتدا",
     featureControl: "خانه‌ی هماهنگ با شما",
     demoTitle: "حساب دمو · محیط آزمایشی",
     demoNote: "فقط برای نمایش است. این حساب داده‌ی نمونه دارد و به خانه‌ی واقعی دسترسی ندارد.",
-    demoFill: "تکمیل اطلاعات دمو",
+    demoEnter: "ورود به دمو",
     errorDemoCredentials: "اطلاعات دمو درست نیست؛ از مشخصات نمایشی بالا استفاده کنید.",
   },
 } as const;
 
-export function AuthScreen({ mode, error, notice, email, next, configured, demoCredentials }: { mode: AuthMode; error?: string; notice?: string; email?: string; next?: string; configured: boolean; demoCredentials?: DemoCredentials | null }) {
+type Copy = (typeof messages)[Locale];
+
+type AuthScreenProps = {
+  mode: AuthMode;
+  error?: string;
+  notice?: string;
+  email?: string;
+  next?: string;
+  configured: boolean;
+  demoCredentials?: DemoCredentials | null;
+  /** Sign-in methods the server offers; SMS code first when present. */
+  loginMethods?: LoginMethod[];
+  registrationMethod?: RegistrationMethod;
+  recoveryMethod?: RecoveryMethod;
+  /** Set once a code was sent: the screen shows the code step. */
+  flowId?: string;
+  /** E.164 number the code went to (or was entered). */
+  phone?: string;
+  passwordMode?: boolean;
+};
+
+export function AuthScreen({
+  mode,
+  error,
+  notice,
+  email,
+  next,
+  configured,
+  demoCredentials,
+  loginMethods = ["email_password"],
+  registrationMethod = "email_password",
+  recoveryMethod = "email_link",
+  flowId,
+  phone,
+  passwordMode: initialPasswordMode = false,
+}: AuthScreenProps) {
   const [locale, setLocale] = useState<Locale>("en");
-  const [loginEmail, setLoginEmail] = useState(email ?? "");
-  const [loginPassword, setLoginPassword] = useState("");
+  const [passwordMode, setPasswordMode] = useState(initialPasswordMode);
   const isRtl = locale === "fa";
   const copy = messages[locale];
+  const sms = mode === "register" ? registrationMethod === "sms_code" : loginMethods.includes("sms_code");
+  const codeStep = sms && Boolean(flowId) && (mode === "login" || mode === "register");
+  const nextPath = safeNext(next);
+
   const title = mode === "login" ? copy.signIn : mode === "register" ? copy.register : mode === "forgot" ? copy.forgot : copy.update;
-  const subtitle = mode === "login" ? copy.signInSubtitle : mode === "register" ? copy.registerSubtitle : mode === "forgot" ? copy.forgotSubtitle : copy.updateSubtitle;
-  const errorMessage = error ? errorText(error, locale) : configured ? "" : errorText("setup", locale);
-  const noticeMessage = notice ? noticeText(notice, locale) : "";
-  const SubmitIcon = mode === "register" ? Sparkles : mode === "forgot" ? Fingerprint : mode === "update" ? Check : ArrowRight;
+  const subtitle =
+    mode === "login"
+      ? copy.signInSubtitle
+      : mode === "register"
+        ? sms ? copy.registerSmsSubtitle : copy.registerSubtitle
+        : mode === "forgot"
+          ? recoveryMethod === "sms_code_login" ? copy.forgotSmsSubtitle : copy.forgotSubtitle
+          : copy.updateSubtitle;
+  const errorMessage = error ? errorText(error, copy) : configured ? "" : copy.errorSetup;
+  const noticeMessage = notice ? noticeText(notice, copy) : "";
 
   useEffect(() => {
     try {
@@ -153,6 +244,39 @@ export function AuthScreen({ mode, error, notice, email, next, configured, demoC
     }
   };
 
+  const phoneField = (
+    <label className="auth-field">
+      <span>{copy.phone}</span>
+      <input name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" required maxLength={20} defaultValue={phone ?? ""} placeholder={copy.phonePlaceholder} />
+    </label>
+  );
+
+  const codeForm = (action: (formData: FormData) => Promise<void>, submitLabel: string, restartHref: string) => (
+    <>
+      <form className="auth-form" action={action}>
+        <input type="hidden" name="flow" value={flowId} />
+        <input type="hidden" name="phone" value={phone ?? ""} />
+        <input type="hidden" name="next" value={nextPath} />
+        <p className="auth-code-target">{copy.codeSentTo} <bdi dir="ltr">{phone ? maskPhone(phone) : ""}</bdi></p>
+        <label className="auth-field">
+          <span>{copy.code}</span>
+          <input className="auth-code-input" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9۰-۹]{6}" maxLength={6} dir="ltr" required autoFocus placeholder="••••••" />
+        </label>
+        <button className="auth-submit" type="submit">{submitLabel}<Check size={16} /></button>
+      </form>
+      <div className="auth-inline-actions">
+        <Link href={restartHref}>{copy.changeNumber}</Link>
+        {mode === "login" && (
+          <form action={sendLoginCodeAction}>
+            <input type="hidden" name="phone" value={phone ?? ""} />
+            <input type="hidden" name="next" value={nextPath} />
+            <button className="auth-link-button" type="submit">{copy.resendCode}</button>
+          </form>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className={`auth-page${isRtl ? " app-rtl" : ""}`} dir={isRtl ? "rtl" : "ltr"}>
       <aside className="auth-visual">
@@ -170,8 +294,8 @@ export function AuthScreen({ mode, error, notice, email, next, configured, demoC
           <button className="auth-language" type="button" onClick={changeLocale} aria-label={isRtl ? "Switch to English" : "تغییر زبان به فارسی"}><Languages size={16} /><span>{isRtl ? "EN" : "فارسی"}</span></button>
         </header>
 
-        <div className="auth-form-wrap" key={`${mode}-${locale}`}>
-          <div className="auth-lock-icon"><LockKeyhole size={19} /></div>
+        <div className="auth-form-wrap" key={`${mode}-${locale}-${codeStep}-${passwordMode}`}>
+          <div className="auth-lock-icon">{codeStep ? <MessageSquareText size={19} /> : <LockKeyhole size={19} />}</div>
           <span className="auth-overline">{mode === "register" ? (isRtl ? "شروع عضویت" : "YOUR HOME, CONNECTED") : mode === "login" ? (isRtl ? "ورود امن" : "SECURE SIGN IN") : (isRtl ? "امنیت حساب" : "ACCOUNT SECURITY")}</span>
           <h1>{title}</h1>
           <p className="auth-subtitle">{subtitle}</p>
@@ -179,37 +303,83 @@ export function AuthScreen({ mode, error, notice, email, next, configured, demoC
           {errorMessage && <div className="auth-message auth-error" role="alert"><ShieldCheck size={16} /><span>{errorMessage}</span></div>}
           {noticeMessage && <div className="auth-message auth-notice" role="status"><Check size={16} /><span>{noticeMessage}</span></div>}
 
-          {mode === "login" && demoCredentials && <section className="auth-demo-card" aria-label={copy.demoTitle}>
+          {mode === "login" && demoCredentials && !codeStep && <section className="auth-demo-card" aria-label={copy.demoTitle}>
             <span className="auth-demo-heading"><Sparkles size={14} />{copy.demoTitle}</span>
             <p>{copy.demoNote}</p>
             <dl>
               <div><dt>{isRtl ? "نام کاربری" : "Username"}</dt><dd dir="ltr">{demoCredentials.username}</dd></div>
               <div><dt>{copy.password}</dt><dd dir="ltr">{demoCredentials.password}</dd></div>
             </dl>
-            <button type="button" onClick={() => { setLoginEmail(demoCredentials.username); setLoginPassword(demoCredentials.password); }}>{copy.demoFill}</button>
+            <form action={signInAction}>
+              <input type="hidden" name="method" value="password" />
+              <input type="hidden" name="identifier" value={demoCredentials.username} />
+              <input type="hidden" name="password" value={demoCredentials.password} />
+              <input type="hidden" name="next" value={nextPath} />
+              <button type="submit">{copy.demoEnter}</button>
+            </form>
           </section>}
 
-          {mode === "login" && (
-            <form className="auth-form" action={signInAction}>
-              <input type="hidden" name="next" value={safeNext(next)} />
-              <label className="auth-field"><span>{copy.email}</span><input name="email" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" required value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} placeholder={copy.emailPlaceholder} /></label>
-              <label className="auth-field"><span>{copy.password}<Link href="/forgot-password">{copy.forgotLink}</Link></span><input name="password" type="password" autoComplete="current-password" dir="ltr" required minLength={1} value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} placeholder="••••••••••••" /></label>
-              <button className="auth-submit" type="submit">{copy.signInButton}<SubmitIcon size={16} /></button>
+          {mode === "login" && sms && codeStep && codeForm(verifyLoginCodeAction, copy.verifySignIn, `/login?next=${encodeURIComponent(nextPath)}`)}
+
+          {mode === "login" && sms && !codeStep && !passwordMode && (
+            <form className="auth-form" action={sendLoginCodeAction}>
+              <input type="hidden" name="next" value={nextPath} />
+              {phoneField}
+              <button className="auth-submit" type="submit">{copy.sendCode}<MessageSquareText size={16} /></button>
+              {loginMethods.includes("password") && <button className="auth-link-button" type="button" onClick={() => setPasswordMode(true)}><KeyRound size={13} />{copy.usePassword}</button>}
             </form>
           )}
 
-          {mode === "register" && (
+          {mode === "login" && sms && !codeStep && passwordMode && (
+            <form className="auth-form" action={signInAction}>
+              <input type="hidden" name="method" value="password" />
+              <input type="hidden" name="next" value={nextPath} />
+              <label className="auth-field"><span>{copy.phone}</span><input name="identifier" type="tel" inputMode="tel" autoComplete="username" dir="ltr" required maxLength={20} defaultValue={phone ?? ""} placeholder={copy.phonePlaceholder} /></label>
+              <label className="auth-field"><span>{copy.password}<Link href={`/login?next=${encodeURIComponent("/update-password")}`}>{copy.forgotLink}</Link></span><input name="password" type="password" autoComplete="current-password" dir="ltr" required placeholder="••••••••••••" /></label>
+              <button className="auth-submit" type="submit">{copy.signInButton}<ArrowRight size={16} /></button>
+              <button className="auth-link-button" type="button" onClick={() => setPasswordMode(false)}><MessageSquareText size={13} />{copy.useCode}</button>
+            </form>
+          )}
+
+          {mode === "login" && !sms && (
+            <form className="auth-form" action={signInAction}>
+              <input type="hidden" name="next" value={nextPath} />
+              <label className="auth-field"><span>{copy.email}</span><input name="identifier" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" required defaultValue={email} placeholder={copy.emailPlaceholder} /></label>
+              <label className="auth-field"><span>{copy.password}<Link href="/forgot-password">{copy.forgotLink}</Link></span><input name="password" type="password" autoComplete="current-password" dir="ltr" required minLength={1} placeholder="••••••••••••" /></label>
+              <button className="auth-submit" type="submit">{copy.signInButton}<ArrowRight size={16} /></button>
+            </form>
+          )}
+
+          {mode === "register" && sms && codeStep && codeForm(verifyRegistrationCodeAction, copy.verifyCreate, "/register")}
+
+          {mode === "register" && sms && !codeStep && (
+            <form className="auth-form" action={sendRegistrationCodeAction}>
+              <label className="auth-field"><span>{copy.fullName}</span><input name="fullName" type="text" autoComplete="name" required minLength={2} maxLength={80} placeholder={copy.fullNamePlaceholder} /></label>
+              {phoneField}
+              <button className="auth-submit" type="submit">{copy.sendCode}<MessageSquareText size={16} /></button>
+              <p className="auth-legal">{copy.legal}</p>
+            </form>
+          )}
+
+          {mode === "register" && !sms && (
             <form className="auth-form" action={signUpAction}>
               <label className="auth-field"><span>{copy.fullName}</span><input name="fullName" type="text" autoComplete="name" required minLength={2} maxLength={80} placeholder={copy.fullNamePlaceholder} /></label>
               <label className="auth-field"><span>{copy.email}</span><input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} dir="ltr" required placeholder={copy.emailPlaceholder} /></label>
               <label className="auth-field"><span>{copy.password}</span><input name="password" type="password" autoComplete="new-password" dir="ltr" required minLength={12} maxLength={128} placeholder={copy.passwordPlaceholder} /></label>
               <label className="auth-field"><span>{copy.confirmPassword}</span><input name="confirmPassword" type="password" autoComplete="new-password" dir="ltr" required minLength={12} maxLength={128} placeholder="••••••••••••" /></label>
-              <button className="auth-submit" type="submit">{copy.createAccount}<SubmitIcon size={16} /></button>
+              <button className="auth-submit" type="submit">{copy.createAccount}<Sparkles size={16} /></button>
               <p className="auth-legal">{copy.legal}</p>
             </form>
           )}
 
-          {mode === "forgot" && (
+          {mode === "forgot" && recoveryMethod === "sms_code_login" && (
+            <div className="auth-form">
+              <Link className="auth-submit" href={`/login?next=${encodeURIComponent("/update-password")}`}>{copy.useCode}<MessageSquareText size={16} /></Link>
+              <Link className="auth-back-link" href="/login"><ArrowLeft size={15} />{copy.backToSignIn}</Link>
+            </div>
+          )}
+
+          {mode === "forgot" && recoveryMethod === "email_link" && (
             <form className="auth-form" action={requestPasswordResetAction}>
               <label className="auth-field"><span>{copy.email}</span><input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} dir="ltr" required defaultValue={email} placeholder={copy.emailPlaceholder} /></label>
               <button className="auth-submit" type="submit">{copy.sendLink}<Fingerprint size={16} /></button>
@@ -225,7 +395,7 @@ export function AuthScreen({ mode, error, notice, email, next, configured, demoC
             </form>
           )}
 
-          {(mode === "login" || mode === "register") && <div className="auth-switch">{mode === "login" ? <>{copy.noAccount}<Link href="/register">{copy.registerLink}</Link></> : <>{copy.haveAccount}<Link href="/login">{copy.signInLink}</Link></>}</div>}
+          {(mode === "login" || mode === "register") && !codeStep && <div className="auth-switch">{mode === "login" ? <>{copy.noAccount}<Link href="/register">{copy.registerLink}</Link></> : <>{copy.haveAccount}<Link href="/login">{copy.signInLink}</Link></>}</div>}
         </div>
 
         <footer className="auth-footer"><span><span className="auth-footer-dot" />{copy.secure}</span><span>© 2026 M2SMART</span></footer>
@@ -234,9 +404,10 @@ export function AuthScreen({ mode, error, notice, email, next, configured, demoC
   );
 }
 
-function errorText(code: string, locale: Locale): string {
-  const key: Record<string, keyof typeof messages.en> = {
+function errorText(code: string, copy: Copy): string {
+  const key: Record<string, keyof Copy> = {
     setup: "errorSetup",
+    unavailable: "errorUnavailable",
     credentials: "errorCredentials",
     "demo-credentials": "errorDemoCredentials",
     required: "errorRequired",
@@ -246,20 +417,26 @@ function errorText(code: string, locale: Locale): string {
     verification: "errorVerification",
     "reset-session": "errorResetSession",
     "update-failed": "errorUpdate",
+    "phone-invalid": "errorPhoneInvalid",
+    "no-account": "errorNoAccount",
+    "phone-taken": "errorPhoneTaken",
+    "code-invalid": "errorCodeInvalid",
+    "code-attempts": "errorCodeAttempts",
+    "flow-expired": "errorFlowExpired",
   };
-  return messages[locale][key[code] ?? "errorCredentials"];
+  return copy[key[code] ?? "errorCredentials"];
 }
 
-function noticeText(code: string, locale: Locale): string {
-  const key: Record<string, keyof typeof messages.en> = {
+function noticeText(code: string, copy: Copy): string {
+  const key: Record<string, keyof Copy> = {
     "verify-email": "noticeVerify",
     "reset-requested": "noticeReset",
     "signed-out": "noticeSignedOut",
+    reauth: "noticeReauth",
   };
-  return messages[locale][key[code] ?? "noticeSignedOut"];
+  return copy[key[code] ?? "noticeSignedOut"];
 }
 
 function safeNext(value: string | undefined): string {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
-

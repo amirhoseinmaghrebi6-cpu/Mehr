@@ -54,7 +54,15 @@ function readCookie(header: string | undefined, name: string): string | null {
   for (const part of header.split(";")) {
     const separator = part.indexOf("=");
     if (separator > 0 && part.slice(0, separator).trim() === name) {
-      const value = part.slice(separator + 1).trim();
+      const raw = part.slice(separator + 1).trim();
+      // Cookies set through Next.js are percent-encoded (e.g. "=" as %3D); Kratos's own values
+      // never contain "%", so decoding restores the original either way.
+      let value = raw;
+      try {
+        value = decodeURIComponent(raw);
+      } catch {
+        value = raw;
+      }
       return value || null;
     }
   }

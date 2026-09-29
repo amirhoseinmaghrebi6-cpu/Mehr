@@ -18,6 +18,7 @@
     "db:seed": "pnpm --filter @m2smart/api db:seed"
   },
   "dependencies": {
+    "@m2smart/contracts": "workspace:*",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "framer-motion": "^12.23.12",

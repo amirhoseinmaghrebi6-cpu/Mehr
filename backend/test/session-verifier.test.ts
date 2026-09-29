@@ -31,6 +31,10 @@ describe("credentialFromRequest", () => {
     expect(await read({ cookie: "theme=dark; ory_kratos_session=MTY5; other=1" })).toEqual({ kind: "cookie", value: "MTY5" });
   });
 
+  it("decodes a percent-encoded session cookie (as set through Next.js)", async () => {
+    expect(await read({ cookie: "ory_kratos_session=MTY5%3D%3D%7Cabc" })).toEqual({ kind: "cookie", value: "MTY5==|abc" });
+  });
+
   it("returns null without a credential", async () => {
     expect(await read({ cookie: "theme=dark" })).toBeNull();
   });
