@@ -1,2 +1,4 @@
+packages:
+  - backend
 allowBuilds:
   unrs-resolver: false

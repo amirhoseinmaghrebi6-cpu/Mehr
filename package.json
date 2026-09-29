@@ -11,7 +11,10 @@
     "seed:phase1": "tsx backend/scripts/seed-phase1.ts",
     "infra:up": "docker compose -f infra/dev/compose.yaml up -d --wait",
     "infra:down": "docker compose -f infra/dev/compose.yaml down",
-    "infra:reset": "docker compose -f infra/dev/compose.yaml down -v --remove-orphans && docker compose -f infra/dev/compose.yaml up -d --wait"
+    "infra:reset": "docker compose -f infra/dev/compose.yaml down -v --remove-orphans && docker compose -f infra/dev/compose.yaml up -d --wait",
+    "db:migrate": "pnpm --filter @m2smart/api db:migrate",
+    "db:test": "pnpm --filter @m2smart/api db:test",
+    "db:seed": "pnpm --filter @m2smart/api db:seed"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
