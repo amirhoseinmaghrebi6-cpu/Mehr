@@ -1,0 +1,42 @@
+# M2smart local development stack (Phase 2A): PostgreSQL + Mosquitto.
+# Dev only. Replaces `supabase start` for day-to-day work; see infra/README.md.
+# Values come from infra/dev/.env (copy .env.example). Host ports are bound to 127.0.0.1 only.
+
+name: m2smart-dev
+
+services:
+  postgres:
+    # Pinned by tag and digest; keep the two in sync when upgrading.
+    image: postgres:17.11-alpine3.24@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in infra/dev/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/dev/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in infra/dev/.env}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0.22@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21
+    ports:
+      - "127.0.0.1:${MQTT_HOST_PORT:-18830}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-p", "1883", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres-data:
+  mosquitto-data:

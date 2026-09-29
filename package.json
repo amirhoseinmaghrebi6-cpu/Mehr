@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "seed:phase1": "tsx backend/scripts/seed-phase1.ts"
+    "seed:phase1": "tsx backend/scripts/seed-phase1.ts",
+    "infra:up": "docker compose -f infra/dev/compose.yaml up -d --wait",
+    "infra:down": "docker compose -f infra/dev/compose.yaml down",
+    "infra:reset": "docker compose -f infra/dev/compose.yaml down -v --remove-orphans && docker compose -f infra/dev/compose.yaml up -d --wait"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
