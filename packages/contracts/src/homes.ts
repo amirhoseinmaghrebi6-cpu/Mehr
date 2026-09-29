@@ -140,8 +140,19 @@ export interface Command {
   deviceId: string;
   capability: CapabilityName;
   targetValue: CapabilityValue;
+  /**
+   * pending: waiting for the hub; sent: the hub has it; applied: the ESP32 reported the value.
+   * rejected/failed/timed_out: it did not happen.
+   */
   status: CommandStatus;
+  /** When the ESP32 started carrying it out (e.g. a door motor started), before it finished. */
+  acknowledgedAt: string | null;
   createdAt: string;
+  /**
+   * The deadline for the ESP32's report: 30 s for the network plus the hardware's own time (a
+   * parking door gets minutes, a light seconds). Set by the database; clients wait until then.
+   */
+  expiresAt: string;
   completedAt: string | null;
   errorCode: string | null;
 }

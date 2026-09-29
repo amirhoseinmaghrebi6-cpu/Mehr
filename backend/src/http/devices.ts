@@ -106,12 +106,13 @@ type CommandRow = {
   capability: CapabilityName;
   target_value: CapabilityValue;
   status: CommandStatus;
+  acknowledged_at: Date | null;
   created_at: Date;
   completed_at: Date | null;
   expires_at: Date;
   error_code: string | null;
 };
-const COMMAND_COLUMNS = "id, device_id, capability, target_value, status, created_at, completed_at, expires_at, error_code";
+const COMMAND_COLUMNS = "id, device_id, capability, target_value, status, acknowledged_at, created_at, completed_at, expires_at, error_code";
 
 /** An open command past its expiry is reported as timed out even before the expiry job stores it. */
 function toCommand(row: CommandRow, now = new Date()): Command {
@@ -122,7 +123,9 @@ function toCommand(row: CommandRow, now = new Date()): Command {
     capability: row.capability,
     targetValue: row.target_value,
     status: expired ? "timed_out" : row.status,
+    acknowledgedAt: row.acknowledged_at ? row.acknowledged_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
+    expiresAt: row.expires_at.toISOString(),
     completedAt: expired ? row.expires_at.toISOString() : row.completed_at ? row.completed_at.toISOString() : null,
     errorCode: expired ? "timeout" : row.error_code,
   };

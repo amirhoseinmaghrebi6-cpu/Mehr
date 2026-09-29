@@ -118,6 +118,16 @@ const SAMPLE_MODELS: SampleModel[] = [
     interlocks: [{ group: "motion", gpios: [16, 17] }],
   },
   {
+    code: "sample-garage-rev-a",
+    name: "Sample parking door controller",
+    board: { hardwareUid: "DEV-TEHRAN-GARAGE-01", name: "Parking door" },
+    channels: [{ key: "door", type: "garage_door", name: "Parking door", room: "Garden terrace", capabilities: { door: "closed" } }],
+    pins: [
+      { gpio: 16, fn: "relay", channel: "door", role: "pulse" },
+      { gpio: 32, fn: "digital_in", channel: "door", role: "door_sensor" },
+    ],
+  },
+  {
     code: "sample-contact-rev-a",
     name: "Sample door/window contact sensor",
     board: { hardwareUid: "DEV-TEHRAN-CONTACT-01", name: "Bedroom window sensor" },

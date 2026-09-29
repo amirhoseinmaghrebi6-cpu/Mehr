@@ -159,7 +159,11 @@ describe("devices and commands", () => {
     it("lets members send a command, which starts pending", async () => {
       const created = await command("memberA", homeA, { deviceId: lampA.id, capability: "power", targetValue: true });
       expect(created.status).toBe(201);
-      expect(created.body as Command).toMatchObject({ deviceId: lampA.id, capability: "power", targetValue: true, status: "pending", completedAt: null });
+      expect(created.body as Command).toMatchObject({ deviceId: lampA.id, capability: "power", targetValue: true, status: "pending", acknowledgedAt: null, completedAt: null });
+      // A switch has 30 s for the network and nothing extra for the hardware.
+      const seconds = (Date.parse(created.body.expiresAt) - Date.parse(created.body.createdAt)) / 1000;
+      expect(seconds).toBeGreaterThanOrEqual(29);
+      expect(seconds).toBeLessThanOrEqual(31);
       const fetched = await call("memberA", "GET", `/v1/properties/${homeA.id}/commands/${created.body.id}`);
       expect(fetched.body).toEqual(created.body);
     });
@@ -253,7 +257,7 @@ describe("devices and commands", () => {
     });
 
     it("runs end to end with the simulator loop", async () => {
-      const simulator = startHubSimulator(pool, silentLog, { pollMs: 25, defaultDelayMs: 0, delays: {}, boardPrefix: "TEST-API-" });
+      const simulator = startHubSimulator(pool, silentLog, { pollMs: 25, defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 0], boardPrefix: "TEST-API-" });
       try {
         const created = (await command("memberA", homeA, { deviceId: lampA.id, capability: "power", targetValue: true })).body as Command;
         let status = created.status;

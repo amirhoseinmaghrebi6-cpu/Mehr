@@ -3,9 +3,10 @@
  * firmware (Phases 6–7) exist. Enabled only with NODE_ENV=development and
  * M2SMART_DEV_HUB_SIMULATOR=true; it never runs in production.
  *
- * It behaves like the real path will: it takes pending commands (marks them "sent"), waits as long
- * as the hardware would (a garage door takes seconds), then "reports" the new value from the
- * ESP32. Only then is the command "applied" and the state stored, which is the rule for real
+ * It behaves like the real path will: it takes pending commands (marks them "sent"), waits for a
+ * random network delay, marks them acknowledged (the ESP32 started, e.g. a door motor runs), waits
+ * as long as the hardware would (a parking door takes tens of seconds), then "reports" the new
+ * value from the ESP32. Only then is the command "applied" and the state stored, which is the rule for real
  * devices too. Interlocked relays (cooler low/high, curtain open/close) are inherent here: a
  * command sets a whole capability value (speed "low", curtain "open"), never two relays at once.
  *
@@ -23,9 +24,11 @@ import { definitionFromRow } from "../http/devices";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
-/** How long the simulated hardware takes to confirm a command, by device type. */
-const CONFIRM_DELAY_MS: Record<string, number> = { garage_door: 3_000, curtain: 1_500 };
-const DEFAULT_CONFIRM_DELAY_MS = 150;
+/** How long the simulated hardware takes to finish a command, by device type. */
+const CONFIRM_DELAY_MS: Record<string, number> = { garage_door: 25_000, curtain: 20_000, cooler: 1_000, fan: 1_000 };
+const DEFAULT_CONFIRM_DELAY_MS = 300;
+/** Simulated network delay between the API, the hub and the ESP32 (each way), in ms. */
+const NETWORK_DELAY_MS: [min: number, max: number] = [200, 1_200];
 
 /** Hardware ids of simulated boards start with this. */
 export const SIMULATED_BOARD_PREFIX = "DEV-";
@@ -71,6 +74,13 @@ export async function claimPendingCommands(pool: Pool, boardPrefix = SIMULATED_B
     );
     return rows;
   });
+}
+
+/** The simulated ESP32 has the command and started carrying it out. */
+export async function acknowledgeCommand(pool: Pool, commandId: string): Promise<void> {
+  await withSystemTx(pool, (tx) =>
+    tx.query("update public.device_commands set acknowledged_at = now() where id = $1 and status = 'sent' and acknowledged_at is null", [commandId]),
+  );
 }
 
 /**
@@ -121,13 +131,22 @@ export type HubSimulator = { stop: () => void };
 export function startHubSimulator(
   pool: Pool,
   log: Log,
-  options: { pollMs?: number; delays?: Record<string, number>; defaultDelayMs?: number; boardPrefix?: string } = {},
+  options: { pollMs?: number; delays?: Record<string, number>; defaultDelayMs?: number; networkDelayMs?: [number, number]; boardPrefix?: string } = {},
 ): HubSimulator {
+  const [networkMin, networkMax] = options.networkDelayMs ?? NETWORK_DELAY_MS;
+  const networkDelay = () => networkMin + Math.random() * (networkMax - networkMin);
   const boardPrefix = options.boardPrefix ?? SIMULATED_BOARD_PREFIX;
   const pollMs = options.pollMs ?? 250;
   const delays = options.delays ?? CONFIRM_DELAY_MS;
   const defaultDelay = options.defaultDelayMs ?? DEFAULT_CONFIRM_DELAY_MS;
   const timers = new Set<NodeJS.Timeout>();
+  const later = (ms: number, run: () => void) => {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      if (!stopped) run();
+    }, ms);
+    timers.add(timer);
+  };
   let polling = false;
   let stopped = false;
 
@@ -136,11 +155,13 @@ export function startHubSimulator(
     polling = true;
     try {
       for (const command of await claimPendingCommands(pool, boardPrefix)) {
-        const timer = setTimeout(() => {
-          timers.delete(timer);
-          confirmCommand(pool, command).catch((error: Error) => log.error({ err: { message: error.message }, commandId: command.id }, "Dev hub simulator: confirm failed"));
-        }, delays[command.device_type ?? ""] ?? defaultDelay);
-        timers.add(timer);
+        const fail = (error: Error) => log.error({ err: { message: error.message }, commandId: command.id }, "Dev hub simulator: command failed");
+        // Network to the ESP32, which starts the hardware ...
+        later(networkDelay(), () => {
+          acknowledgeCommand(pool, command.id).catch(fail);
+          // ... the hardware's own time, then the report travels back.
+          later((delays[command.device_type ?? ""] ?? defaultDelay) + networkDelay(), () => void confirmCommand(pool, command).catch(fail));
+        });
       }
     } catch (error) {
       log.error({ err: { message: (error as Error).message } }, "Dev hub simulator: poll failed");
