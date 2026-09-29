@@ -73,8 +73,9 @@ async function verifySignature(payload: string, signature: string): Promise<bool
 }
 
 async function getSigningKey(): Promise<CryptoKey> {
-  const secret = process.env.M2SMART_DEMO_SESSION_SECRET
-    ?? process.env.M2SMART_DEMO_PASSWORD;
+  // An empty value (as in .env.example) counts as unset. Production never reaches the fallback:
+  // isDemoAuthEnabled requires a non-empty secret there.
+  const secret = process.env.M2SMART_DEMO_SESSION_SECRET || process.env.M2SMART_DEMO_PASSWORD;
   if (!secret) throw new Error("Demo session signing key is not configured.");
   return globalThis.crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }

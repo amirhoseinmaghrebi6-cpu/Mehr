@@ -327,4 +327,4 @@ As documentation and data-model rules, not code. `docs/architecture/trust-bounda
 
 **Decisions needed before 2D/2E:**
 - **D1 login methods:** SMS code only, or SMS code plus an optional password? **Decided 2026-09-29: SMS code plus an optional password.**
-- **D2 Supabase adapter:** delete it in 2G (my recommendation), or keep it longer for dev?
+- **D2 Supabase adapter:** delete it in 2G (my recommendation), or keep it longer for dev? **Decided 2026-09-29: deleted in 2G.**

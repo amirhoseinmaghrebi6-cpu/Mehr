@@ -1,7 +1,7 @@
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { auth } from "@/lib/auth";
 
-type Params = { error?: string; notice?: string; email?: string; next?: string; flow?: string; phone?: string; mode?: string };
+type Params = { error?: string; notice?: string; next?: string; flow?: string; phone?: string; mode?: string };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
@@ -11,7 +11,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       mode="login"
       error={params.error}
       notice={params.notice}
-      email={params.email}
       next={params.next}
       configured={flow.available}
       demoCredentials={flow.demoCredentials}

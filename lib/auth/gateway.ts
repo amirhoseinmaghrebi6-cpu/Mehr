@@ -1,5 +1,4 @@
 import type {
-  EmailLinkResult,
   LoginFlow,
   LoginInput,
   LoginResult,
@@ -32,9 +31,6 @@ export interface AuthGateway {
 
   startRecovery(): Promise<RecoveryFlow>;
   submitRecovery(input: RecoveryInput): Promise<RecoveryResult>;
-
-  /** Completes a sign-in or recovery link sent by email (Supabase `?code=`). */
-  completeEmailLink(code: string): Promise<EmailLinkResult>;
 
   signOut(): Promise<void>;
 }

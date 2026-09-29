@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveRequestSession } from "@/lib/auth";
 
 // /update-password is not public: setting a password needs a signed-in user (after an SMS-code
-// sign-in with Kratos, or the recovery link session with Supabase).
-const publicRoutes = ["/login", "/register", "/forgot-password", "/auth/callback"];
+// sign-in).
+const publicRoutes = ["/login", "/register", "/forgot-password"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   const session = await resolveRequestSession(request);
 
   if (!session.providerConfigured) {
-    if (session.signedIn && isPublicRoute && pathname !== "/auth/callback") {
+    if (session.signedIn && isPublicRoute) {
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = "/dashboard";
       dashboardUrl.search = "";
@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (session.signedIn && isPublicRoute && pathname !== "/auth/callback") {
+  if (session.signedIn && isPublicRoute) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     dashboardUrl.search = "";

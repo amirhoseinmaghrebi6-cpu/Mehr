@@ -62,7 +62,7 @@ async function submit(kind: "login" | "registration" | "settings", flow: KratosF
 
 export const kratosAdapter = {
   isConfigured(): boolean {
-    return process.env.M2SMART_AUTH_PROVIDER !== "supabase" && kratosPublicUrl() !== null && apiInternalUrl() !== null;
+    return kratosPublicUrl() !== null && apiInternalUrl() !== null;
   },
 
   /** The signed-in user, from the M2smart API (which verifies the session with Kratos). */

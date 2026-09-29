@@ -2,7 +2,7 @@
 
 ## Local development stack (`infra/dev`)
 
-One command brings up the self-hosted services M2smart needs for local development, replacing `supabase start` for day-to-day work:
+One command brings up the self-hosted services M2smart needs for local development:
 
 | Service    | Image (pinned by tag and digest in `dev/compose.yaml`) | Host address      | Container port |
 |------------|---------------------------------------------------------|-------------------|----------------|
@@ -16,7 +16,6 @@ The Compose project is named `m2smart-dev`, so every container, volume and netwo
 
 - Docker Engine with the Compose v2 plugin (`docker compose version`). Docker Desktop works on Windows and macOS.
 - pnpm, for the `infra:*` scripts. They are thin wrappers around `docker compose`, so you can also run the commands directly.
-- The Supabase CLI is **not** needed.
 
 ### `.env` setup
 
@@ -105,7 +104,7 @@ docker load -i m2smart-dev-images.tar
 ### Local development notes
 
 - **Dev only.** The broker accepts anonymous, unencrypted connections and has no ACLs; PostgreSQL uses a dev superuser. Broker authentication, ACLs, TLS, topic design and production deployment come in later phases. Don't expose these ports beyond `127.0.0.1`.
-- **The database starts empty.** Phase 2A doesn't apply `supabase/migrations`; that is done by the migration runner in Phase 2B.
+- **The database starts empty.** Run `pnpm db:migrate` (bootstrap plus `supabase/migrations`), then `pnpm db:seed` for sample data.
 - **Data persists** in the `m2smart-dev_postgres-data` and `m2smart-dev_mosquitto-data` volumes across `infra:down`/`infra:up`. Only `infra:reset` deletes them.
 - **Port already in use?** Change `POSTGRES_HOST_PORT` or `MQTT_HOST_PORT` in `infra/dev/.env`.
 - The containers don't restart on their own after Docker restarts; run `pnpm infra:up` again.

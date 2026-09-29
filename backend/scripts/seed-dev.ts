@@ -1,7 +1,6 @@
 /**
  * Local dev seed for self-hosted PostgreSQL: a dev user, the "tehran" property, one hub and the
- * prototype devices. Same data as seed-phase1.ts (the Supabase seed, removed in Phase 2G), but
- * written with plain `pg` and no Supabase dependency.
+ * prototype devices, written with plain `pg`.
  *
  * Idempotent: every row has a fixed id or natural key, and reported device state is only
  * inserted if missing, never overwritten. Runs in one transaction.

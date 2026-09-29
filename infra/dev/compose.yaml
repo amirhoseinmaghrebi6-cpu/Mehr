@@ -1,5 +1,5 @@
 # M2smart local development stack (Phase 2A): PostgreSQL + Mosquitto.
-# Dev only. Replaces `supabase start` for day-to-day work; see infra/README.md.
+# Dev only: the self-hosted services for local development; see infra/README.md.
 # Values come from infra/dev/.env (copy .env.example). Host ports are bound to 127.0.0.1 only.
 
 name: m2smart-dev

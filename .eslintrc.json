@@ -6,10 +6,6 @@
       {
         "patterns": [
           {
-            "group": ["@supabase/*"],
-            "message": "Auth providers are private to lib/auth/adapters. Use the AuthGateway from \"@/lib/auth\"."
-          },
-          {
             "group": ["@/lib/auth/adapters/*", "**/lib/auth/adapters/*"],
             "message": "Adapters are private. Import from \"@/lib/auth\"."
           }

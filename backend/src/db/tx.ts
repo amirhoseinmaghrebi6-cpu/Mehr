@@ -2,8 +2,8 @@
  * The only two ways API code touches app data.
  *
  * - withUserTx: acts as one signed-in user. Runs as the `authenticated` role with the user's id
- *   in request.jwt.claims, so every RLS policy (auth.uid()) applies exactly as it would on
- *   Supabase.
+ *   in request.jwt.claims, so every RLS policy (auth.uid()) applies exactly as the
+ *   migrations expect.
  * - withSystemTx: backend-only work (e.g. device state ingest). Runs as `service_role`, which
  *   bypasses RLS; keep its use rare and easy to find.
  *

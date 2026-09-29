@@ -20,16 +20,15 @@ function to(path: string, params: Record<string, string | undefined>): string {
   return text ? `${path}?${text}` : path;
 }
 
-/** Password sign-in: email (Supabase), mobile number (Kratos) or the demo account. */
+/** Password sign-in: mobile number + password, or the demo account. */
 export async function signInAction(formData: FormData): Promise<void> {
-  const identifier = field(formData, "identifier").toLowerCase() || field(formData, "email").toLowerCase();
+  const identifier = field(formData, "identifier").toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = safeNext(formData.get("next"));
-  const method = formData.get("method") === "password" ? "password" : "email_password";
-  if (!identifier || !password) redirect(to("/login", { error: "credentials", mode: method === "password" ? "password" : undefined, next }));
+  if (!identifier || !password) redirect(to("/login", { error: "credentials", mode: "password", next }));
 
-  const result = await auth.submitLogin({ method, identifier, password });
-  if (!result.ok) redirect(to("/login", { error: result.error, mode: method === "password" ? "password" : undefined, next }));
+  const result = await auth.submitLogin({ method: "password", identifier, password });
+  if (!result.ok) redirect(to("/login", { error: result.error, mode: "password", next }));
   redirect(next);
 }
 
@@ -62,24 +61,6 @@ export async function verifyLoginCodeAction(formData: FormData): Promise<void> {
   redirect(next);
 }
 
-/** Registration: email + password (Supabase, development only). */
-export async function signUpAction(formData: FormData): Promise<void> {
-  if (!(await auth.startRegistration()).available) redirect("/register?error=setup");
-
-  const fullName = field(formData, "fullName");
-  const email = field(formData, "email").toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
-  if (!fullName || !email) redirect("/register?error=required");
-  if (password.length < 12) redirect("/register?error=weak-password");
-  if (password !== confirmPassword) redirect("/register?error=password-mismatch");
-
-  const result = await auth.submitRegistration({ method: "email_password", fullName, email, password });
-  if (!result.ok) redirect(`/register?error=${result.error}`);
-  if (result.status === "signed_in") redirect("/dashboard");
-  redirect(`/login?notice=verify-email&email=${encodeURIComponent(email)}`);
-}
-
 /** SMS registration, step 1: name and mobile number, then a code by SMS. */
 export async function sendRegistrationCodeAction(formData: FormData): Promise<void> {
   const fullName = field(formData, "fullName");
@@ -107,17 +88,6 @@ export async function verifyRegistrationCodeAction(formData: FormData): Promise<
   redirect("/dashboard");
 }
 
-export async function requestPasswordResetAction(formData: FormData): Promise<void> {
-  if (!(await auth.startRecovery()).available) redirect("/forgot-password?error=setup");
-
-  const email = field(formData, "email").toLowerCase();
-  if (!email) redirect("/forgot-password?error=required");
-
-  await auth.submitRecovery({ step: "request", email });
-  // Always use the same response to avoid revealing whether an account exists.
-  redirect("/forgot-password?notice=reset-requested");
-}
-
 export async function updatePasswordAction(formData: FormData): Promise<void> {
   if (!(await auth.startRecovery()).available) redirect("/update-password?error=setup");
 
@@ -128,7 +98,6 @@ export async function updatePasswordAction(formData: FormData): Promise<void> {
 
   const result = await auth.submitRecovery({ step: "set_password", password });
   if (!result.ok) {
-    if (result.error === "reset-session") redirect("/login?error=reset-session");
     if (result.error === "reauth-required") {
       // Setting a password needs a fresh sign-in: sign out, then come back here after the code.
       await auth.signOut();

@@ -28,8 +28,6 @@ export type AuthErrorCode =
   | "weak-password"
   | "password-mismatch"
   | "signup-failed"
-  | "verification"
-  | "reset-session"
   | "update-failed"
   | "phone-invalid"
   | "no-account"
@@ -45,36 +43,28 @@ export type Failure = { ok: false; error: AuthErrorCode };
  * What a sign-in screen can offer:
  * - "sms_code": phone number, then a one-time code by SMS (Kratos).
  * - "password": phone number + password, for users who added one (Kratos).
- * - "email_password": email + password (Supabase, development only).
  */
-export type LoginMethod = "sms_code" | "password" | "email_password";
+export type LoginMethod = "sms_code" | "password";
 
 export type LoginFlow = { available: boolean; methods: LoginMethod[]; demoCredentials: DemoCredentials | null };
 export type LoginInput =
-  | { method: "password" | "email_password"; identifier: string; password: string }
+  | { method: "password"; identifier: string; password: string }
   | { method: "sms_code"; step: "send"; phone: string }
   | { method: "sms_code"; step: "verify"; flowId: string; code: string };
 export type LoginResult = { ok: true; status: "signed_in" } | { ok: true; status: "code_sent"; flowId: string; phone: string } | Failure;
 
-export type RegistrationMethod = "sms_code" | "email_password";
+export type RegistrationMethod = "sms_code";
 export type RegistrationFlow = { available: boolean; method: RegistrationMethod };
 export type RegistrationInput =
-  | { method: "email_password"; fullName: string; email: string; password: string }
   | { method: "sms_code"; step: "send"; fullName: string; phone: string }
   | { method: "sms_code"; step: "verify"; flowId: string; code: string };
 export type RegistrationResult =
   | { ok: true; status: "signed_in" }
-  | { ok: true; status: "verification_sent" }
   | { ok: true; status: "code_sent"; flowId: string; phone: string }
   | Failure;
 
-/**
- * - "email_link": a reset link by email, then a new password (Supabase).
- * - "sms_code_login": sign in with an SMS code, then set a new password (Kratos; decision D1).
- */
-export type RecoveryMethod = "email_link" | "sms_code_login";
+/** "sms_code_login": sign in with an SMS code, then set a new password (Kratos; decision D1). */
+export type RecoveryMethod = "sms_code_login";
 export type RecoveryFlow = { available: boolean; method: RecoveryMethod };
-export type RecoveryInput = { step: "request"; email: string } | { step: "set_password"; password: string };
+export type RecoveryInput = { step: "set_password"; password: string };
 export type RecoveryResult = { ok: true } | Failure;
-
-export type EmailLinkResult = { ok: true } | Failure;

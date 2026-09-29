@@ -9,7 +9,6 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       mode="register"
       error={params.error}
       configured={flow.available}
-      registrationMethod={flow.method}
       flowId={params.flow}
       phone={params.phone}
     />

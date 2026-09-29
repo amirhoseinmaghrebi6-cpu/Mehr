@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Fingerprint, House, KeyRound, Languages, LockKeyhole, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, House, KeyRound, Languages, LockKeyhole, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  requestPasswordResetAction,
   sendLoginCodeAction,
   sendRegistrationCodeAction,
   signInAction,
-  signUpAction,
   updatePasswordAction,
   verifyLoginCodeAction,
   verifyRegistrationCodeAction,
 } from "@/app/(auth)/actions";
 import type { Locale } from "@/lib/i18n";
-import type { DemoCredentials, LoginMethod, RecoveryMethod, RegistrationMethod } from "@/lib/auth";
+import type { DemoCredentials, LoginMethod } from "@/lib/auth";
 import { maskPhone } from "@/lib/auth/phone";
 
 type AuthMode = "login" | "register" | "forgot" | "update";
@@ -24,15 +22,11 @@ const messages = {
     signIn: "Welcome back",
     signInSubtitle: "Your home is right where you left it.",
     register: "A home, made yours.",
-    registerSubtitle: "Create your M2smart account to bring your spaces together.",
     registerSmsSubtitle: "We’ll text you a code to confirm your number. You can add a password later.",
     forgot: "Let’s get you back in.",
-    forgotSubtitle: "We’ll send a secure link to the email on your account.",
     forgotSmsSubtitle: "No problem. Sign in with a code we text to your phone, then choose a new password.",
     update: "Choose a new password.",
     updateSubtitle: "Make it long, unique, and yours alone.",
-    email: "Email address",
-    emailPlaceholder: "you@example.com",
     phone: "Mobile number",
     phonePlaceholder: "0912 345 6789",
     code: "6-digit code",
@@ -51,7 +45,6 @@ const messages = {
     usePassword: "Sign in with a password",
     useCode: "Sign in with an SMS code",
     createAccount: "Create account",
-    sendLink: "Send secure link",
     savePassword: "Update password",
     noAccount: "New to M2smart?",
     haveAccount: "Already have an account?",
@@ -74,8 +67,6 @@ const messages = {
     errorWeakPassword: "Use a password with at least 12 characters.",
     errorPasswordMismatch: "Those passwords don’t match.",
     errorSignup: "We couldn’t create that account. Check the details or try signing in.",
-    errorVerification: "That verification link has expired or was already used. Request a new one.",
-    errorResetSession: "That password-reset link is no longer valid. Request another secure link.",
     errorUpdate: "We couldn’t update the password. Please try again.",
     errorPhoneInvalid: "Enter a valid mobile number, like 0912 345 6789.",
     errorNoAccount: "There’s no account for this number yet. Create one to get started.",
@@ -83,8 +74,6 @@ const messages = {
     errorCodeInvalid: "That code isn’t right. Check the SMS and try again.",
     errorCodeAttempts: "Too many wrong codes. Request a new code to try again.",
     errorFlowExpired: "That code has expired. Enter your number to get a new one.",
-    noticeVerify: "Check your inbox for a verification link to finish creating your account.",
-    noticeReset: "If an account exists for that address, a password-reset link is on its way.",
     noticeSignedOut: "You’ve signed out securely.",
     noticeReauth: "For your security, sign in again with an SMS code to set your password.",
     featureHome: "One account, all your homes",
@@ -95,15 +84,11 @@ const messages = {
     signIn: "خوش برگشتید",
     signInSubtitle: "خانه همان‌جاست که رهایش کرده‌اید.",
     register: "خانه‌ای به سلیقه‌ی شما.",
-    registerSubtitle: "حساب M2smart بسازید و فضاهایتان را یک‌جا داشته باشید.",
     registerSmsSubtitle: "برای تأیید شماره یک کد برایتان پیامک می‌کنیم. بعداً می‌توانید رمز عبور هم بگذارید.",
     forgot: "دوباره وارد خانه شوید.",
-    forgotSubtitle: "پیوند امن را به ایمیل حساب‌تان می‌فرستیم.",
     forgotSmsSubtitle: "مشکلی نیست. با کدی که پیامک می‌کنیم وارد شوید و رمز تازه انتخاب کنید.",
     update: "رمز تازه انتخاب کنید.",
     updateSubtitle: "رمزی طولانی و منحصربه‌فرد انتخاب کنید.",
-    email: "نشانی ایمیل",
-    emailPlaceholder: "you@example.com",
     phone: "شماره‌ی موبایل",
     phonePlaceholder: "0912 345 6789",
     code: "کد ۶ رقمی",
@@ -122,7 +107,6 @@ const messages = {
     usePassword: "ورود با رمز عبور",
     useCode: "ورود با کد پیامکی",
     createAccount: "ساخت حساب",
-    sendLink: "ارسال پیوند امن",
     savePassword: "به‌روزرسانی رمز",
     noAccount: "تازه به M2smart پیوسته‌اید؟",
     haveAccount: "از قبل حساب دارید؟",
@@ -141,8 +125,6 @@ const messages = {
     errorWeakPassword: "رمزی با حداقل ۱۲ نویسه انتخاب کنید.",
     errorPasswordMismatch: "رمزها با هم یکسان نیستند.",
     errorSignup: "ساخت حساب انجام نشد. اطلاعات را بررسی کنید یا وارد شوید.",
-    errorVerification: "پیوند تأیید منقضی شده یا قبلاً استفاده شده است. پیوند تازه‌ای بگیرید.",
-    errorResetSession: "پیوند بازیابی دیگر معتبر نیست. یک پیوند امن تازه درخواست کنید.",
     errorUpdate: "به‌روزرسانی رمز انجام نشد. دوباره تلاش کنید.",
     errorPhoneInvalid: "یک شماره‌ی موبایل معتبر وارد کنید، مثل ۰۹۱۲۳۴۵۶۷۸۹.",
     errorNoAccount: "هنوز حسابی با این شماره نیست. برای شروع حساب بسازید.",
@@ -150,8 +132,6 @@ const messages = {
     errorCodeInvalid: "کد درست نیست. پیامک را بررسی کنید و دوباره وارد کنید.",
     errorCodeAttempts: "تعداد تلاش‌های اشتباه زیاد شد. یک کد تازه بگیرید.",
     errorFlowExpired: "مهلت این کد تمام شده. شماره را وارد کنید تا کد تازه بگیرید.",
-    noticeVerify: "برای تکمیل ساخت حساب، پیوند تأیید را در ایمیل‌تان بررسی کنید.",
-    noticeReset: "اگر حسابی با این ایمیل باشد، پیوند بازیابی رمز برایتان فرستاده می‌شود.",
     noticeSignedOut: "با امنیت از حساب خارج شدید.",
     noticeReauth: "برای امنیت حساب، دوباره با کد پیامکی وارد شوید تا رمز را تنظیم کنید.",
     featureHome: "یک حساب، تمام خانه‌ها",
@@ -170,14 +150,11 @@ type AuthScreenProps = {
   mode: AuthMode;
   error?: string;
   notice?: string;
-  email?: string;
   next?: string;
   configured: boolean;
   demoCredentials?: DemoCredentials | null;
   /** Sign-in methods the server offers; SMS code first when present. */
   loginMethods?: LoginMethod[];
-  registrationMethod?: RegistrationMethod;
-  recoveryMethod?: RecoveryMethod;
   /** Set once a code was sent: the screen shows the code step. */
   flowId?: string;
   /** E.164 number the code went to (or was entered). */
@@ -189,13 +166,10 @@ export function AuthScreen({
   mode,
   error,
   notice,
-  email,
   next,
   configured,
   demoCredentials,
-  loginMethods = ["email_password"],
-  registrationMethod = "email_password",
-  recoveryMethod = "email_link",
+  loginMethods = [],
   flowId,
   phone,
   passwordMode: initialPasswordMode = false,
@@ -204,7 +178,7 @@ export function AuthScreen({
   const [passwordMode, setPasswordMode] = useState(initialPasswordMode);
   const isRtl = locale === "fa";
   const copy = messages[locale];
-  const sms = mode === "register" ? registrationMethod === "sms_code" : loginMethods.includes("sms_code");
+  const sms = mode === "login" ? loginMethods.includes("sms_code") : configured;
   const codeStep = sms && Boolean(flowId) && (mode === "login" || mode === "register");
   const nextPath = safeNext(next);
 
@@ -213,9 +187,9 @@ export function AuthScreen({
     mode === "login"
       ? copy.signInSubtitle
       : mode === "register"
-        ? sms ? copy.registerSmsSubtitle : copy.registerSubtitle
+        ? copy.registerSmsSubtitle
         : mode === "forgot"
-          ? recoveryMethod === "sms_code_login" ? copy.forgotSmsSubtitle : copy.forgotSubtitle
+          ? copy.forgotSmsSubtitle
           : copy.updateSubtitle;
   const errorMessage = error ? errorText(error, copy) : configured ? "" : copy.errorSetup;
   const noticeMessage = notice ? noticeText(notice, copy) : "";
@@ -341,15 +315,6 @@ export function AuthScreen({
             </form>
           )}
 
-          {mode === "login" && !sms && (
-            <form className="auth-form" action={signInAction}>
-              <input type="hidden" name="next" value={nextPath} />
-              <label className="auth-field"><span>{copy.email}</span><input name="identifier" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} dir="ltr" required defaultValue={email} placeholder={copy.emailPlaceholder} /></label>
-              <label className="auth-field"><span>{copy.password}<Link href="/forgot-password">{copy.forgotLink}</Link></span><input name="password" type="password" autoComplete="current-password" dir="ltr" required minLength={1} placeholder="••••••••••••" /></label>
-              <button className="auth-submit" type="submit">{copy.signInButton}<ArrowRight size={16} /></button>
-            </form>
-          )}
-
           {mode === "register" && sms && codeStep && codeForm(verifyRegistrationCodeAction, copy.verifyCreate, "/register")}
 
           {mode === "register" && sms && !codeStep && (
@@ -361,30 +326,11 @@ export function AuthScreen({
             </form>
           )}
 
-          {mode === "register" && !sms && (
-            <form className="auth-form" action={signUpAction}>
-              <label className="auth-field"><span>{copy.fullName}</span><input name="fullName" type="text" autoComplete="name" required minLength={2} maxLength={80} placeholder={copy.fullNamePlaceholder} /></label>
-              <label className="auth-field"><span>{copy.email}</span><input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} dir="ltr" required placeholder={copy.emailPlaceholder} /></label>
-              <label className="auth-field"><span>{copy.password}</span><input name="password" type="password" autoComplete="new-password" dir="ltr" required minLength={12} maxLength={128} placeholder={copy.passwordPlaceholder} /></label>
-              <label className="auth-field"><span>{copy.confirmPassword}</span><input name="confirmPassword" type="password" autoComplete="new-password" dir="ltr" required minLength={12} maxLength={128} placeholder="••••••••••••" /></label>
-              <button className="auth-submit" type="submit">{copy.createAccount}<Sparkles size={16} /></button>
-              <p className="auth-legal">{copy.legal}</p>
-            </form>
-          )}
-
-          {mode === "forgot" && recoveryMethod === "sms_code_login" && (
+          {mode === "forgot" && sms && (
             <div className="auth-form">
               <Link className="auth-submit" href={`/login?next=${encodeURIComponent("/update-password")}`}>{copy.useCode}<MessageSquareText size={16} /></Link>
               <Link className="auth-back-link" href="/login"><ArrowLeft size={15} />{copy.backToSignIn}</Link>
             </div>
-          )}
-
-          {mode === "forgot" && recoveryMethod === "email_link" && (
-            <form className="auth-form" action={requestPasswordResetAction}>
-              <label className="auth-field"><span>{copy.email}</span><input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} dir="ltr" required defaultValue={email} placeholder={copy.emailPlaceholder} /></label>
-              <button className="auth-submit" type="submit">{copy.sendLink}<Fingerprint size={16} /></button>
-              <Link className="auth-back-link" href="/login"><ArrowLeft size={15} />{copy.backToSignIn}</Link>
-            </form>
           )}
 
           {mode === "update" && (
@@ -414,8 +360,6 @@ function errorText(code: string, copy: Copy): string {
     "weak-password": "errorWeakPassword",
     "password-mismatch": "errorPasswordMismatch",
     "signup-failed": "errorSignup",
-    verification: "errorVerification",
-    "reset-session": "errorResetSession",
     "update-failed": "errorUpdate",
     "phone-invalid": "errorPhoneInvalid",
     "no-account": "errorNoAccount",
@@ -429,8 +373,6 @@ function errorText(code: string, copy: Copy): string {
 
 function noticeText(code: string, copy: Copy): string {
   const key: Record<string, keyof Copy> = {
-    "verify-email": "noticeVerify",
-    "reset-requested": "noticeReset",
     "signed-out": "noticeSignedOut",
     reauth: "noticeReauth",
   };
