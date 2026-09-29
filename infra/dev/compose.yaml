@@ -37,6 +37,60 @@ services:
       retries: 10
       start_period: 5s
 
+  # One-shot: creates the kratos role and database (idempotent), then exits.
+  kratos-db-init:
+    image: postgres:17.11-alpine3.24@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER in infra/dev/.env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/dev/.env}
+      PGDATABASE: ${POSTGRES_DB:?set POSTGRES_DB in infra/dev/.env}
+      KRATOS_DB_PASSWORD: ${KRATOS_DB_PASSWORD:?set KRATOS_DB_PASSWORD in infra/dev/.env}
+    command: ["sh", "-c", "psql -q -v kratos_password=\"$$KRATOS_DB_PASSWORD\" -f /sql/kratos-db.sql"]
+    volumes:
+      - ../postgres/kratos-db.sql:/sql/kratos-db.sql:ro
+
+  # One-shot: applies Kratos's own schema migrations to the kratos database, then exits.
+  kratos-migrate:
+    image: &kratos-image oryd/kratos:v25.4.0@sha256:e8014c6c58b68e9d8bea4160d3e271b0d05b3db221af379afb6798b603e88ee9
+    depends_on:
+      kratos-db-init:
+        condition: service_completed_successfully
+    environment: &kratos-env
+      DSN: postgres://kratos:${KRATOS_DB_PASSWORD}@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+      # Ory's anonymous telemetry calls a foreign host; always off.
+      SQA_OPT_OUT: "true"
+      SECRETS_COOKIE_0: ${KRATOS_SECRETS_COOKIE:?set KRATOS_SECRETS_COOKIE in infra/dev/.env}
+      SECRETS_CIPHER_0: ${KRATOS_SECRETS_CIPHER:?set KRATOS_SECRETS_CIPHER (exactly 32 characters) in infra/dev/.env}
+    command: ["migrate", "sql", "--read-from-env", "--yes"]
+
+  kratos:
+    image: *kratos-image
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    # --dev allows plain-HTTP cookies on localhost. Never use it outside local development.
+    command: ["serve", "--config", "/etc/config/kratos/kratos.yml", "--dev", "--watch-courier"]
+    environment: *kratos-env
+    volumes:
+      - ./kratos:/etc/config/kratos:ro
+    # Lets the courier reach the API's dev SMS route on the host (Docker Desktop provides this
+    # name already; the mapping makes it work on Linux too).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Public API only. The admin API (4434) is never published.
+      - "127.0.0.1:${KRATOS_PUBLIC_HOST_PORT:-4433}:4433"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4434/admin/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
 volumes:
   postgres-data:
   mosquitto-data:

@@ -1,0 +1,37 @@
+{
+  "$id": "urn:m2smart:identity:v1",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "M2smart user",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "phone": {
+          "type": "string",
+          "format": "tel",
+          "title": "Mobile number",
+          "ory.sh/kratos": {
+            "credentials": {
+              "code": { "identifier": true, "via": "sms" },
+              "password": { "identifier": true }
+            }
+          }
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "title": "Email (optional)",
+          "maxLength": 254
+        },
+        "name": {
+          "type": "string",
+          "title": "Full name",
+          "maxLength": 80
+        }
+      },
+      "required": ["phone"],
+      "additionalProperties": false
+    }
+  }
+}

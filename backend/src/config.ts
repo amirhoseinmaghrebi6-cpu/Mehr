@@ -14,6 +14,12 @@ const configSchema = z.object({
 
 export type Config = {
   nodeEnv: "development" | "test" | "production";
+  /**
+   * Development-only routes (e.g. POST /internal/dev/sms). True only when NODE_ENV is set to
+   * "development" explicitly; the NODE_ENV default does not count, so a forgotten variable in
+   * production never opens them.
+   */
+  devRoutes: boolean;
   host: string;
   port: number;
   databaseUrl: string;
@@ -33,6 +39,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const value = parsed.data;
   return {
     nodeEnv: value.NODE_ENV,
+    devRoutes: env.NODE_ENV === "development",
     host: value.API_HOST,
     port: value.API_PORT,
     databaseUrl: value.DATABASE_URL,

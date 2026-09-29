@@ -1,0 +1,94 @@
+# Ory Kratos, local development. Findings behind these settings: docs/spikes/kratos-2d2.md.
+# Values that differ per machine or are secret come from the environment (compose.yaml, fed by
+# infra/dev/.env): DSN, SECRETS_COOKIE_0, SECRETS_CIPHER_0, SERVE_PUBLIC_BASE_URL.
+version: v25.4.0
+
+serve:
+  public:
+    base_url: http://127.0.0.1:4433/
+    cors:
+      enabled: false
+  admin:
+    # Reachable only inside the compose network; never published to the host.
+    base_url: http://kratos:4434/
+
+selfservice:
+  default_browser_return_url: http://localhost:3000/dashboard
+  allowed_return_urls:
+    - http://localhost:3000
+
+  methods:
+    # Decision D1: SMS one-time code is the main login...
+    code:
+      enabled: true
+      passwordless_enabled: true
+      config:
+        lifespan: 10m
+    # ...and a password is optional.
+    password:
+      enabled: true
+      config:
+        # HaveIBeenPwned is a foreign service; off for Iran-only operation.
+        haveibeenpwned_enabled: false
+        min_password_length: 12
+        identifier_similarity_check_enabled: true
+
+  flows:
+    error:
+      ui_url: http://localhost:3000/login
+    login:
+      ui_url: http://localhost:3000/login
+      lifespan: 10m
+    registration:
+      ui_url: http://localhost:3000/register
+      lifespan: 10m
+      after:
+        code:
+          hooks:
+            - hook: session
+    settings:
+      ui_url: http://localhost:3000/dashboard
+      privileged_session_max_age: 15m
+    # Kratos recovers only via email; with D1 a forgotten password is handled by SMS-code login.
+    recovery:
+      enabled: false
+    verification:
+      enabled: false
+    logout:
+      after:
+        default_browser_return_url: http://localhost:3000/login
+
+courier:
+  channels:
+    - id: sms
+      type: http
+      request_config:
+        url: http://host.docker.internal:4000/internal/dev/sms
+        method: POST
+        body: file:///etc/config/kratos/courier-sms.jsonnet
+        headers:
+          Content-Type: application/json
+
+identity:
+  default_schema_id: m2smart
+  schemas:
+    - id: m2smart
+      url: file:///etc/config/kratos/identity.schema.json
+
+session:
+  lifespan: 720h
+  cookie:
+    same_site: Lax
+
+ciphers:
+  algorithm: xchacha20-poly1305
+
+hashers:
+  algorithm: bcrypt
+  bcrypt:
+    cost: 10
+
+log:
+  level: info
+  format: json
+  leak_sensitive_values: false

@@ -8,9 +8,10 @@ import type { Pool } from "pg";
 import { ConfigError, loadConfig, type Config } from "./config";
 import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./db/pool";
 import { loadBackendEnv } from "./env";
+import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
 
-export function buildServer(config: Pick<Config, "logLevel">, pool: Pool): FastifyInstance {
+export function buildServer(config: Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes">>, pool: Pool): FastifyInstance {
   const app = Fastify({
     logger: {
       level: config.logLevel,
@@ -23,6 +24,7 @@ export function buildServer(config: Pick<Config, "logLevel">, pool: Pool): Fasti
   });
 
   registerHealthRoutes(app, pool);
+  if (config.devRoutes) registerDevSmsRoute(app);
   return app;
 }
 
@@ -49,6 +51,7 @@ async function main(): Promise<void> {
   try {
     const role = await assertSafeDatabaseRole(pool);
     app.log.info({ role }, "Database role verified");
+    if (config.devRoutes) app.log.warn("Development routes enabled (POST /internal/dev/sms logs SMS codes). Never enable in production.");
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;
     app.log.fatal(message);

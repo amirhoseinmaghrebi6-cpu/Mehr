@@ -8,6 +8,7 @@ One command brings up the self-hosted services M2smart needs for local developme
 |------------|---------------------------------------------------------|-------------------|----------------|
 | PostgreSQL | `postgres:17.11-alpine3.24`                             | `127.0.0.1:55432` | 5432           |
 | Mosquitto  | `eclipse-mosquitto:2.0.22`                              | `127.0.0.1:18830` | 1883           |
+| Ory Kratos (auth, public API only) | `oryd/kratos:v25.4.0`                | `127.0.0.1:4433`  | 4433           |
 
 The Compose project is named `m2smart-dev`, so every container, volume and network it creates is prefixed with `m2smart-dev`. Host ports are non-default and bound to `127.0.0.1` only, so they don't clash with other stacks on the machine (for example OpenRemote) and aren't reachable from the network.
 
@@ -32,6 +33,10 @@ Then set `POSTGRES_PASSWORD` in `infra/dev/.env`. The file is gitignored (`.env*
 | `POSTGRES_DB`        | `m2smart`                 | Database created on first start                    |
 | `POSTGRES_HOST_PORT` | `55432`                   | Host port for PostgreSQL (on `127.0.0.1`)          |
 | `MQTT_HOST_PORT`     | `18830`                   | Host port for MQTT (on `127.0.0.1`)                |
+| `KRATOS_PUBLIC_HOST_PORT` | `4433`               | Host port for the Kratos public API (on `127.0.0.1`) |
+| `KRATOS_DB_PASSWORD` | *(set your own)*          | Password of the `kratos` database role. Hex only (`openssl rand -hex 16`): it goes into a URL |
+| `KRATOS_SECRETS_COOKIE` | *(set your own)*       | Signs Kratos session cookies. Long random string (`openssl rand -hex 32`) |
+| `KRATOS_SECRETS_CIPHER` | *(set your own)*       | Encrypts secrets Kratos stores. **Exactly 32 characters** (`openssl rand -hex 16`) |
 
 `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` only take effect when the data volume is first created. After changing them, run `pnpm infra:reset`.
 
@@ -93,7 +98,7 @@ The images in `compose.yaml` are pinned by digest as well as tag, so a mirror ca
 If no mirror is available, load the images offline on a machine that has them:
 
 ```sh
-docker save postgres:17.11-alpine3.24 eclipse-mosquitto:2.0.22 -o m2smart-dev-images.tar
+docker save postgres:17.11-alpine3.24 eclipse-mosquitto:2.0.22 oryd/kratos:v25.4.0 -o m2smart-dev-images.tar
 docker load -i m2smart-dev-images.tar
 ```
 
@@ -104,3 +109,30 @@ docker load -i m2smart-dev-images.tar
 - **Data persists** in the `m2smart-dev_postgres-data` and `m2smart-dev_mosquitto-data` volumes across `infra:down`/`infra:up`. Only `infra:reset` deletes them.
 - **Port already in use?** Change `POSTGRES_HOST_PORT` or `MQTT_HOST_PORT` in `infra/dev/.env`.
 - The containers don't restart on their own after Docker restarts; run `pnpm infra:up` again.
+
+### Ory Kratos (authentication)
+
+Kratos keeps users, sessions and login flows in its own `kratos` database in the same PostgreSQL cluster; it never touches the app database. `pnpm infra:up` runs three services in order:
+
+1. `kratos-db-init` creates the `kratos` role and database if missing (`infra/postgres/kratos-db.sql`), then exits.
+2. `kratos-migrate` runs `kratos migrate sql` (Kratos's own schema), then exits. Both show as "Exited (0)", which is expected.
+3. `kratos` serves the public API on `127.0.0.1:4433`. The admin API (4434) is never published to the host.
+
+Configuration is in `infra/dev/kratos/` (`kratos.yml`, `identity.schema.json`, `courier-sms.jsonnet`); background and test results are in `docs/spikes/kratos-2d2.md`. Users sign in with a mobile number and an SMS code; a password is optional.
+
+**SMS codes in development.** Kratos sends every SMS to the API's `POST /internal/dev/sms`, which logs it instead of sending it. Start the API (`pnpm api:dev`, with `NODE_ENV=development` in `backend/.env.local`) and read the code from its log line `DEV SMS (not sent)`. If the API isn't running, Kratos retries delivery.
+
+Try a registration with curl:
+
+```sh
+FLOW=$(curl -s http://127.0.0.1:4433/self-service/registration/api | jq -r .id)
+curl -s -X POST "http://127.0.0.1:4433/self-service/registration?flow=$FLOW" \
+  -H 'content-type: application/json' -H 'accept: application/json' \
+  -d '{"method":"code","traits":{"phone":"+989121234567"}}'
+# read the code from the API log, then submit it:
+curl -s -X POST "http://127.0.0.1:4433/self-service/registration?flow=$FLOW" \
+  -H 'content-type: application/json' -H 'accept: application/json' \
+  -d '{"method":"code","code":"<CODE>","traits":{"phone":"+989121234567"}}'
+```
+
+**Iran-only operation.** `SQA_OPT_OUT=true` (telemetry) and `haveibeenpwned_enabled: false` keep Kratos from calling foreign hosts. Keep both in every environment. `--dev` (plain-HTTP cookies) is for local development only.
