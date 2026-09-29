@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Published as TypeScript sources (packages/contracts); Next.js compiles them with the app.
   transpilePackages: ["@m2smart/contracts"],
+  // The contracts package imports its own files as "./x.js" (NodeNext style, as the API needs);
+  // let webpack find the .ts source behind such an import.
+  webpack: (config) => {
+    config.resolve.extensionAlias = { ...config.resolve.extensionAlias, ".js": [".ts", ".tsx", ".js"] };
+    return config;
+  },
   reactStrictMode: true,
   // Same-origin access to the public M2smart API for browser code: /api/v1/* → API /v1/*.
   // Only /v1 is forwarded: the API's /internal/* routes (webhooks, dev SMS) must never be

@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Building2, Check, ChevronRight, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Building2, Check, ChevronRight, Cpu, Pencil, Plus, QrCode, Trash2, X } from "lucide-react";
+import { can, deviceTypeNames, type Device, type DeviceType, type PhotoPreset, type Property, type PropertyType, type Room } from "@m2smart/contracts";
 import type { Locale } from "@/lib/i18n";
-import { photos, type Device, type DeviceKind, type Property, type PropertyType, type Room } from "@/services/mock-home-service";
+import { deviceTypeInfo, photoOptions, photoUrl, text } from "@/lib/device-ui";
+import { gatewayMessage } from "@/lib/gateway-messages";
+import { GatewayError } from "@/services/home-gateway";
 
 const propertyTypes: { value: PropertyType; en: string; fa: string }[] = [
   { value: "house", en: "House", fa: "خانه" },
@@ -14,21 +17,31 @@ const propertyTypes: { value: PropertyType; en: string; fa: string }[] = [
   { value: "custom", en: "Other", fa: "سایر" },
 ];
 
-const deviceKinds: { value: DeviceKind; en: string; fa: string }[] = [
-  { value: "light", en: "Light", fa: "چراغ" },
-  { value: "climate", en: "Climate control", fa: "تهویه" },
-  { value: "curtain", en: "Curtain / blind", fa: "پرده / کرکره" },
-  { value: "plug", en: "Smart plug / switch", fa: "پریز / کلید هوشمند" },
-  { value: "lock", en: "Door lock", fa: "قفل در" },
-  { value: "air", en: "Air quality sensor", fa: "حسگر کیفیت هوا" },
-];
+type PropertyForm = { name: string; address: string; type: PropertyType; coverPhoto: PhotoPreset };
 
-type PropertyForm = Pick<Property, "name" | "address" | "type" | "coverImage">;
+/** Runs an async save, turning gateway errors into a message for the form. */
+function useSaving(locale: Locale) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true);
+    setError("");
+    try {
+      await work();
+    } catch (caught) {
+      setError(gatewayMessage(caught instanceof GatewayError ? caught.code : "network", locale));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { busy, error, run, setError };
+}
 
 export function PropertyManagerDialog({
   properties,
   selectedId,
   locale,
+  nameOf,
   onClose,
   onSelect,
   onCreate,
@@ -36,41 +49,28 @@ export function PropertyManagerDialog({
   onDelete,
 }: {
   properties: Property[];
-  selectedId: string;
+  selectedId: string | null;
   locale: Locale;
+  nameOf: (name: string) => string;
   onClose: () => void;
   onSelect: (id: string) => void;
-  onCreate: (property: Property) => void;
-  onUpdate: (property: Property) => void;
-  onDelete: (id: string) => void;
+  onCreate: (form: PropertyForm) => Promise<void>;
+  onUpdate: (id: string, form: PropertyForm) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const isRtl = locale === "fa";
   const [editing, setEditing] = useState<Property | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(properties.length === 0);
   const [deleting, setDeleting] = useState<Property | null>(null);
-  const [error, setError] = useState("");
+  const saving = useSaving(locale);
 
-  const startCreate = () => {
-    setCreating(true);
-    setEditing(null);
-    setError("");
-  };
-
-  const startEdit = (property: Property) => {
-    setEditing(property);
-    setCreating(false);
-    setError("");
-  };
-
-  const saveProperty = (form: PropertyForm) => {
-    if (creating) {
-      onCreate({ ...form, id: `home-${crypto.randomUUID()}`, online: false });
+  const saveProperty = (form: PropertyForm) =>
+    saving.run(async () => {
+      if (creating) await onCreate(form);
+      else if (editing) await onUpdate(editing.id, form);
       setCreating(false);
-    } else if (editing) {
-      onUpdate({ ...editing, ...form });
       setEditing(null);
-    }
-  };
+    });
 
   return (
     <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -80,15 +80,15 @@ export function PropertyManagerDialog({
           <>
             <span className="workspace-dialog-icon"><Building2 size={19} /></span>
             <span className="panel-overline">{isRtl ? "مدیریت ملک‌ها" : "PROPERTY DETAILS"}</span>
-            <h2 id="property-dialog-title">{isRtl ? (creating ? "خانه‌ی جدید" : "ویرایش ملک") : (creating ? "Add a home" : "Edit property")}</h2>
+            <h2 id="property-dialog-title">{isRtl ? (creating ? "خانه‌ی جدید" : "ویرایش ملک") : creating ? "Add a home" : "Edit property"}</h2>
             <p className="workspace-dialog-description">{isRtl ? "نام، نوع، نشانی و تصویر خانه را تنظیم کنید." : "Set a name, type, address and cover photo for this place."}</p>
             <PropertyFormView
               key={editing?.id ?? "new-property"}
-              initial={editing ?? { name: "", address: "", type: "house", coverImage: photos.livingLarge }}
+              initial={editing ? { name: editing.name, address: editing.address, type: editing.type, coverPhoto: editing.coverPhoto } : { name: "", address: "", type: "house", coverPhoto: "living" }}
               locale={locale}
-              error={error}
-              onBack={() => { setCreating(false); setEditing(null); setError(""); }}
-              onError={setError}
+              error={saving.error}
+              busy={saving.busy}
+              onBack={properties.length ? () => { setCreating(false); setEditing(null); saving.setError(""); } : undefined}
               onSave={saveProperty}
             />
           </>
@@ -96,9 +96,13 @@ export function PropertyManagerDialog({
           <>
             <span className="workspace-dialog-icon delete-dialog-icon"><Trash2 size={19} /></span>
             <span className="panel-overline">{isRtl ? "تأیید حذف" : "REMOVE PROPERTY"}</span>
-            <h2 id="property-dialog-title">{isRtl ? `«${deleting.name}» حذف شود؟` : `Remove ${deleting.name}?`}</h2>
-            <p className="workspace-dialog-description">{isRtl ? "فضاها و دستگاه‌های این خانه نیز از این مرورگر حذف می‌شوند. این کار قابل بازگشت نیست." : "Its rooms and devices will also be removed from this browser. This can’t be undone."}</p>
-            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={() => setDeleting(null)}>{isRtl ? "انصراف" : "Keep property"}</button><button type="button" className="button-danger" onClick={() => { onDelete(deleting.id); setDeleting(null); }}>{isRtl ? "حذف خانه" : "Remove home"}</button></div>
+            <h2 id="property-dialog-title">{isRtl ? `«${nameOf(deleting.name)}» حذف شود؟` : `Remove ${nameOf(deleting.name)}?`}</h2>
+            <p className="workspace-dialog-description">{isRtl ? "همه‌ی فضاها، بردها و دستگاه‌های این خانه برای همه‌ی اعضا حذف می‌شوند. این کار قابل بازگشت نیست." : "All its rooms, boards and devices are removed for every member. This can’t be undone."}</p>
+            {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+            <div className="workspace-form-actions">
+              <button type="button" className="button-subtle" onClick={() => setDeleting(null)}>{isRtl ? "انصراف" : "Keep property"}</button>
+              <button type="button" className="button-danger" disabled={saving.busy} onClick={() => void saving.run(async () => { await onDelete(deleting.id); setDeleting(null); })}>{isRtl ? "حذف خانه" : "Remove home"}</button>
+            </div>
           </>
         ) : (
           <>
@@ -110,16 +114,16 @@ export function PropertyManagerDialog({
               {properties.map((property) => (
                 <div className={`property-manager-row${selectedId === property.id ? " is-current" : ""}`} key={property.id}>
                   <button type="button" className="property-manager-select" onClick={() => onSelect(property.id)}>
-                    <span className="property-manager-photo" style={{ backgroundImage: `url("${property.coverImage}")` }} />
-                    <span className="property-manager-copy"><strong>{property.name}</strong><small>{property.address || propertyTypeLabel(property.type, locale)}</small></span>
+                    <span className="property-manager-photo" style={{ backgroundImage: `url("${photoUrl(property.coverPhoto)}")` }} />
+                    <span className="property-manager-copy"><strong>{nameOf(property.name)}</strong><small>{nameOf(property.address) || propertyTypeLabel(property.type, locale)} · {roleLabel(property.role, locale)}</small></span>
                     {selectedId === property.id ? <span className="property-current-check"><Check size={14} /></span> : <ChevronRight size={16} />}
                   </button>
-                  <button type="button" className="entity-edit-button" onClick={() => startEdit(property)} aria-label={isRtl ? `ویرایش ${property.name}` : `Edit ${property.name}`}><Pencil size={15} /></button>
-                  {properties.length > 1 && <button type="button" className="entity-delete-button" onClick={() => setDeleting(property)} aria-label={isRtl ? `حذف ${property.name}` : `Remove ${property.name}`}><Trash2 size={15} /></button>}
+                  {can(property.role, "property.edit") && <button type="button" className="entity-edit-button" onClick={() => setEditing(property)} aria-label={isRtl ? `ویرایش ${nameOf(property.name)}` : `Edit ${property.name}`}><Pencil size={15} /></button>}
+                  {can(property.role, "property.delete") && <button type="button" className="entity-delete-button" onClick={() => setDeleting(property)} aria-label={isRtl ? `حذف ${nameOf(property.name)}` : `Remove ${property.name}`}><Trash2 size={15} /></button>}
                 </div>
               ))}
             </div>
-            <button type="button" className="workspace-add-button" onClick={startCreate}><Plus size={16} />{isRtl ? "افزودن خانه یا ملک" : "Add a home or property"}</button>
+            <button type="button" className="workspace-add-button" onClick={() => setCreating(true)}><Plus size={16} />{isRtl ? "افزودن خانه یا ملک" : "Add a home or property"}</button>
             <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "تمام" : "Done"}</button></div>
           </>
         )}
@@ -128,48 +132,46 @@ export function PropertyManagerDialog({
   );
 }
 
-function PropertyFormView({ initial, locale, error, onBack, onError, onSave }: { initial: PropertyForm; locale: Locale; error: string; onBack: () => void; onError: (message: string) => void; onSave: (form: PropertyForm) => void }) {
+function PropertyFormView({ initial, locale, error, busy, onBack, onSave }: { initial: PropertyForm; locale: Locale; error: string; busy: boolean; onBack?: () => void; onSave: (form: PropertyForm) => void }) {
   const isRtl = locale === "fa";
   const [name, setName] = useState(initial.name);
   const [address, setAddress] = useState(initial.address);
   const [type, setType] = useState<PropertyType>(initial.type);
-  const [coverImage, setCoverImage] = useState(initial.coverImage);
+  const [coverPhoto, setCoverPhoto] = useState<PhotoPreset>(initial.coverPhoto);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) return;
-    onSave({ name: name.trim(), address: address.trim(), type, coverImage });
+    onSave({ name: name.trim(), address: address.trim(), type, coverPhoto });
   };
 
   return (
     <form className="workspace-form" onSubmit={submit}>
-      <ImagePicker image={coverImage} locale={locale} onChange={setCoverImage} onError={onError} />
-      <label className="form-field"><span>{isRtl ? "نام خانه / ملک" : "Name"}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً ویلای شمال" : "e.g. The garden house"} /></label>
-      <div className="form-two-columns"><label className="form-field"><span>{isRtl ? "نوع ملک" : "Property type"}</span><select value={type} onChange={(event) => setType(event.target.value as PropertyType)}>{propertyTypes.map((item) => <option key={item.value} value={item.value}>{isRtl ? item.fa : item.en}</option>)}</select></label><label className="form-field"><span>{isRtl ? "نشانی" : "Address"}</span><input maxLength={90} value={address} onChange={(event) => setAddress(event.target.value)} placeholder={isRtl ? "شهر، محله" : "City, neighborhood"} /></label></div>
+      <PhotoPresetPicker value={coverPhoto} locale={locale} onChange={setCoverPhoto} />
+      <label className="form-field"><span>{isRtl ? "نام خانه / ملک" : "Name"}</span><input autoFocus required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً ویلای شمال" : "e.g. The garden house"} /></label>
+      <div className="form-two-columns">
+        <label className="form-field"><span>{isRtl ? "نوع ملک" : "Property type"}</span><select value={type} onChange={(event) => setType(event.target.value as PropertyType)}>{propertyTypes.map((item) => <option key={item.value} value={item.value}>{isRtl ? item.fa : item.en}</option>)}</select></label>
+        <label className="form-field"><span>{isRtl ? "نشانی" : "Address"}</span><input maxLength={200} value={address} onChange={(event) => setAddress(event.target.value)} placeholder={isRtl ? "شهر، محله" : "City, neighborhood"} /></label>
+      </div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onBack}>{isRtl ? "بازگشت" : "Back"}</button><button type="submit" className="button-primary"><Check size={15} />{isRtl ? "ذخیره‌ی خانه" : "Save home"}</button></div>
+      <div className="workspace-form-actions">
+        {onBack && <button type="button" className="button-subtle" onClick={onBack}>{isRtl ? "بازگشت" : "Back"}</button>}
+        <button type="submit" className="button-primary" disabled={busy}><Check size={15} />{isRtl ? "ذخیره‌ی خانه" : "Save home"}</button>
+      </div>
     </form>
   );
 }
 
-export function RoomEditorDialog({ room, locale, onClose, onSave }: { room: Room | null; locale: Locale; onClose: () => void; onSave: (room: Room) => void }) {
+export function RoomEditorDialog({ room, locale, nameOf, canDelete, onClose, onSave, onDelete }: { room: Room | null; locale: Locale; nameOf: (name: string) => string; canDelete: boolean; onClose: () => void; onSave: (form: { name: string; photo: PhotoPreset }) => Promise<void>; onDelete: () => Promise<void> }) {
   const isRtl = locale === "fa";
-  const [name, setName] = useState(room?.name ?? "");
-  const [image, setImage] = useState(room?.image ?? photos.bedroom);
-  const [error, setError] = useState("");
+  const [name, setName] = useState(room ? nameOf(room.name) : "");
+  const [photo, setPhoto] = useState<PhotoPreset>(room?.photo ?? "living");
+  const saving = useSaving(locale);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) return;
-    onSave({
-      id: room?.id ?? `room-${crypto.randomUUID()}`,
-      name: name.trim(),
-      temperature: room?.temperature ?? 22,
-      humidity: room?.humidity ?? 45,
-      activeDevices: room?.activeDevices ?? 0,
-      image,
-      imagePosition: room?.imagePosition ?? "center",
-    });
+    void saving.run(() => onSave({ name: name.trim(), photo }));
   };
 
   return (
@@ -177,95 +179,111 @@ export function RoomEditorDialog({ room, locale, onClose, onSave }: { room: Room
       <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="room-dialog-title" dir={isRtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={onClose} aria-label={isRtl ? "بستن" : "Close"}><X size={18} /></button>
         <span className="workspace-dialog-icon"><Building2 size={19} /></span><span className="panel-overline">{isRtl ? "فضاهای خانه" : "HOME SPACES"}</span>
-        <h2 id="room-dialog-title">{isRtl ? (room ? "ویرایش فضا" : "افزودن فضای جدید") : (room ? "Edit space" : "Add a space")}</h2>
+        <h2 id="room-dialog-title">{isRtl ? (room ? "ویرایش فضا" : "افزودن فضای جدید") : room ? "Edit space" : "Add a space"}</h2>
         <p className="workspace-dialog-description">{isRtl ? "برای فضا یک نام و عکس انتخاب کنید." : "Give this space a name and a photo."}</p>
         <form className="workspace-form" onSubmit={submit}>
-          <ImagePicker image={image} locale={locale} onChange={setImage} onError={setError} />
-          <label className="form-field"><span>{isRtl ? "نام فضا" : "Space name"}</span><input autoFocus required maxLength={50} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً آشپزخانه" : "e.g. Kitchen"} /></label>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary"><Check size={15} />{isRtl ? "ذخیره‌ی فضا" : "Save space"}</button></div>
+          <PhotoPresetPicker value={photo} locale={locale} onChange={setPhoto} />
+          <label className="form-field"><span>{isRtl ? "نام فضا" : "Space name"}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً آشپزخانه" : "e.g. Kitchen"} /></label>
+          {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+          <div className="workspace-form-actions">
+            {room && canDelete && <button type="button" className="button-danger-subtle" disabled={saving.busy} onClick={() => void saving.run(onDelete)}><Trash2 size={14} />{isRtl ? "حذف فضا" : "Delete space"}</button>}
+            <button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button>
+            <button type="submit" className="button-primary" disabled={saving.busy}><Check size={15} />{isRtl ? "ذخیره‌ی فضا" : "Save space"}</button>
+          </div>
         </form>
       </section>
     </div>
   );
 }
 
-export function DeviceEditorDialog({ rooms, locale, onClose, onSave }: { rooms: Room[]; locale: Locale; onClose: () => void; onSave: (device: Device) => void }) {
+/** Rename a device or move it to another space. Its hardware (board, pins, type) never changes here. */
+export function DeviceDetailsDialog({ device, name: currentName, rooms, locale, nameOf, onClose, onSave }: { device: Device; name: string; rooms: Room[]; locale: Locale; nameOf: (name: string) => string; onClose: () => void; onSave: (form: { name: string; roomId: string | null }) => Promise<void> }) {
   const isRtl = locale === "fa";
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<DeviceKind>("light");
-  const [roomId, setRoomId] = useState(rooms[0]?.id ?? "");
+  const [name, setName] = useState(currentName);
+  const [roomId, setRoomId] = useState(device.roomId ?? "");
+  const saving = useSaving(locale);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const room = rooms.find((item) => item.id === roomId);
-    if (!name.trim() || !room) return;
-    const defaults: Partial<Record<DeviceKind, number>> = { climate: 22, light: 50, curtain: 0 };
-    onSave({
-      id: `device-${crypto.randomUUID()}`,
-      name: name.trim(),
-      kind,
-      roomId: room.id,
-      room: room.name,
-      detail: kind === "climate" ? "22°C · Auto" : kind === "light" ? "Warm white · 50%" : kind === "curtain" ? "Closed · 0%" : isRtl ? "آماده به کار" : "Ready when you are",
-      value: defaults[kind],
-      online: true,
-      initialState: false,
-    });
+    if (!name.trim()) return;
+    void saving.run(() => onSave({ name: name.trim(), roomId: roomId || null }));
   };
 
   return (
     <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="device-dialog-title" dir={isRtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={onClose} aria-label={isRtl ? "بستن" : "Close"}><X size={18} /></button>
-        <span className="workspace-dialog-icon"><Plus size={19} /></span><span className="panel-overline">{isRtl ? "دستگاه‌های خانه" : "HOME DEVICES"}</span>
-        <h2 id="device-dialog-title">{isRtl ? "افزودن دستگاه" : "Add a device"}</h2>
-        <p className="workspace-dialog-description">{isRtl ? "دستگاه را نام‌گذاری و به یکی از فضاها اضافه کنید." : "Name the device and choose where it belongs."}</p>
-        {rooms.length === 0 ? <p className="form-error">{isRtl ? "ابتدا یک فضا بسازید." : "Create a space before adding a device."}</p> : (
+        <span className="workspace-dialog-icon"><Pencil size={18} /></span><span className="panel-overline">{text(deviceTypeInfo[device.type], locale)}</span>
+        <h2 id="device-dialog-title">{isRtl ? "نام و فضای دستگاه" : "Name and space"}</h2>
+        <form className="workspace-form" onSubmit={submit}>
+          <label className="form-field"><span>{isRtl ? "نام دستگاه" : "Device name"}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label className="form-field"><span>{isRtl ? "فضا" : "Space"}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{isRtl ? "بدون فضا" : "No space"}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
+          {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+          <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary" disabled={saving.busy}><Check size={15} />{isRtl ? "ذخیره" : "Save"}</button></div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Adding a device. Real devices come from M2smart boards added to the home through its hub by
+ * scanning the board's QR code (Phase 4), never from a form, so real users see how that works.
+ * The demo can add sample devices of any catalog type.
+ */
+export function AddDeviceDialog({ rooms, locale, nameOf, onClose, onAddDemo }: { rooms: Room[]; locale: Locale; nameOf: (name: string) => string; onClose: () => void; onAddDemo?: (input: { type: DeviceType; name: string; roomId: string | null }) => Promise<void> }) {
+  const isRtl = locale === "fa";
+  const [type, setType] = useState<DeviceType>("switch");
+  const [name, setName] = useState("");
+  const [roomId, setRoomId] = useState(rooms[0]?.id ?? "");
+  const saving = useSaving(locale);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!onAddDemo) return;
+    void saving.run(() => onAddDemo({ type, name: name.trim() || text(deviceTypeInfo[type], locale), roomId: roomId || null }));
+  };
+
+  return (
+    <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="add-device-title" dir={isRtl ? "rtl" : "ltr"}>
+        <button type="button" className="dialog-close" onClick={onClose} aria-label={isRtl ? "بستن" : "Close"}><X size={18} /></button>
+        <span className="workspace-dialog-icon">{onAddDemo ? <Plus size={19} /> : <QrCode size={19} />}</span><span className="panel-overline">{isRtl ? "دستگاه‌های خانه" : "HOME DEVICES"}</span>
+        <h2 id="add-device-title">{isRtl ? "افزودن دستگاه" : "Add a device"}</h2>
+        {onAddDemo ? (
           <form className="workspace-form" onSubmit={submit}>
-            <label className="form-field"><span>{isRtl ? "نام دستگاه" : "Device name"}</span><input autoFocus required maxLength={50} value={name} onChange={(event) => setName(event.target.value)} placeholder={isRtl ? "مثلاً چراغ سقفی" : "e.g. Ceiling light"} /></label>
-            <label className="form-field"><span>{isRtl ? "نوع دستگاه" : "Device type"}</span><select value={kind} onChange={(event) => setKind(event.target.value as DeviceKind)}>{deviceKinds.map((item) => <option key={item.value} value={item.value}>{isRtl ? item.fa : item.en}</option>)}</select></label>
-            <label className="form-field"><span>{isRtl ? "افزودن به فضا" : "Add to space"}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
-            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary"><Plus size={15} />{isRtl ? "افزودن دستگاه" : "Add device"}</button></div>
+            <p className="workspace-dialog-description">{isRtl ? "در دمو می‌توانید هر نوع دستگاه M2smart را امتحان کنید." : "In the demo you can try any kind of M2smart device."}</p>
+            <label className="form-field"><span>{isRtl ? "نوع دستگاه" : "Device type"}</span><select value={type} onChange={(event) => setType(event.target.value as DeviceType)}>{deviceTypeNames.map((item) => <option key={item} value={item}>{text(deviceTypeInfo[item], locale)}</option>)}</select></label>
+            <label className="form-field"><span>{isRtl ? "نام دستگاه" : "Device name"}</span><input maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={text(deviceTypeInfo[type], locale)} /></label>
+            <label className="form-field"><span>{isRtl ? "فضا" : "Space"}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{isRtl ? "بدون فضا" : "No space"}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
+            {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "انصراف" : "Cancel"}</button><button type="submit" className="button-primary" disabled={saving.busy}><Plus size={15} />{isRtl ? "افزودن دستگاه" : "Add device"}</button></div>
           </form>
+        ) : (
+          <>
+            <p className="workspace-dialog-description">{isRtl ? "دستگاه‌های M2smart روی بردهای مخصوص هر خانه ساخته می‌شوند و هر برد فقط از راه هاب خانه اضافه می‌شود؛ هیچ دستگاهی دستی ساخته نمی‌شود." : "M2smart devices live on boards made for your home, and a board is only added through your home's hub; devices are never created by hand."}</p>
+            <ol className="pairing-steps">
+              <li><Cpu size={15} />{isRtl ? "هاب M2smart را در خانه روشن و به اینترنت وصل کنید." : "Turn on your M2smart hub at home and connect it."}</li>
+              <li><QrCode size={15} />{isRtl ? "کد QR روی برد را اسکن کنید تا دستگاه‌هایش به خانه اضافه شوند." : "Scan the QR code on the board; its devices join your home."}</li>
+            </ol>
+            <p className="form-note">{isRtl ? "اتصال هاب و اسکن QR در نسخه‌ی بعدی فعال می‌شود." : "Hub pairing and QR scanning arrive in the next release."}</p>
+            <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{isRtl ? "متوجه شدم" : "Got it"}</button></div>
+          </>
         )}
       </section>
     </div>
   );
 }
 
-function ImagePicker({ image, locale, onChange, onError }: { image: string; locale: Locale; onChange: (image: string) => void; onError: (message: string) => void }) {
-  const isRtl = locale === "fa";
-
-  const readImage = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      onError(isRtl ? "لطفاً یک فایل تصویری انتخاب کنید." : "Choose an image file.");
-      return;
-    }
-
-    try {
-      const source = URL.createObjectURL(file);
-      const img = new Image();
-      img.src = source;
-      await img.decode();
-      const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Canvas unavailable");
-      context.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(source);
-      onChange(canvas.toDataURL("image/jpeg", 0.78));
-      onError("");
-    } catch {
-      onError(isRtl ? "بارگذاری عکس انجام نشد؛ تصویر دیگری انتخاب کنید." : "That photo couldn’t be loaded. Try another image.");
-    }
-  };
-
+function PhotoPresetPicker({ value, locale, onChange }: { value: PhotoPreset; locale: Locale; onChange: (preset: PhotoPreset) => void }) {
   return (
-    <div className="image-picker-preview" style={{ backgroundImage: `linear-gradient(0deg, rgb(12 18 13 / 25%), transparent 55%), url("${image}")` }}>
-      <label className="image-picker-button"><ImagePlus size={15} /><span>{isRtl ? "تغییر عکس" : "Change photo"}<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void readImage(file); event.currentTarget.value = ""; }} /></span></label>
+    <div className="photo-preset-grid" role="radiogroup" aria-label={locale === "fa" ? "عکس" : "Photo"}>
+      {photoOptions.map((option) => (
+        <button key={option.preset} type="button" role="radio" aria-checked={value === option.preset} className={`photo-preset${value === option.preset ? " selected" : ""}`} style={{ backgroundImage: `url("${photoUrl(option.preset)}")` }} onClick={() => onChange(option.preset)}>
+          <span>{text(option, locale)}</span>
+          {value === option.preset && <Check size={13} />}
+        </button>
+      ))}
     </div>
   );
 }
@@ -273,4 +291,9 @@ function ImagePicker({ image, locale, onChange, onError }: { image: string; loca
 function propertyTypeLabel(type: PropertyType, locale: Locale): string {
   const item = propertyTypes.find((option) => option.value === type);
   return item ? (locale === "fa" ? item.fa : item.en) : type;
+}
+
+function roleLabel(role: Property["role"], locale: Locale): string {
+  const labels = { owner: { en: "Owner", fa: "مالک" }, admin: { en: "Admin", fa: "مدیر" }, member: { en: "Member", fa: "عضو" } } as const;
+  return labels[role][locale];
 }
