@@ -63,5 +63,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Node runtime: the Edge sandbox rejects the demo session's HMAC check (SubtleCrypto cross-realm buffers).
+  runtime: "nodejs",
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)"],
 };
