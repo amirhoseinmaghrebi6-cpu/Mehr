@@ -1,3 +1,5 @@
+import type { DemoCredentials } from "@/lib/auth/types";
+
 export const DEMO_COOKIE_NAME = "m2smart_demo_session";
 export const DEMO_SESSION_MAX_AGE = 60 * 60 * 4;
 const encoder = new TextEncoder();
@@ -5,11 +7,6 @@ const encoder = new TextEncoder();
 export type DemoSession = {
   userId: string;
   expiresAt: number;
-};
-
-export type DemoCredentials = {
-  username: string;
-  password: string;
 };
 
 export function isDemoAuthEnabled(): boolean {

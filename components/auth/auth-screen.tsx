@@ -10,7 +10,7 @@ import {
   updatePasswordAction,
 } from "@/app/(auth)/actions";
 import type { Locale } from "@/lib/i18n";
-import type { DemoCredentials } from "@/lib/demo-auth";
+import type { DemoCredentials } from "@/lib/auth";
 
 type AuthMode = "login" | "register" | "forgot" | "update";
 
