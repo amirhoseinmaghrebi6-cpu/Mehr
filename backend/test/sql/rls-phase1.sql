@@ -173,7 +173,8 @@ begin
   raise notice 'PASS realtime_events in supabase_realtime publication';
 
   -- Both fixture properties use slug 'tehran' in different organizations.
-  if (select count(*) from public.properties where slug = 'tehran') <> 2 then
+  if (select count(*) from public.properties where slug = 'tehran'
+      and id in ('aaaaaaaa-1111-4000-8000-000000000001', 'bbbbbbbb-1111-4000-8000-000000000001')) <> 2 then
     raise exception 'FAIL duplicate slug across organizations not allowed';
   end if;
   raise notice 'PASS same slug allowed in different organizations';

@@ -12,6 +12,7 @@
     "infra:up": "docker compose -f infra/dev/compose.yaml up -d --wait",
     "infra:down": "docker compose -f infra/dev/compose.yaml down",
     "infra:reset": "docker compose -f infra/dev/compose.yaml down -v --remove-orphans && docker compose -f infra/dev/compose.yaml up -d --wait",
+    "api:dev": "pnpm --filter @m2smart/api dev",
     "db:migrate": "pnpm --filter @m2smart/api db:migrate",
     "db:test": "pnpm --filter @m2smart/api db:test",
     "db:seed": "pnpm --filter @m2smart/api db:seed"

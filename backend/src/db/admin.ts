@@ -7,18 +7,13 @@
  *   M2_API_DB_PASSWORD          optional login password applied to m2_api by the bootstrap
  *   M2_MIGRATOR_DB_PASSWORD     optional login password applied to m2_migrator by the bootstrap
  */
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Client } from "pg";
+import { loadBackendEnv } from "../env";
 
 export class ToolError extends Error {}
 
 export const REPO_ROOT = resolve(__dirname, "../../..");
-
-export function loadBackendEnv(): void {
-  const envFile = resolve(__dirname, "../../.env.local");
-  if (existsSync(envFile)) process.loadEnvFile(envFile);
-}
 
 export async function connectAdmin(): Promise<Client> {
   loadBackendEnv();

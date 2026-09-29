@@ -1,4 +1,5 @@
 packages:
   - backend
+  - packages/*
 allowBuilds:
   unrs-resolver: false
