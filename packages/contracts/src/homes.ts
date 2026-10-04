@@ -111,6 +111,13 @@ export interface DeviceListResponse {
   devices: Device[];
 }
 
+/** The answer to POST /v1/properties/:propertyId/boards: the new board and its devices, to name and place. */
+export interface PairBoardResponse {
+  boardId: string;
+  boardName: string;
+  devices: Device[];
+}
+
 /** PATCH /v1/properties/:propertyId/devices/:deviceId. Pin assignments are never editable. */
 export const updateDeviceRequest = z
   .strictObject({

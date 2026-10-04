@@ -131,6 +131,12 @@ function toCommand(row: CommandRow, now = new Date()): Command {
   };
 }
 
+/** The devices of a home, or of one of its boards. */
+export async function listDevices(tx: TxClient, propertyId: string, boardId?: string): Promise<Device[]> {
+  const { rows } = await tx.query<DeviceRow>(`${DEVICE_SELECT} and ($2::uuid is null or device.controller_id = $2) group by device.id order by device.name, device.id`, [propertyId, boardId ?? null]);
+  return rows.map(toDevice);
+}
+
 async function loadDevice(tx: TxClient, propertyId: string, deviceId: string): Promise<Device> {
   const { rows } = await tx.query<DeviceRow>(`${DEVICE_SELECT} and device.id = $2 group by device.id`, [propertyId, deviceId]);
   if (!rows.length) throw notFound();
@@ -143,8 +149,7 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
   app.get<{ Params: { propertyId: string } }>("/v1/properties/:propertyId/devices", (request, reply) =>
     handle(request, reply, 200, async (tx): Promise<DeviceListResponse> => {
       await requireAction(tx, request.params.propertyId, "property.view");
-      const { rows } = await tx.query<DeviceRow>(`${DEVICE_SELECT} group by device.id order by device.name, device.id`, [request.params.propertyId]);
-      return { devices: rows.map(toDevice) };
+      return { devices: await listDevices(tx, request.params.propertyId) };
     }),
   );
 

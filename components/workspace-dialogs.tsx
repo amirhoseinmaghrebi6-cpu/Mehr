@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Building2, Check, ChevronRight, Cpu, Fingerprint, Pencil, Plus, QrCode, Trash2, X } from "lucide-react";
+import { Building2, Check, ChevronRight, Pencil, Plus, QrCode, Trash2, X } from "lucide-react";
 import { can, defaultTimeZone, deviceTypeNames, propertyTypes, type Device, type DeviceType, type PhotoPreset, type Property, type PropertyType, type Room } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
+import { PairBoard } from "@/features/boards/pair-board";
 import { photoPresetList, photoUrl, typeLabel } from "@/lib/device-ui";
 import { offeredTimeZones, timeZoneCity, timeZoneOffset } from "@/lib/i18n";
 import { gatewayMessage } from "@/lib/gateway-messages";
@@ -229,7 +230,24 @@ export function DeviceDetailsDialog({ device, name: currentName, rooms, nameOf, 
  * board's setup button, then confirm), never from a form, so real users see how that works. The
  * demo can add sample devices of any catalog type.
  */
-export function AddDeviceDialog({ rooms, nameOf, onClose, onAddDemo }: { rooms: Room[]; nameOf: (name: string) => string; onClose: () => void; onAddDemo?: (input: { type: DeviceType; name: string; roomId: string | null }) => Promise<void> }) {
+export function AddDeviceDialog({
+  rooms,
+  nameOf,
+  canPair,
+  onClose,
+  onAddDemo,
+  onPair,
+  onRename,
+}: {
+  rooms: Room[];
+  nameOf: (name: string) => string;
+  /** Owners and admins add boards; members only read how it is done. */
+  canPair: boolean;
+  onClose: () => void;
+  onAddDemo?: (input: { type: DeviceType; name: string; roomId: string | null }) => Promise<void>;
+  onPair: (pairingCode: string) => Promise<Device[]>;
+  onRename: (device: Device, form: { name: string; roomId: string | null }) => Promise<void>;
+}) {
   const { locale, m, rtl } = useI18n();
   const d = m.dialogs;
   const [type, setType] = useState<DeviceType>("switch");
@@ -259,15 +277,7 @@ export function AddDeviceDialog({ rooms, nameOf, onClose, onAddDemo }: { rooms: 
             <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{m.common.cancel}</button><button type="submit" className="button-primary" disabled={saving.busy}><Plus size={15} />{m.dashboard.addDevice}</button></div>
           </form>
         ) : (
-          <>
-            <p className="workspace-dialog-description">{d.realAddText}</p>
-            <ol className="pairing-steps">
-              <li><Cpu size={15} />{d.pairingStep1}</li>
-              <li><Fingerprint size={15} />{d.pairingStep2}</li>
-            </ol>
-            <p className="form-note">{d.pairingSoon}</p>
-            <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{m.common.gotIt}</button></div>
-          </>
+          <PairBoard rooms={rooms} canPair={canPair} nameOf={nameOf} onClose={onClose} onPair={onPair} onRename={onRename} />
         )}
       </section>
     </div>

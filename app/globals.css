@@ -1021,3 +1021,16 @@ a.auth-submit { text-decoration: none; }
   .weekday-picker > button { font-size: 8px; }
   .workspace-form-actions { flex-wrap: wrap; }
 }
+
+/* Adding a board: QR upload and naming its channels. */
+.qr-upload { position: relative; display: flex; min-height: 54px; align-items: center; justify-content: center; gap: 9px; border: 1px dashed var(--line-strong); border-radius: 7px; background: var(--accent-pale); color: var(--accent-deep); cursor: pointer; font-size: 10.5px; font-weight: 600; transition: border-color .16s, background .16s; }
+.qr-upload:hover { border-color: var(--accent); background: var(--accent-soft); }
+.qr-upload.is-busy { opacity: .6; cursor: progress; }
+.qr-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: inherit; }
+.pairing-steps > li { align-items: flex-start; line-height: 1.55; }
+.pairing-steps svg { margin-top: 1px; }
+.channel-list { display: grid; max-height: 46dvh; gap: 7px; overflow: auto; }
+.channel-row { display: grid; grid-template-columns: minmax(70px, .7fr) minmax(0, 1.5fr) minmax(0, 1.1fr); align-items: center; gap: 6px; }
+.channel-type { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.channel-row > input, .channel-row > select { min-width: 0; height: 37px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; outline: 0; background: var(--surface); color: var(--ink); font-size: 10px; }
+@media (max-width: 600px) { .channel-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .channel-type { grid-column: 1 / -1; } }

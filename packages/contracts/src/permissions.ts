@@ -22,14 +22,16 @@ export const propertyActions = [
   "scenario.edit",
   /** Run a themed scenario by a tap. */
   "scenario.run",
+  /** Add a board to the home with its pairing code. */
+  "board.pair",
   /** Delete the home with everything in it. */
   "property.delete",
 ] as const;
 export type PropertyAction = (typeof propertyActions)[number];
 
 export const rolePermissions: Readonly<Record<PropertyRole, readonly PropertyAction[]>> = {
-  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "property.delete"],
-  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run"],
+  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair", "property.delete"],
+  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair"],
   member: ["property.view", "device.control", "scenario.run"],
 };
 

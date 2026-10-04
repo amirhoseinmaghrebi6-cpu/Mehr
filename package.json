@@ -15,11 +15,13 @@
     "db:migrate": "pnpm --filter @m2smart/api db:migrate",
     "db:test": "pnpm --filter @m2smart/api db:test",
     "db:seed": "pnpm --filter @m2smart/api db:seed",
-    "dev:board": "pnpm --filter @m2smart/api dev:board"
+    "dev:board": "pnpm --filter @m2smart/api dev:board",
+    "dev:pairing": "pnpm --filter @m2smart/api dev:pairing"
   },
   "dependencies": {
     "@m2smart/contracts": "workspace:*",
     "framer-motion": "^12.23.12",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",
     "next": "^15.5.9",
     "react": "^19.1.1",

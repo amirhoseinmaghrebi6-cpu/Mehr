@@ -545,7 +545,19 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       {addDeviceOpen && propertyId && <AddDeviceDialog
         rooms={rooms}
         nameOf={nameOf}
+        canPair={property ? can(property.role, "board.pair") : false}
         onClose={() => setAddDeviceOpen(false)}
+        onPair={async (pairingCode) => {
+          if (!gateway.pairBoard) throw new GatewayError("forbidden");
+          const paired = await gateway.pairBoard(propertyId, pairingCode);
+          home.setDevices((current) => [...current.filter((device) => !paired.devices.some((added) => added.id === device.id)), ...paired.devices]);
+          showToast(m.shell.toasts.boardAdded);
+          return paired.devices;
+        }}
+        onRename={async (device, form) => {
+          const updated = await gateway.updateDevice(propertyId, device.id, form);
+          home.setDevices((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+        }}
         onAddDemo={gateway.addDemoDevice ? async (input) => {
           const created = await gateway.addDemoDevice!(propertyId, input);
           home.setDevices((current) => [...current, created]);

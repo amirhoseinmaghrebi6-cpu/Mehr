@@ -12,6 +12,7 @@
     "db:test": "tsx test/run-sql-tests.ts",
     "db:seed": "tsx scripts/seed-dev.ts",
     "dev:board": "tsx scripts/dev-board.ts",
+    "dev:pairing": "tsx scripts/dev-pairing.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

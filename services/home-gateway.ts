@@ -14,6 +14,7 @@ import type {
   CreateRoomRequest,
   Device,
   DeviceType,
+  PairBoardResponse,
   Property,
   Room,
   Scenario,
@@ -67,8 +68,14 @@ export interface HomeGateway {
   updateSettings(input: UpdateSettingsRequest): Promise<UserSettings>;
 
   /**
-   * Demo only. Real devices come from boards paired through the hub (Phase 4), never from a form,
-   * so the API gateway has neither.
+   * Adds the board whose pairing code this is (the text of the QR code its setup page showed) to
+   * the home. Real homes only: the demo adds sample devices with addDemoDevice instead.
+   */
+  pairBoard?(propertyId: string, pairingCode: string): Promise<PairBoardResponse>;
+
+  /**
+   * Demo only. Real devices come from boards paired with the home, never from a form, so the API
+   * gateway has neither.
    */
   addDemoDevice?(propertyId: string, input: { type: DeviceType; name: string; roomId: string | null }): Promise<Device>;
   removeDemoDevice?(propertyId: string, deviceId: string): Promise<void>;

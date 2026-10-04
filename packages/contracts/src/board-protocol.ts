@@ -91,3 +91,38 @@ export function parsePairingCode(text: string): { hardwareUid: string; code: str
   const match = PAIRING.exec(text.trim());
   return match ? { hardwareUid: match[1], code: match[2] } : null;
 }
+
+// --- Pairing over HTTPS (docs/board-protocol.md) -------------------------------------------------
+
+const hardwareUid = z.string().regex(/^[A-Za-z0-9:_-]{4,64}$/);
+/** The random secret written to the board at production; it proves the board is genuine. */
+const factorySecret = z.string().min(32).max(128);
+const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
+
+/** POST /v1/boards/announce — a board in pairing mode is online and waiting to be paired. */
+export const boardAnnounceRequest = z.strictObject({
+  hardwareUid,
+  secret: factorySecret,
+  /** SHA-256 (hex) of the pairing code the board shows; the server never sees the code from the board. */
+  codeHash: sha256Hex,
+});
+export type BoardAnnounceRequest = z.infer<typeof boardAnnounceRequest>;
+
+/** POST /v1/boards/credentials — the board asks for its broker account. */
+export const boardCredentialsRequest = z.strictObject({
+  hardwareUid,
+  secret: factorySecret,
+  /** The pairing code itself (26 characters). */
+  code: z.string().regex(/^[A-Z2-7]{26}$/),
+});
+export type BoardCredentialsRequest = z.infer<typeof boardCredentialsRequest>;
+
+/** 202 while no owner or admin has uploaded the code yet; 200 with the account once they have. */
+export type BoardCredentialsResponse = { status: "waiting" } | { status: "paired"; boardId: string; brokerSecret: string };
+
+/** POST /v1/properties/:propertyId/boards — an owner or admin adds the board whose code they hold. */
+export const pairBoardRequest = z.strictObject({
+  /** The text of the board's pairing QR code: `M2P1:{hardwareUid}:{code}`. */
+  pairingCode: z.string().max(200),
+});
+export type PairBoardRequest = z.infer<typeof pairBoardRequest>;

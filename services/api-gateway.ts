@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ApiErrorResponse, Command, CommandStatus, Device, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
+import type { ApiErrorResponse, Command, CommandStatus, Device, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -86,6 +86,9 @@ export function createApiGateway(): HomeGateway {
     deleteScenario: (id, scenarioId) => request<void>("DELETE", `/properties/${id}/scenarios/${scenarioId}`),
     // Not retried: a lost reply could otherwise run the scenario twice.
     runScenario: (id, scenarioId) => request<ScenarioRunResponse>("POST", `/properties/${id}/scenarios/${scenarioId}/run`),
+
+    // Not retried: a pairing code works once.
+    pairBoard: (id, pairingCode) => request<PairBoardResponse>("POST", `/properties/${id}/boards`, { pairingCode }),
 
     getSettings: () => request<UserSettings>("GET", "/me/settings"),
     updateSettings: (input) => request<UserSettings>("PATCH", "/me/settings", input),

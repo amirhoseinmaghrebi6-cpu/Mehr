@@ -2,7 +2,7 @@
 
 How an M2smart ESP32 board talks to the cloud. There is no hub: every board connects straight to our MQTT broker in Iran. This document is the contract for the firmware (Phases 6–7); the message shapes live as code in `packages/contracts/src/board-protocol.ts`, and the API and the simulated board use that file.
 
-Status: the messages, the database, broker accounts, online/offline status and the command and report path are in place (Phases 4A–4D), tested with simulated boards. Scenarios run on the server (4D). Pairing is built in step 4E of [plans/phase-4.md](plans/phase-4.md).
+Status: the messages, the database, broker accounts, online/offline status and the command and report path are in place (Phases 4A–4D), tested with simulated boards. Scenarios run on the server (4D); pairing and factory reset are in place (4E). Everything is tested with simulated boards; the firmware follows this document of [plans/phase-4.md](plans/phase-4.md).
 
 ## Rules the board always follows
 
@@ -91,9 +91,9 @@ Nothing is printed on the product. The board makes its own pairing code.
 2. **Setup page** (served by the board, no internet needed):
    - asks for the home's Wi-Fi name and password;
    - shows the pairing code as a QR code and as text, for the user to save: `M2P1:{hardware id}:{code}`.
-3. **Announce.** The board joins the home's Wi-Fi and calls the API over HTTPS with its hardware id, its factory secret and the SHA-256 of the pairing code. The server now knows a genuine board is waiting; it stores only the hash, for at most 24 hours.
+3. **Announce.** The board joins the home's Wi-Fi and calls `POST /v1/boards/announce` over HTTPS with `{"hardwareUid", "secret", "codeHash"}`: its hardware id, its factory secret and the SHA-256 (hex) of the pairing code. The answer is 204, or 401 for a board the registry does not know. The server now knows a genuine board is waiting; it stores only the hash, for at most 24 hours.
 4. **Confirm.** An owner or admin uploads the QR code (or pastes the text) in the app, in the home they choose. The server adds the board and all its channels to that home.
-5. **Credentials.** The board asks the API for its credentials with its hardware id, factory secret and the pairing code. Until step 4 has happened the answer is "not yet"; then it is the board id and a fresh broker secret. Any earlier broker secret stops working.
+5. **Credentials.** The board calls `POST /v1/boards/credentials` with `{"hardwareUid", "secret", "code"}` every few seconds. Until step 4 has happened the answer is 202 `{"status":"waiting"}`; then it is 200 `{"status":"paired","boardId","brokerSecret"}`. Every such answer carries a fresh broker secret and ends the earlier one, so a board whose answer got lost simply asks again. A wrong secret or code gets 401.
 6. The board stores the credentials, closes the access point and connects to the broker.
 
 A pairing code works once. After 24 hours unused, it is deleted; holding the button again gives a new one.

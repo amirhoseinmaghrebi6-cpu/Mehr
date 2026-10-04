@@ -76,11 +76,17 @@ The current delivery implements:
   - Devices are built from the board models.
   - Command deadlines follow the hardware's time.
   - A development simulator plays the ESP32s: each simulated board is a real client of the MQTT broker, so commands and reports travel the same path real boards will use.
+- (Phase 4) boards connect straight to the cloud over MQTT, with no hub:
+  - A board joins a home by the QR code it shows on its own setup page, uploaded by an owner or admin.
+  - A factory reset leaves nothing of the board on the server.
+  - See `docs/plans/phase-4.md` and `docs/board-protocol.md`.
 
-Scenes, routines, energy history, security and cameras still use sample data, in the demo only; real users see "coming soon" there. Still to be implemented:
-- (Phase 4, in progress) boards connected straight to the cloud over MQTT, with no hub, and pairing by the board's own QR code: see `docs/plans/phase-4.md` and `docs/board-protocol.md`;
+Routines triggered by sensors, the energy chart, security and cameras still use sample data, in the demo only; real users see "coming soon" there.
+
+Still to be implemented:
 - firmware;
 - realtime push;
 - member invitations;
 - administration;
-- full localized calendar and unit handling.
+- the real SMS provider;
+- deployment on servers in Iran, with TLS and our own certificate authority for the boards.

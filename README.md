@@ -52,7 +52,7 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
    pnpm dev:board <home-id> sample-switch-2ch-rev-b       # adds a simulated board to that home
    ```
 
-   Real boards join a home with the pairing code from their own setup page (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).
+   Real boards join a home with the pairing code from their own setup page. To try that flow, `pnpm dev:pairing <model-code>` plays a new board in pairing mode and prints its code; paste it (or upload it as a QR image) under "Add a device" in the app. See [docs/hardware-catalog.md](docs/hardware-catalog.md).
 
 6. **Try scenarios.** Under Scenarios, create a themed one and run it with a tap, or create a repeating or one-time one. Times are in the home's time zone. The API runs due scenarios itself, checking every 5 seconds; a scenario that is late (the board was offline) still runs within its validity window.
 

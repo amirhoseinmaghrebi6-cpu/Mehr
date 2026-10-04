@@ -7,6 +7,7 @@ import type { ApiErrorResponse } from "@m2smart/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { registerIdentityWebhook } from "./auth/identity-webhook";
+import { followBoardResets } from "./boards/pairing";
 import { followBoardStatus } from "./broker/board-status";
 import { connectBroker, type Broker } from "./broker/broker";
 import { startCommandBridge } from "./broker/command-bridge";
@@ -17,6 +18,7 @@ import { ConfigError, loadConfig, type Config } from "./config";
 import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./db/pool";
 import { startBoardSimulator, type BoardSimulator } from "./dev/board-simulator";
 import { loadBackendEnv } from "./env";
+import { registerBoardRoutes } from "./http/boards";
 import { registerDeviceRoutes } from "./http/devices";
 import { registerDevReportRoute } from "./http/dev-report";
 import { registerDevSmsRoute } from "./http/dev-sms";
@@ -32,6 +34,8 @@ export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devR
 export type ServerServices = {
   /** Required for authenticated routes (/v1/*); omitted in tests that only need health. */
   sessionVerifier?: SessionVerifier;
+  /** The boards' broker once it is connected (pairing needs it); null until then. */
+  broker?: () => Broker | null;
 };
 
 export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
@@ -73,6 +77,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerSettingsRoutes(app, pool, services.sessionVerifier);
     registerScenarioRoutes(app, pool, services.sessionVerifier);
   }
+  registerBoardRoutes(app, pool, services.sessionVerifier, services.broker ?? (() => null));
   if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
   if (config.devRoutes) {
     registerDevSmsRoute(app);
@@ -99,7 +104,9 @@ async function main(): Promise<void> {
   let logTarget: FastifyInstance | undefined;
   const pool = createPool(config, { error: (object, message) => logTarget?.log.error(object, message) });
   const sessionVerifier = withSessionCache(createKratosVerifier(config.kratosPublicUrl));
-  const app = buildServer(config, pool, { sessionVerifier });
+  // The boards' broker, once connected (below).
+  let broker: Broker | null = null;
+  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker });
   logTarget = app;
 
   try {
@@ -119,7 +126,6 @@ async function main(): Promise<void> {
   const stopScenarios = startScenarioRunner(pool, app.log);
 
   // The boards' broker. If it is not reachable yet, the API still serves users and keeps trying.
-  let broker: Broker | null = null;
   let brokerRetry: NodeJS.Timeout | null = null;
   let stopBridge: (() => void) | null = null;
   let simulator: BoardSimulator | null = null;
@@ -128,6 +134,7 @@ async function main(): Promise<void> {
     try {
       broker = await connectBroker(config.broker, app.log);
       followBoardStatus(broker, pool, app.log);
+      followBoardResets(broker, pool, app.log);
       stopBridge = startCommandBridge(pool, broker, app.log);
       if (config.devBoardSimulator) {
         simulator = startBoardSimulator(pool, broker, config.broker.url, app.log);
