@@ -4,7 +4,6 @@
  * - finished commands after 24 hours (their delivery attempts go with them);
  * - events after 1 hour (they exist only to tell open apps about a change);
  * - pairing codes that expired unused;
- * - daily energy totals after one year;
  * - one-time scenarios whose time and validity window have passed (commands they already sent
  *   stay until they finish);
  * - every scenario run except the latest of its scenario.
@@ -32,7 +31,6 @@ const RULES: Array<[name: string, sql: string]> = [
     `delete from public.scenario_runs as run
      where exists (select 1 from public.scenario_runs as newer where newer.scenario_id = run.scenario_id and newer.created_at > run.created_at)`,
   ],
-  ["energy", `delete from public.device_energy_daily where (device_id, day) in (select device_id, day from public.device_energy_daily where day < current_date - 366 limit ${BATCH})`],
 ];
 
 /** Deletes one batch of everything that is past its time. Returns how many rows went, by kind. */

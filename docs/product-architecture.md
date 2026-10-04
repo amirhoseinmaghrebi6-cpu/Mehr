@@ -4,7 +4,7 @@
 
 The organization is the tenancy boundary. A person may belong to multiple organizations; each organization owns properties. A property contains buildings, floors, rooms, areas, devices, scenes, automations, cameras, and membership grants. The active organization and property scope every read, realtime subscription, and mutation. The backend remains authoritative for identity, authorization, audit, and device commands.
 
-Primary customer navigation is: Overview; Spaces (rooms and devices); Living (scenes and automations); Insights (energy); Safety (security and cameras); Home & you (activity and settings). Emergency, AI, users and sharing, integrations, and device onboarding are contextual destinations that can be added without expanding the first-level navigation.
+Primary customer navigation is: Overview; Spaces (rooms and devices); Scenarios; Safety (security and cameras); Home & you (activity and settings). Emergency, AI, users and sharing, integrations, and device onboarding are contextual destinations that can be added without expanding the first-level navigation.
 
 ## Route hierarchy
 
@@ -21,7 +21,7 @@ Planned route groups: `(auth)` for sign-in, registration, verification and recov
 - `lib/i18n.ts` owns locale selection and message lookup; all content direction derives from locale.
 - `app/` owns route composition, document metadata, and PWA declarations.
 
-As the product grows, split domain owners into `features/homes`, `rooms`, `devices`, `scenes`, `automations`, `energy`, `security`, `cameras`, `emergency`, `notifications`, `ai`, `users`, `settings`, and `admin`; keep service contracts and domain types out of presentation components.
+As the product grows, split domain owners into `features/homes`, `rooms`, `devices`, `scenarios`, `security`, `cameras`, `emergency`, `notifications`, `ai`, `users`, `settings`, and `admin`; keep service contracts and domain types out of presentation components.
 
 ## State and backend boundary
 
@@ -60,9 +60,9 @@ The whole app is in Persian, English and Arabic.
 1. Product map, domain boundaries, route and adapter contracts.
 2. Semantic theme tokens and accessible interaction primitives.
 3. App shell, tenant/property scope, localization, and preferences.
-4. Command center, room/device collections, scenes, energy, security, cameras, and activity.
+4. Command center, room/device collections, scenarios, security, cameras, and activity.
 5. Device-specific control sheets and lifecycle/diagnostics.
-6. Visual automation authoring and scheduling.
+6. Scenario authoring and scheduling.
 7. Emergency workflows, audit surfaces, and permission-aware controls.
 8. Organization administration, integrations, and white-label configuration.
 9. Realtime, authenticated API adapters, offline policy, and PWA validation.
@@ -82,7 +82,7 @@ The current delivery implements:
   - A factory reset leaves nothing of the board on the server.
   - See `docs/plans/phase-4.md` and `docs/board-protocol.md`.
 
-Routines triggered by sensors, the energy chart, security and cameras still use sample data, in the demo only; real users see "coming soon" there.
+Security and cameras still use sample data, in the demo only; real users see "coming soon" there. There is no Automations page and no Energy page, and the app shows no consumption numbers: scenarios cover scheduling, and consumption is not a feature of the product (decided 2026-10-04).
 
 Still to be implemented:
 - firmware;

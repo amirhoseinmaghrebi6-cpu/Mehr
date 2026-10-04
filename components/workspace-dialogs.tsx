@@ -317,7 +317,7 @@ export function AddDeviceDialog({
         {onAddDemo && quick ? (
           <form className="workspace-form" onSubmit={submit}>
             <p className="workspace-dialog-description">{d.demoAddText}</p>
-            <label className="form-field"><span>{d.deviceType}</span><select value={type} onChange={(event) => setType(event.target.value as DeviceType)}>{deviceTypeNames.map((item) => <option key={item} value={item}>{typeLabel(item, locale)}</option>)}</select></label>
+            <label className="form-field"><span>{d.deviceType}</span><select value={type} onChange={(event) => setType(event.target.value as DeviceType)}>{deviceTypeNames.filter((item) => item !== "energy_meter").map((item) => <option key={item} value={item}>{typeLabel(item, locale)}</option>)}</select></label>
             <label className="form-field"><span>{d.deviceName}</span><input maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={typeLabel(type, locale)} /></label>
             <label className="form-field"><span>{d.space}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{d.noSpace}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
             {saving.error && <p className="form-error" role="alert">{saving.error}</p>}

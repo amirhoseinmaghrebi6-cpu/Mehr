@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Droplets, LoaderCircle, Pencil, Power, Video, X } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
-import { capabilityLabel, deviceTypeInfo, formatNumber, typeLabel, valueLabel } from "@/lib/device-ui";
+import { capabilityLabel, deviceTypeInfo, formatNumber, typeLabel, valueLabel, shownCapabilities } from "@/lib/device-ui";
 import type { Locale } from "@/lib/i18n";
 
 type Props = {
@@ -26,8 +26,8 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
   const { locale, m, rtl, temperatureUnit } = useI18n();
   const info = deviceTypeInfo[device.type];
   const Icon = info.icon;
-  const writable = device.capabilities.filter((state) => state.writable);
-  const readOnly = device.capabilities.filter((state) => !state.writable);
+  const writable = shownCapabilities(device).filter((state) => state.writable);
+  const readOnly = shownCapabilities(device).filter((state) => !state.writable);
 
   return (
     <motion.div className="modal-backdrop device-sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>

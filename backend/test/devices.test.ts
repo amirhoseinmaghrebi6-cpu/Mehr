@@ -90,7 +90,6 @@ describe("devices and commands", () => {
   let coolerA: Device;
   let lampB: Device;
   let cameraA: Device;
-  let socketA: Device;
   let broker: Broker;
   let stopBridge: () => void;
   let simulator: BoardSimulator | null = null;
@@ -151,7 +150,6 @@ describe("devices and commands", () => {
     windowA = devicesA.find((device) => device.type === "contact_sensor")!;
     coolerA = devicesA.find((device) => device.type === "cooler")!;
     cameraA = devicesA.find((device) => device.type === "camera")!;
-    socketA = devicesA.find((device) => device.type === "socket")!;
 
     broker = await connectBroker(loadConfig().broker!, silentLog);
     followBoardStatus(broker, pool, silentLog);
@@ -413,34 +411,17 @@ describe("devices and commands", () => {
   });
 
   describe("no history", () => {
-    it("keeps one energy total per day from the meter's readings", async () => {
-      const total = async () => (await adminQuery<{ energy_kwh: string; last_reading_kwh: string }>("select energy_kwh, last_reading_kwh from public.device_energy_daily where device_id = $1", [socketA.id]))
-        .map((row) => [Number(row.energy_kwh), Number(row.last_reading_kwh)]);
-      await reportDeviceState(pool, socketA.id, "energy_kwh", 100);
-      expect(await total()).toEqual([[0, 100]]); // the first reading only sets the starting point
-      await reportDeviceState(pool, socketA.id, "energy_kwh", 101.5);
-      expect(await total()).toEqual([[1.5, 101.5]]);
-      await reportDeviceState(pool, socketA.id, "energy_kwh", 0.4); // the meter restarted from zero
-      expect(await total()).toEqual([[1.9, 0.4]]);
-      // Yesterday's row stays its own day.
-      await adminQuery("update public.device_energy_daily set day = day - 1 where device_id = $1", [socketA.id]);
-      await reportDeviceState(pool, socketA.id, "energy_kwh", 1);
-      expect((await total()).sort()).toEqual([[0.6, 1], [1.9, 0.4]].sort());
-    });
-
-    it("deletes finished commands after 24 hours, events after an hour and energy totals after a year", async () => {
+    it("deletes finished commands after 24 hours and events after an hour", async () => {
       const old = (await command("memberA", homeA, { deviceId: lampA.id, capability: "power", targetValue: false })).body as Command;
       const recent = (await command("memberA", homeA, { deviceId: lampA.id, capability: "power", targetValue: true })).body as Command;
       await until(async () => (await adminQuery("select 1 from public.device_commands where id = any($1::uuid[]) and completed_at is not null", [[old.id, recent.id]])).length === 2);
       await adminQuery("update public.device_commands set completed_at = now() - interval '25 hours' where id = $1", [old.id]);
       await adminQuery("update public.realtime_events set created_at = now() - interval '2 hours' where device_id = $1", [lampA.id]);
-      await adminQuery("update public.device_energy_daily set day = current_date - 400 where device_id = $1 and day < current_date", [socketA.id]);
 
       await cleanUp(pool);
       const left = await adminQuery<{ id: string }>("select id from public.device_commands where id = any($1::uuid[])", [[old.id, recent.id]]);
       expect(left.map((row) => row.id)).toEqual([recent.id]);
       expect((await adminQuery("select 1 from public.realtime_events where device_id = $1 and created_at < now() - interval '1 hour'", [lampA.id])).length).toBe(0);
-      expect((await adminQuery("select 1 from public.device_energy_daily where device_id = $1", [socketA.id])).length).toBe(1);
     });
   });
 

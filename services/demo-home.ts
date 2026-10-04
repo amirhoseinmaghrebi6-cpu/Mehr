@@ -63,7 +63,7 @@ export function createDemoData(): DemoData {
         demoDevice("air", "air_quality_sensor", "Air quality", "living", { co2_ppm: 620, voc_index: 90 }),
         demoDevice("climate", "humidity_sensor", "Humidity & temperature", "living", { humidity: 41, temperature: 22.5 }),
         demoDevice("kitchen-lights", "switch", "Kitchen lights", "kitchen", { power: true }),
-        demoDevice("coffee", "socket", "Coffee machine", "kitchen", { power: false, power_w: 0, energy_kwh: 3.2 }),
+        demoDevice("coffee", "socket", "Coffee machine", "kitchen", { power: false }),
         demoDevice("leak", "leak_sensor", "Under-sink leak sensor", "kitchen", { leak: false }),
         demoDevice("smoke", "smoke_sensor", "Kitchen smoke sensor", "kitchen", { smoke: false }),
         demoDevice("cooler", "cooler", "Evaporative cooler", "bedroom", { pump: false, speed: "off" }),
@@ -81,7 +81,6 @@ export function createDemoData(): DemoData {
         demoDevice("c-presence", "presence_sensor", "Bedroom presence", "c-bedroom", { presence: true }),
         demoDevice("c-co", "co_sensor", "Heater CO sensor", "c-living", { co_ppm: 3 }),
         demoDevice("c-light", "light_sensor", "Daylight sensor", "c-living", { illuminance_lux: 320 }),
-        demoDevice("c-meter", "energy_meter", "Main energy meter", null, { power_w: 1240, energy_kwh: 512.4 }),
       ],
     },
   };
@@ -98,7 +97,7 @@ export const demoBoards: Record<string, { name: string; image: string; channels:
   "DEMO-MULTI-6CH": {
     name: "6-channel board",
     image: "/images/demo/pairing-multi-6ch.png",
-    channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket", { power: false, power_w: 0, energy_kwh: 0 }], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
+    channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket"], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
   },
 };
 

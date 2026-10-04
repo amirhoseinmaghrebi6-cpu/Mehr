@@ -25,7 +25,7 @@ These replace earlier decisions; the older documents point here.
    - **States:** only the last reported value per capability, overwritten (as today).
    - **Factory reset:** nothing about the board stays on the server: the board, its devices, states, commands and scenario actions are deleted. No audit entry and no notification to the old home. This replaces the audit entry and notification of Phase 3.5, section A.
    - **Temporary data:** pairing codes, SMS codes and expired sessions are cleaned up regularly.
-   - **Energy:** the one exception. For metered devices, one total per device per day is kept, for at most one year; nothing finer.
+   - **Energy:** nothing is kept. (Daily totals were built in 4C and removed on 2026-10-04, when the product owner decided the app shows no consumption at all.)
    - **What stays and does not grow:** the registry of manufactured boards (one fixed row per board).
 6. **Room for a hub later.** The protocol stays small and hardware-neutral, so a hub could be added without changing the boards' messages, if local control from the app is wanted one day.
 
@@ -105,8 +105,7 @@ The firmware builds on Espressif's official ESP-IDF components (Wi-Fi, HTTP serv
   - pending pairings (hashed code, deleted when used or after 24 hours);
   - the board's broker identity and online status;
   - the scenario's validity window;
-  - daily energy totals per metered device (kept one year).
-- A cleanup job on the server deletes finished commands after 24 hours, old events, used or expired pairings, finished one-time scenarios, older scenario results and energy totals older than a year.
+- A cleanup job on the server deletes finished commands after 24 hours, old events, used or expired pairings, finished one-time scenarios and older scenario results.
 
 ## Steps
 
@@ -116,7 +115,7 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 |------|------|
 | 4A | Record the decisions in the docs; protocol document (`docs/board-protocol.md`); migrations for the board registry, pairing codes, broker identity and the validity window. |
 | 4B | Broker access per board (dynamic security), the API's internal broker connection, online/offline status. |
-| 4C | Commands and reports over MQTT; a simulated board that speaks the real protocol replaces the in-process simulator (`pnpm dev:board` keeps working). Daily energy totals from reports. The cleanup job. |
+| 4C | Commands and reports over MQTT; a simulated board that speaks the real protocol replaces the in-process simulator (`pnpm dev:board` keeps working). The cleanup job. |
 | 4D | Scenario runner on the server with validity windows; only the latest result kept; one-time scenarios deleted when over; the window in the scenario editor (three languages). |
 | 4E | Pairing: the board's "waiting to be paired" call, uploading the QR code in the app, the screen to name the board's channels and choose rooms; factory reset that leaves nothing behind. |
 | 4F | Exit: docs, a test with the international internet blocked, verification on a clean copy. |
@@ -126,7 +125,6 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 - Firmware and the board's setup page (Phases 6–7); the protocol document is their contract.
 - Control from the app without internet, and any hub.
 - Live camera video and recordings (later, with a media service).
-- The energy chart screen (this phase only stores the daily totals).
 - The real SMS provider, member invitations and realtime push to the browser.
 
 ## Confirmed details (2026-10-04)
@@ -143,7 +141,7 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 **Done:**
 - **4A:** the decisions, the board protocol (document and shared code), the registry of manufactured boards, pending pairings, validity windows and daily energy totals in the database.
 - **4B:** one broker account and one role per board, limited to that board's topics; online and offline status from the broker.
-- **4C:** commands and reports over MQTT; simulated boards that are real broker clients; daily energy totals; the cleanup job.
+- **4C:** commands and reports over MQTT; simulated boards that are real broker clients; the cleanup job.
 - **4D:** scenarios run on the server, with a validity window per scenario; only the latest run is kept; one-time scenarios are deleted when over.
 - **4E:** pairing by the board's own QR code and factory reset that leaves nothing behind; the "Add a device" screens, also in the demo with three sample boards.
 
@@ -165,9 +163,11 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 - **Removing a board in the app:** an owner or admin removes a board from a device's details; the server does what it does for a factory reset.
 - **Hiding devices:** an input or output that is not wired to anything can be hidden; it stays out of every screen and of scenarios until it is shown again.
 
+- **No energy and no automations page (2026-10-04):** the Automations and Energy screens, the daily energy totals and every consumption number in the app were removed. Scenarios cover scheduling; consumption is not a feature of the product.
+
 **Carried over:**
 - **Firmware (Phases 6–7):** the ESP32 side of `docs/board-protocol.md`, including the board's setup page and its QR code.
 - **Factory tooling:** writing real boards into the registry of manufactured boards (today only dev and test boards are written).
 - **Production broker:** TLS with our own certificate authority, and a per-address rate limit on the board routes at the reverse proxy.
 - **Many API processes:** use MQTT shared subscriptions so each message is handled once (today every process handles it; that is harmless but wasteful).
-- **Not started:** realtime push to open apps, the energy chart screen, the real SMS provider, member invitations.
+- **Not started:** realtime push to open apps, the real SMS provider, member invitations.

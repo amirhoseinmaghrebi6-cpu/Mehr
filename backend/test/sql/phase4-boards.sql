@@ -1,8 +1,7 @@
 -- Phase 4A: the board registry and pending pairings are backend-only; a board has at most one
--- pairing code; scenario validity windows; daily energy totals are readable only by the home's
--- members and leave with the device. Runs as the superuser in one rolled-back transaction.
+-- pairing code; scenario validity windows. Runs as the superuser in one rolled-back transaction.
 -- Run with: pnpm db:test
--- expect-pass: 11
+-- expect-pass: 9
 begin;
 
 insert into auth.users (id, email) values
@@ -28,8 +27,6 @@ insert into public.manufactured_boards (hardware_uid, model_id, factory_secret_h
   ('P4-TEST-0001', 'a8000000-4444-4000-8000-000000000001', repeat('a', 64)),
   ('P4-TEST-0002', 'a8000000-4444-4000-8000-000000000001', repeat('b', 64));
 insert into public.board_pairings (hardware_uid, code_hash) values ('P4-TEST-0001', repeat('1', 64));
-insert into public.device_energy_daily (device_id, property_id, day, energy_kwh, last_reading_kwh) values
-  ('a8000000-3333-4000-8000-00000000000a', 'a8000000-1111-4000-8000-00000000000a', '2030-01-05', 1.25, 101.25);
 
 do $$
 declare
@@ -95,28 +92,14 @@ begin
   if n <> 0 then raise exception 'FAIL member changed a validity window'; end if;
   raise notice 'PASS a member cannot change a validity window';
 
-  -- Energy totals: members read, nobody but the backend writes, other homes see nothing.
-  if (select count(*) from public.device_energy_daily where device_id = meter_a) <> 1 then raise exception 'FAIL member cannot read energy totals'; end if;
-  begin
-    insert into public.device_energy_daily (device_id, property_id, day, energy_kwh, last_reading_kwh) values (meter_a, home_a, '2030-01-06', 999, 999);
-    raise exception 'FAIL user wrote an energy total';
-  exception when insufficient_privilege then raise notice 'PASS members read energy totals and cannot write them';
-  end;
   reset role;
 
-  perform set_config('request.jwt.claims', json_build_object('sub', owner_b, 'role', 'authenticated')::text, true);
-  set local role authenticated;
-  if (select count(*) from public.device_energy_daily) <> 0 then raise exception 'FAIL another home sees energy totals'; end if;
-  raise notice 'PASS another home sees no energy totals';
-  reset role;
-
-  -- Nothing stays behind: totals leave with the device, pairings with the board.
-  delete from public.devices where id = meter_a;
+  -- Nothing stays behind: pairings leave with the board.
   delete from public.manufactured_boards where hardware_uid = 'P4-TEST-0001';
-  if (select count(*) from public.device_energy_daily where device_id = meter_a) + (select count(*) from public.board_pairings where hardware_uid = 'P4-TEST-0001') <> 0 then
+  if (select count(*) from public.board_pairings where hardware_uid = 'P4-TEST-0001') <> 0 then
     raise exception 'FAIL rows left behind';
   end if;
-  raise notice 'PASS energy totals leave with the device, pairings with the board';
+  raise notice 'PASS pairings leave with the board';
 end $$;
 
 rollback;

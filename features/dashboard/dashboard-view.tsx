@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-  ArrowDownRight,
   ArrowLeft,
   ArrowRight,
   Building2,
@@ -14,21 +13,15 @@ import {
   CloudSun,
   Hourglass,
   House,
-  Leaf,
   LockKeyhole,
-  Moon,
   Pencil,
   Plus,
   ShieldCheck,
   ShieldHalf,
-  Sun,
-  Sunrise,
-  Sunset,
   Thermometer,
   Trash2,
   TriangleAlert,
   Wifi,
-  Zap,
 } from "lucide-react";
 import { calendars, defaultTimeZone, displayTemperature, languages, palettes, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
@@ -36,15 +29,14 @@ import { ScenarioList, ScenarioQuickList } from "@/features/scenarios/scenarios"
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
 import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
-import type { HomeSnapshot } from "@/services/mock-home-service";
 
 /** A home's time zone (homes saved by older demo sessions have none: Tehran). */
 export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
 
-export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "automations" | "energy" | "security" | "cameras" | "notifications" | "settings";
+export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "settings";
 
 /** Sections that only have sample data so far; real users see "coming soon" there. */
-const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["automations", "energy", "security", "cameras"]);
+const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["security", "cameras"]);
 
 type Props = {
   section: DashboardSection;
@@ -61,8 +53,8 @@ type Props = {
   nameOf: (name: string) => string;
   valueOf: (device: Device, capability: CapabilityName) => CapabilityValue | null;
   activityOf: (device: Device) => "sending" | "working" | null;
-  /** Sample routines and energy, for the demo only. */
-  demo: HomeSnapshot | null;
+  /** The demo account: security and cameras show sample content there, "coming soon" otherwise. */
+  demo: boolean;
   /** The home's scenarios (null while loading). */
   scenarios: Scenario[] | null;
   canEditScenarios: boolean;
@@ -150,7 +142,6 @@ function Overview(props: Props) {
   const numbers = (capability: CapabilityName) => devices.flatMap((device) => device.capabilities.filter((state) => state.capability === capability && typeof state.value === "number").map((state) => state.value as number));
   const temperatures = numbers("temperature");
   const humidity = numbers("humidity");
-  const powerNow = numbers("power_w");
   const alerts = devices.filter(isAlert);
   const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -177,12 +168,6 @@ function Overview(props: Props) {
           <div className="metric-content"><span className="metric-label">{d.indoorComfort}</span>
             {temperatures.length ? <strong>{formatNumber(displayTemperature(average(temperatures), temperatureUnit), locale, 1)}° <small>{temperatureUnit === "fahrenheit" ? d.fahrenheit : d.celsius}</small></strong> : <strong className="metric-empty">{m.common.none}</strong>}
             <span className="metric-foot"><span className="metric-dot" />{humidity.length ? d.humidity(formatNumber(average(humidity), locale)) : d.noClimateSensor}</span></div>
-        </article>
-        <article className="metric-item">
-          <span className="metric-symbol energy-symbol"><Zap size={17} /></span>
-          <div className="metric-content"><span className="metric-label">{d.powerNow}</span>
-            {powerNow.length ? <strong>{formatNumber(powerNow.reduce((sum, value) => sum + value, 0), locale)} <small>{d.watts}</small></strong> : <strong className="metric-empty">{m.common.none}</strong>}
-            <span className="metric-foot">{powerNow.length ? d.fromMetered(formatNumber(powerNow.length, locale)) : d.noMeter}</span></div>
         </article>
         <article className="metric-item">
           <span className="metric-symbol security-symbol">{alerts.length ? <TriangleAlert size={17} /> : <ShieldCheck size={17} />}</span>
@@ -321,7 +306,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   }
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
-  if (section === "settings") return <SettingsSection demo={Boolean(demo)} property={props.property} />;
+  if (section === "settings") return <SettingsSection demo={demo} property={props.property} />;
   if (section === "scenes") {
     return (
       <ScenarioList
@@ -329,7 +314,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
         timeZone={homeTimeZone(props.property)}
         scenarios={props.scenarios}
         canEdit={props.canEditScenarios}
-        demo={Boolean(demo)}
+        demo={demo}
         running={props.runningScenario}
         nameOf={props.nameOf}
         onRun={props.onRunScenario}
@@ -339,8 +324,6 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
     );
   }
   if (!demo) return <ComingSoon section={section} />;
-  if (section === "automations") return <AutomationSection snapshot={demo} />;
-  if (section === "energy") return <EnergySection snapshot={demo} />;
   if (section === "security") return <SecuritySection onNavigate={onNavigate} />;
   if (section === "cameras") return <CameraSection />;
   return null;
@@ -348,7 +331,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
 
 function ComingSoon({ section }: { section: DashboardSection }) {
   const { m } = useI18n();
-  const icons = { scenes: Sunrise, automations: Sunset, energy: Zap, security: ShieldCheck, cameras: Camera } as Partial<Record<DashboardSection, typeof Sunrise>>;
+  const icons = { security: ShieldCheck, cameras: Camera } as Partial<Record<DashboardSection, typeof Camera>>;
   const Icon = icons[section] ?? Clock3;
   return (
     <div className="quiet-panel coming-soon" role="status">
@@ -357,25 +340,6 @@ function ComingSoon({ section }: { section: DashboardSection }) {
       <p>{m.dashboard.comingSoonText}</p>
     </div>
   );
-}
-
-function AutomationSection({ snapshot }: { snapshot: HomeSnapshot }) {
-  const { locale, m } = useI18n();
-  const demo = m.demo;
-  const icons = [Sunset, House, Moon];
-  return <section className="automation-layout"><div className="surface-panel automation-list"><div className="panel-intro"><span className="panel-overline">{demo.automationsOverline}</span><h2>{demo.automationsTitle}</h2><p>{demo.automationsSubtitle}</p></div>{demo.automations.map(([name, detail, destination], index) => { const Icon = icons[index]; return <div className="automation-row" key={name}><span className="automation-icon"><Icon size={18} /></span><span className="automation-copy"><strong>{name}</strong><small>{detail}</small><span className="automation-destination">{destination}</span></span><span className="automation-enabled"><span />{demo.automationOn}</span></div>; })}<button className="add-automation" type="button"><Plus size={16} />{demo.createRoutine}</button></div><aside className="automation-aside"><span className="automation-aside-icon"><Sun size={21} /></span><h3>{demo.automationAsideTitle}</h3><p>{demo.automationAsideText}</p><div className="automation-aside-foot"><span className="status-pulse" />{demo.activeRoutines(formatNumber(snapshot.automations.length, locale))}</div></aside></section>;
-}
-
-function EnergySection({ snapshot }: { snapshot: HomeSnapshot }) {
-  const { locale, m } = useI18n();
-  const demo = m.demo;
-  const energy = snapshot.energy;
-  return <section className="energy-layout"><div className="surface-panel energy-main"><div className="energy-headline"><div><span className="panel-overline">{demo.energyOverline}</span><h2>{demo.energyTitle[0]}<br /><span>{demo.energyTitle[1]}</span></h2></div><span className="energy-badge"><Leaf size={15} />{demo.energyBadge}</span></div><div className="energy-total"><strong>{formatNumber(energy.todayKwh, locale, 1)}</strong><span>kWh</span><small>{demo.energyVsYesterday}<ArrowDownRight size={15} /></small></div><EnergyChart points={energy.points} label={demo.energyChart} /><div className="energy-axis">{demo.energyAxis.map((label) => <span key={label}>{label}</span>)}</div><div className="energy-footnote"><span><span className="energy-legend-dot" />{demo.homeConsumption}</span><span>{demo.updatedNow}</span></div></div><aside className="energy-aside"><div className="energy-aside-block"><span className="metric-symbol energy-symbol"><Zap size={17} /></span><span className="metric-label">{demo.rightNow}</span><strong>{formatNumber(energy.currentWatts, locale)}<small> W</small></strong><span className="metric-foot positive"><span className="metric-dot" />{demo.belowAverage}</span></div><div className="energy-aside-block"><span className="metric-symbol climate-symbol"><Sun size={17} /></span><span className="metric-label">{demo.solar}</span><strong>{formatNumber(1.8, locale, 1)}<small> kWh</small></strong><span className="metric-foot">{demo.solarShare}</span></div><div className="energy-note"><Check size={15} />{demo.routineSaved}</div></aside></section>;
-}
-
-function EnergyChart({ points, label }: { points: number[]; label: string }) {
-  const line = points.map((point, index) => `${index ? "L" : "M"} ${index * (480 / (points.length - 1))} ${152 - point * 2.35}`).join(" ");
-  return <svg className="energy-chart" viewBox="0 0 480 170" role="img" aria-label={label} preserveAspectRatio="none"><defs><linearGradient id="energy-gradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity=".22" /><stop offset="100%" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs><path className="chart-grid-line" d="M0 32 H480 M0 76 H480 M0 120 H480 M0 164 H480" /><path d={`${line} L480 170 L0 170 Z`} fill="url(#energy-gradient)" /><path className="energy-chart-line" d={line} /><circle cx="480" cy={152 - points.at(-1)! * 2.35} r="4.5" className="chart-current-dot" /></svg>;
 }
 
 function SecuritySection({ onNavigate }: { onNavigate: Props["onNavigate"] }) {

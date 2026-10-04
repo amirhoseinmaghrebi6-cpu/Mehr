@@ -84,8 +84,7 @@ The contract is [../board-protocol.md](../board-protocol.md).
 The server keeps only the current state:
 - the last reported value per capability;
 - the latest result per scenario;
-- finished commands for 24 hours;
-- one energy total per metered device per day, for one year.
+- finished commands for 24 hours.
 
 A cleanup job deletes the rest.
 

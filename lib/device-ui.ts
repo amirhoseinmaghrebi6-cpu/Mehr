@@ -161,13 +161,20 @@ export function isAlert(device: Device): boolean {
   );
 }
 
+/**
+ * The capabilities the app shows. Consumption readings (power, energy) are not shown anywhere:
+ * the product has no energy feature.
+ */
+export const shownCapabilities = (device: Device) => device.capabilities.filter((state) => state.capability !== "power_w" && state.capability !== "energy_kwh");
+
 /** One line under the device name: its most telling values. */
 export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale, temperatureUnit: TemperatureUnit = "celsius"): string {
   if (!device.online) return messages[locale].devices.offline;
   // With several values, plain "On"/"Off" would be ambiguous ("Off · Off"), so those get their name.
-  const several = device.capabilities.length > 1;
+  const capabilities = shownCapabilities(device);
+  const several = capabilities.length > 1;
   const plain = (capability: CapabilityName) => capability === "power" || capability === "pump" || capability === "speed";
-  const shown = device.capabilities.slice(0, 2).map((entry) => {
+  const shown = capabilities.slice(0, 2).map((entry) => {
     const value = valueLabel(entry.capability, valueOf(entry.capability), locale, temperatureUnit);
     return several && plain(entry.capability) ? `${capabilityLabel(entry.capability, locale)}: ${value}` : value;
   });

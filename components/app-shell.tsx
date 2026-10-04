@@ -24,12 +24,10 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   Sun,
   Sunset,
   TriangleAlert,
   X,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type Scenario, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
@@ -46,7 +44,6 @@ import { formatTime, messages, timeZoneCity } from "@/lib/i18n";
 import { createApiGateway } from "@/services/api-gateway";
 import { createDemoGateway } from "@/services/demo-gateway";
 import { demoName } from "@/services/demo-home";
-import { getMockHomeSnapshot } from "@/services/mock-home-service";
 import { GatewayError } from "@/services/home-gateway";
 import { useHomeData, type CommandOutcome } from "@/services/use-home-data";
 import { useScenarios } from "@/services/use-scenarios";
@@ -59,12 +56,8 @@ const primaryLinks: { id: DashboardSection; icon: LucideIcon }[] = [
   { id: "devices", icon: Lightbulb },
   { id: "scenes", icon: Sunset },
 ];
-const routineLinks: { id: DashboardSection; icon: LucideIcon }[] = [
-  { id: "automations", icon: Sparkles },
-  { id: "energy", icon: Zap },
-  { id: "security", icon: ShieldCheck },
-];
 const moreLinks: { id: DashboardSection; icon: LucideIcon }[] = [
+  { id: "security", icon: ShieldCheck },
   { id: "cameras", icon: Activity },
   { id: "notifications", icon: Bell },
   { id: "settings", icon: Settings },
@@ -175,7 +168,6 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   // "hidden devices" list at the end of Devices.
   const visibleDevices = useMemo(() => devices.filter((device) => !device.hidden), [devices]);
   const hiddenDevices = useMemo(() => devices.filter((device) => device.hidden), [devices]);
-  const demoSnapshot = useMemo(() => (demoMode && propertyId ? getMockHomeSnapshot(propertyId) : null), [demoMode, propertyId]);
   const canEditRooms = property ? can(property.role, "room.edit") : false;
   const canEditDevices = property ? can(property.role, "device.edit") : false;
   const canControl = property ? can(property.role, "device.control") : false;
@@ -339,8 +331,6 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         <nav className="sidebar-nav">
           <span className="sidebar-caption nav-caption">{m.nav.yourHome}</span>
           <div className="nav-group">{primaryLinks.map((item) => <NavigationItem key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}</div>
-          <span className="sidebar-caption nav-caption nav-caption-spaced">{m.nav.living}</span>
-          <div className="nav-group">{routineLinks.map((item) => <NavigationItem key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}</div>
           <span className="sidebar-caption nav-caption nav-caption-spaced">{m.nav.homeAndYou}</span>
           <div className="nav-group">{moreLinks.map((item) => <NavigationItem key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}</div>
         </nav>
@@ -387,7 +377,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
               loading={home.homeLoading}
               canEditRooms={canEditRooms}
               nameOf={nameOf}
-              demo={demoSnapshot}
+              demo={demoMode}
               scenarios={scenarioData.scenarios}
               canEditScenarios={canEditScenarios}
               runningScenario={runningScenario}
@@ -421,7 +411,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
-          {([["automations", Sparkles], ["energy", Zap], ["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>
@@ -623,5 +613,5 @@ function MobileNavigationItem({ id, icon: Icon, active, onClick }: { id: Dashboa
 }
 
 function isDashboardSection(section: string | undefined): section is DashboardSection {
-  return ["overview", "rooms", "devices", "scenes", "automations", "energy", "security", "cameras", "notifications", "settings"].includes(section ?? "");
+  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "settings"].includes(section ?? "");
 }

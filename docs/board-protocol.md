@@ -72,7 +72,6 @@ A board carries out the commands of one channel one after another, in the order 
 
 A wall-switch press or a sensor change is a `state` message without `id`. Sensors report when the value changes meaningfully, and at least every 10 minutes while connected.
 
-Energy meters report the meter's running total (`energy_kwh`); the server keeps one total per day from it.
 
 ## The setup button
 
