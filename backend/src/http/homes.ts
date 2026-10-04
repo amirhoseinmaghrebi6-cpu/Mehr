@@ -25,14 +25,15 @@ import { createHandler, HttpError, notFound, parse, requireAction, requireUuid }
 export const MAX_HOMES_PER_USER = 50;
 export const MAX_ROOMS_PER_HOME = 200;
 
-type PropertyRow = { id: string; name: string; property_type: PropertyType; address: string; cover_photo: PhotoPreset };
-const PROPERTY_COLUMNS = "property.id, property.name, property.property_type, property.address, property.cover_photo";
+type PropertyRow = { id: string; name: string; property_type: PropertyType; address: string; cover_photo: PhotoPreset; time_zone: string };
+const PROPERTY_COLUMNS = "property.id, property.name, property.property_type, property.address, property.cover_photo, property.time_zone";
 const toProperty = (row: PropertyRow, role: PropertyRole): Property => ({
   id: row.id,
   name: row.name,
   type: row.property_type,
   address: row.address,
   coverPhoto: row.cover_photo,
+  timeZone: row.time_zone,
   role,
 });
 
@@ -69,7 +70,10 @@ export function registerHomeRoutes(app: FastifyInstance, pool: Pool, verifier: S
       const created = await tx.query<{ id: string }>("select public.create_property($1, $2, $3, $4) as id", [
         body.name, body.type, body.address, body.coverPhoto,
       ]);
-      const { rows } = await tx.query<PropertyRow>(`select ${PROPERTY_COLUMNS} from public.properties as property where property.id = $1`, [created.rows[0].id]);
+      const { rows } = await tx.query<PropertyRow>(
+        `update public.properties as property set time_zone = $2 where property.id = $1 returning ${PROPERTY_COLUMNS}`,
+        [created.rows[0].id, body.timeZone],
+      );
       return toProperty(rows[0], "owner");
     }),
   );
@@ -83,10 +87,11 @@ export function registerHomeRoutes(app: FastifyInstance, pool: Pool, verifier: S
            name = coalesce($2, property.name),
            property_type = coalesce($3, property.property_type),
            address = coalesce($4, property.address),
-           cover_photo = coalesce($5, property.cover_photo)
+           cover_photo = coalesce($5, property.cover_photo),
+           time_zone = coalesce($6, property.time_zone)
          where property.id = $1
          returning ${PROPERTY_COLUMNS}`,
-        [request.params.propertyId, body.name ?? null, body.type ?? null, body.address ?? null, body.coverPhoto ?? null],
+        [request.params.propertyId, body.name ?? null, body.type ?? null, body.address ?? null, body.coverPhoto ?? null, body.timeZone ?? null],
       );
       if (!rows.length) throw notFound();
       return toProperty(rows[0], role);

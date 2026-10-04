@@ -44,6 +44,25 @@ const numberingSystems: Record<Locale, string> = { fa: "arabext", ar: "arab", en
  * A date in the user's language and calendar (Solar Hijri or Gregorian), as it is in `timeZone`
  * (the home's time zone, not the phone's). Uses the browser's built-in calendars; works offline.
  */
+/** Time zones offered in the home form (any IANA zone is accepted by the API). */
+export const offeredTimeZones = ["Asia/Tehran", "Asia/Dubai", "Asia/Baghdad", "Europe/Istanbul", "Asia/Riyadh", "Asia/Qatar", "Asia/Kuwait", "Asia/Bahrain", "Asia/Muscat", "Asia/Kabul", "Asia/Baku", "Asia/Yerevan", "Asia/Tbilisi", "Europe/London", "Europe/Berlin", "Europe/Paris", "America/New_York", "America/Toronto", "America/Los_Angeles", "Australia/Sydney"];
+
+/** "Tehran" (in the user's language) for a time zone, or its IANA name. */
+export function timeZoneCity(timeZone: string, locale: Locale): string {
+  return messages[locale].timeZones[timeZone] ?? timeZone.split("/").pop()!.replace(/_/g, " ");
+}
+
+/** The zone's current offset, e.g. "GMT+3:30". */
+export function timeZoneOffset(timeZone: string): string {
+  const part = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((entry) => entry.type === "timeZoneName");
+  return part?.value ?? "";
+}
+
+/** Hours and minutes in a time zone, always 24-hour, in the user's digits. */
+export function formatTime(date: Date, locale: Locale, timeZone: string): string {
+  return new Intl.DateTimeFormat(`${dateLocales[locale]}-u-nu-${numberingSystems[locale]}`, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(date);
+}
+
 export function formatDate(date: Date, locale: Locale, calendar: Calendar, timeZone: string, options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", year: "numeric" }): string {
   const tag = `${dateLocales[locale]}-u-ca-${calendar === "solar_hijri" ? "persian" : "gregory"}-nu-${numberingSystems[locale]}`;
   return new Intl.DateTimeFormat(tag, { ...options, timeZone }).format(date);

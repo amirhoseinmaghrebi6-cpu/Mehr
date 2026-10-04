@@ -44,7 +44,8 @@ The whole app is in Persian, English and Arabic.
 - **Direction and digits:** Persian and Arabic are right to left. Numbers use each language's digits through `Intl.NumberFormat` (۰۱۲, ٠١٢, 012).
 - **Where the language is kept:** in a cookie (`m2smart-locale`), so the server renders the first byte in the right language and direction. `components/i18n-provider.tsx` gives components the messages, and `components/language-menu.tsx` switches language on the sign-in screens and in the app.
 - **Preferences on the account:** language, calendar (Solar Hijri or Gregorian) and temperature unit (°C or °F) are stored on the account (`GET`/`PATCH /v1/me/settings`; defaults English, Solar Hijri, °C) and in cookies for the first render. The app shell applies the account’s preferences after sign-in; on a first visit, choices made before signing up are kept and saved. The demo keeps them in its browser. Values are always stored in °C and Gregorian; only the display converts.
-- **Still to come (Phase 3.5, step E):** per-home time zones, and Solar Hijri dates in scenarios.
+- **Time zones and calendars:** every home has an IANA time zone (`properties.time_zone`, checked by the database; default Asia/Tehran). The home’s date, the footer clock and, later, scenario times are in the home’s time, never the phone’s. Solar Hijri ⇄ Gregorian conversion is our own code in `packages/contracts/src/calendar.ts`, checked against the browser’s Solar Hijri calendar for every day from 1925 to 2150, so a stored date never reads differently on screen.
+- **Still to come (Phase 3.5, step E2):** scenarios (periodic, one-time, themed).
 
 ## Delivery sequence
 

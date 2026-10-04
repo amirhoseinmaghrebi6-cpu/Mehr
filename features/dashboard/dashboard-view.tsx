@@ -33,14 +33,14 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
-import { calendars, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room } from "@m2smart/contracts";
+import { calendars, defaultTimeZone, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
 import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
 
-/** Until each home has its own time zone (Phase 3.5 E1), homes are on Tehran time. */
-const HOME_TIME_ZONE = "Asia/Tehran";
+/** A home's time zone (homes saved by older demo sessions have none: Tehran). */
+export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
 import type { HomeSnapshot } from "@/services/mock-home-service";
 
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "automations" | "energy" | "security" | "cameras" | "notifications" | "settings";
@@ -153,7 +153,7 @@ function Overview(props: Props) {
         <div className="welcome-photo" style={{ backgroundImage: `url("${photoUrl(property.coverPhoto, "large")}")` }} />
         <div className="welcome-wash" />
         <div className="welcome-content">
-          <span className="welcome-kicker"><span className="welcome-live-dot" />{d.rightNow} · {formatDate(new Date(), locale, calendar, HOME_TIME_ZONE)}</span>
+          <span className="welcome-kicker"><span className="welcome-live-dot" />{d.rightNow} · {formatDate(new Date(), locale, calendar, homeTimeZone(property))}</span>
           <h2>{greeting(m)}{rtl ? "،" : ","}<br />{displayName.split(/\s+/)[0]}.</h2>
           <p>{alerts.length ? d.needsAttention : d.homeStatusDetail}</p>
           {nameOf(property.address) && <div className="welcome-weather"><CloudSun size={16} />{nameOf(property.address)}</div>}
@@ -324,7 +324,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   }
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
-  if (section === "settings") return <SettingsSection demo={Boolean(demo)} />;
+  if (section === "settings") return <SettingsSection demo={Boolean(demo)} property={props.property} />;
   if (!demo) return <ComingSoon section={section} />;
 
   if (section === "scenes") {
@@ -390,7 +390,7 @@ function CameraSection() {
   return <section className="camera-grid">{tile(0, "camera-entry", "camera-image-entry")}{tile(1, "camera-garden", "camera-image-garden")}<div className="camera-status-card"><span className="camera-health-icon"><CircleCheck size={18} /></span><strong>{demo.allInView}</strong><p>{demo.camerasOnline}</p><span><span className="status-pulse" />{demo.camerasCount}</span></div></section>;
 }
 
-function SettingsSection({ demo }: { demo: boolean }) {
+function SettingsSection({ demo, property }: { demo: boolean; property: Property }) {
   const { locale, m, calendar, temperatureUnit, setPreferences } = useI18n();
   const t = m.settings;
   const choice = <T extends string>(label: string, options: readonly T[], value: T, name: (option: T) => string, onPick: (option: T) => void) => (
@@ -410,7 +410,7 @@ function SettingsSection({ demo }: { demo: boolean }) {
         {choice(t.language, languages, locale, (option) => messages[option].meta.languageName, (language) => setPreferences({ language }))}
         {choice(t.calendar, calendars, calendar, (option) => t.calendars[option], (next) => setPreferences({ calendar: next }))}
         {choice(t.temperature, temperatureUnits, temperatureUnit, (option) => t.temperatureUnits[option], (next) => setPreferences({ temperatureUnit: next }))}
-        <p className="settings-preview">{t.today(formatDate(new Date(), locale, calendar, HOME_TIME_ZONE))}</p>
+        <p className="settings-preview">{t.today(formatDate(new Date(), locale, calendar, homeTimeZone(property)))}</p>
         <p className="form-note">{t.timeNote}</p>
         <p className="form-note">{t.moreSoon}</p>
       </div>

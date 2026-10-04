@@ -99,7 +99,7 @@ describe("homes and rooms API", () => {
 
   describe("homes", () => {
     it("creates a home with the caller as owner", () => {
-      expect(homeA).toEqual({ id: expect.any(String), name: "Home A", type: "villa", address: "Tehran", coverPhoto: "exterior", role: "owner" });
+      expect(homeA).toEqual({ id: expect.any(String), name: "Home A", type: "villa", address: "Tehran", coverPhoto: "exterior", timeZone: "Asia/Tehran", role: "owner" });
       expect(homeB).toMatchObject({ name: "Home B", type: "house", address: "", coverPhoto: "living", role: "owner" });
     });
 
@@ -110,6 +110,18 @@ describe("homes and rooms API", () => {
       expect((await list("memberA")).map((home) => [home.id, home.role])).toEqual([[homeA.id, "member"]]);
       expect((await list("ownerB")).map((home) => home.id)).toEqual([homeB.id]);
       expect(await list("fresh")).toEqual([]);
+    });
+
+    it("keeps each home in its own time zone", async () => {
+      const istanbul = await call("ownerB", "POST", "/v1/properties", { name: "Istanbul flat", timeZone: "Europe/Istanbul" });
+      expect([istanbul.status, istanbul.body.timeZone]).toEqual([201, "Europe/Istanbul"]);
+      const moved = await call("ownerB", "PATCH", `/v1/properties/${istanbul.body.id}`, { timeZone: "Asia/Dubai" });
+      expect(moved.body.timeZone).toBe("Asia/Dubai");
+      for (const timeZone of ["Mars/Olympus", "Tehran", ""]) {
+        expect((await call("ownerB", "PATCH", `/v1/properties/${istanbul.body.id}`, { timeZone })).status, timeZone).toBe(400);
+      }
+      expect((await call("memberA", "PATCH", `/v1/properties/${homeA.id}`, { timeZone: "Asia/Dubai" })).status).toBe(403);
+      expect((await call("ownerB", "DELETE", `/v1/properties/${istanbul.body.id}`)).status).toBe(204);
     });
 
     it("rejects invalid input", async () => {

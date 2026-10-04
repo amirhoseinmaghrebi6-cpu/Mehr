@@ -2,13 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { Building2, Check, ChevronRight, Cpu, Fingerprint, Pencil, Plus, QrCode, Trash2, X } from "lucide-react";
-import { can, deviceTypeNames, propertyTypes, type Device, type DeviceType, type PhotoPreset, type Property, type PropertyType, type Room } from "@m2smart/contracts";
+import { can, defaultTimeZone, deviceTypeNames, propertyTypes, type Device, type DeviceType, type PhotoPreset, type Property, type PropertyType, type Room } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { photoPresetList, photoUrl, typeLabel } from "@/lib/device-ui";
+import { offeredTimeZones, timeZoneCity, timeZoneOffset } from "@/lib/i18n";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { GatewayError } from "@/services/home-gateway";
 
-type PropertyForm = { name: string; address: string; type: PropertyType; coverPhoto: PhotoPreset };
+type PropertyForm = { name: string; address: string; type: PropertyType; coverPhoto: PhotoPreset; timeZone: string };
 
 /** Runs an async save, turning gateway errors into a message for the form. */
 function useSaving() {
@@ -75,7 +76,7 @@ export function PropertyManagerDialog({
             <p className="workspace-dialog-description">{d.propertyDescription}</p>
             <PropertyFormView
               key={editing?.id ?? "new-property"}
-              initial={editing ? { name: editing.name, address: editing.address, type: editing.type, coverPhoto: editing.coverPhoto } : { name: "", address: "", type: "house", coverPhoto: "living" }}
+              initial={editing ? { name: editing.name, address: editing.address, type: editing.type, coverPhoto: editing.coverPhoto, timeZone: editing.timeZone ?? defaultTimeZone } : { name: "", address: "", type: "house", coverPhoto: "living", timeZone: defaultTimeZone }}
               error={saving.error}
               busy={saving.busy}
               onBack={properties.length ? () => { setCreating(false); setEditing(null); saving.setError(""); } : undefined}
@@ -123,9 +124,11 @@ export function PropertyManagerDialog({
 }
 
 function PropertyFormView({ initial, error, busy, onBack, onSave }: { initial: PropertyForm; error: string; busy: boolean; onBack?: () => void; onSave: (form: PropertyForm) => void }) {
-  const { m } = useI18n();
+  const { locale, m } = useI18n();
   const d = m.dialogs;
   const [name, setName] = useState(initial.name);
+  const [timeZone, setTimeZone] = useState(initial.timeZone);
+  const zones = offeredTimeZones.includes(timeZone) ? offeredTimeZones : [timeZone, ...offeredTimeZones];
   const [address, setAddress] = useState(initial.address);
   const [type, setType] = useState<PropertyType>(initial.type);
   const [coverPhoto, setCoverPhoto] = useState<PhotoPreset>(initial.coverPhoto);
@@ -133,7 +136,7 @@ function PropertyFormView({ initial, error, busy, onBack, onSave }: { initial: P
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) return;
-    onSave({ name: name.trim(), address: address.trim(), type, coverPhoto });
+    onSave({ name: name.trim(), address: address.trim(), type, coverPhoto, timeZone });
   };
 
   return (
@@ -144,6 +147,8 @@ function PropertyFormView({ initial, error, busy, onBack, onSave }: { initial: P
         <label className="form-field"><span>{d.propertyType}</span><select value={type} onChange={(event) => setType(event.target.value as PropertyType)}>{propertyTypes.map((item) => <option key={item} value={item}>{d.propertyTypes[item]}</option>)}</select></label>
         <label className="form-field"><span>{d.address}</span><input maxLength={200} value={address} onChange={(event) => setAddress(event.target.value)} placeholder={d.addressPlaceholder} /></label>
       </div>
+      <label className="form-field"><span>{d.timeZone}</span><select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>{zones.map((zone) => <option key={zone} value={zone}>{`${timeZoneCity(zone, locale)} (${timeZoneOffset(zone)})`}</option>)}</select></label>
+      <p className="form-note">{d.timeZoneNote}</p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="workspace-form-actions">
         {onBack && <button type="button" className="button-subtle" onClick={onBack}>{m.common.back}</button>}

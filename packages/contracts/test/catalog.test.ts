@@ -54,7 +54,7 @@ describe("device catalog", () => {
 
 describe("request schemas", () => {
   it("fills defaults and trims names when creating a home", () => {
-    expect(createPropertyRequest.parse({ name: "  Tehran  " })).toEqual({ name: "Tehran", type: "house", address: "", coverPhoto: "living" });
+    expect(createPropertyRequest.parse({ name: "  Tehran  " })).toEqual({ name: "Tehran", type: "house", address: "", coverPhoto: "living", timeZone: "Asia/Tehran" });
   });
 
   it("rejects empty, oversized and unknown fields", () => {

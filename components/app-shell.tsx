@@ -33,7 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
-import { DashboardView, type DashboardSection } from "@/features/dashboard/dashboard-view";
+import { DashboardView, homeTimeZone, type DashboardSection } from "@/features/dashboard/dashboard-view";
 import { DeviceSheet } from "@/components/device-sheet";
 import { useI18n } from "@/components/i18n-provider";
 import { LanguageMenu } from "@/components/language-menu";
@@ -41,7 +41,7 @@ import { signOutAction } from "@/app/(app)/actions";
 import { AddDeviceDialog, DeviceDetailsDialog, PropertyManagerDialog, RoomEditorDialog } from "@/components/workspace-dialogs";
 import { confirmBeforeCommand, primaryCapability, stateOf, toggledValue, typeLabel, valueLabel } from "@/lib/device-ui";
 import { gatewayMessage } from "@/lib/gateway-messages";
-import { messages } from "@/lib/i18n";
+import { formatTime, messages, timeZoneCity } from "@/lib/i18n";
 import { createApiGateway } from "@/services/api-gateway";
 import { createDemoGateway } from "@/services/demo-gateway";
 import { demoName } from "@/services/demo-home";
@@ -378,7 +378,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
               onRemoveDevice={gateway.removeDemoDevice ? setPendingRemoveDevice : undefined}
             />
           )}
-          <footer className="app-footer"><span>{m.shell.footerTagline}</span><span>{m.shell.footerTime}</span></footer>
+          <footer className="app-footer"><span>{m.shell.footerTagline}</span><span>{property ? <LocalTime timeZone={homeTimeZone(property)} /> : null}</span></footer>
         </div>
       </main>
 
@@ -524,6 +524,18 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       <AnimatePresence>{toast && <motion.div className={`toast-message${toast.tone === "warn" ? " toast-warn" : ""}`} role="status" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}><span>{toast.tone === "warn" ? <TriangleAlert size={14} /> : <Check size={14} />}</span>{toast.message}</motion.div>}</AnimatePresence>
     </div>
   );
+}
+
+/** "LOCAL TIME · TEHRAN · 14:05": the home's own clock, refreshed every 20 seconds. */
+function LocalTime({ timeZone }: { timeZone: string }) {
+  const { locale, m } = useI18n();
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = window.setInterval(() => setNow(new Date()), 20_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <>{m.shell.localTime} · {timeZoneCity(timeZone, locale)}{now ? <> · <bdi>{formatTime(now, locale, timeZone)}</bdi></> : null}</>;
 }
 
 function NavigationItem({ item, active, onClick }: { item: { id: DashboardSection; icon: LucideIcon }; active: boolean; onClick: () => void }) {

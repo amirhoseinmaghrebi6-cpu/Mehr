@@ -72,7 +72,7 @@ export function createDemoGateway(userId: string): HomeGateway {
       return clone(data.properties);
     },
     async createProperty(input) {
-      const property: Property = { id: newId("home"), name: input.name.trim(), type: input.type ?? "house", address: input.address?.trim() ?? "", coverPhoto: input.coverPhoto ?? "living", role: "owner" };
+      const property: Property = { id: newId("home"), name: input.name.trim(), type: input.type ?? "house", address: input.address?.trim() ?? "", coverPhoto: input.coverPhoto ?? "living", timeZone: input.timeZone ?? "Asia/Tehran", role: "owner" };
       data.properties.push(property);
       data.rooms[property.id] = [];
       data.devices[property.id] = [];

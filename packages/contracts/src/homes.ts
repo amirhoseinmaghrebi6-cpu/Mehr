@@ -4,6 +4,7 @@
  * form checks. Response shapes are plain types.
  */
 import { z } from "zod";
+import { defaultTimeZone, isTimeZone } from "./calendar.js";
 import { capabilities, photoPresets, type CapabilityName, type CapabilityValue, type DeviceType, type PhotoPreset } from "./catalog.js";
 import type { PropertyRole } from "./permissions.js";
 
@@ -12,6 +13,8 @@ export type PropertyType = (typeof propertyTypes)[number];
 
 const name = (max: number) => z.string().trim().min(1).max(max);
 const photo = z.enum(photoPresets);
+/** An IANA time zone, e.g. "Asia/Tehran": scenario times and dates follow it. */
+const timeZone = z.string().max(64).refine(isTimeZone, "unknown time zone");
 
 // --- Homes -----------------------------------------------------------------------------------
 
@@ -20,6 +23,7 @@ export const createPropertyRequest = z.strictObject({
   type: z.enum(propertyTypes).default("house"),
   address: z.string().trim().max(200).default(""),
   coverPhoto: photo.default("living"),
+  timeZone: timeZone.default(defaultTimeZone),
 });
 export type CreatePropertyRequest = z.input<typeof createPropertyRequest>;
 
@@ -29,6 +33,7 @@ export const updatePropertyRequest = z
     type: z.enum(propertyTypes),
     address: z.string().trim().max(200),
     coverPhoto: photo,
+    timeZone,
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "nothing to update");
@@ -40,6 +45,8 @@ export interface Property {
   type: PropertyType;
   address: string;
   coverPhoto: PhotoPreset;
+  /** The home's IANA time zone; scenario times and dates are in it, never the phone's. */
+  timeZone: string;
   /** The signed-in user's role in this home. */
   role: PropertyRole;
 }

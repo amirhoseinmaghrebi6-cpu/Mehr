@@ -43,8 +43,8 @@ export function createDemoData(): DemoData {
   const room = (id: string, name: string, photo: Room["photo"], sortOrder: number): Room => ({ id, name, photo, sortOrder });
   return {
     properties: [
-      { id: "tehran", name: "Tehran Villa", type: "villa", address: "Niavaran, Tehran", coverPhoto: "living", role: "owner" },
-      { id: "caspian", name: "Caspian House", type: "house", address: "Ramsar, Mazandaran", coverPhoto: "exterior", role: "owner" },
+      { id: "tehran", name: "Tehran Villa", type: "villa", address: "Niavaran, Tehran", coverPhoto: "living", timeZone: "Asia/Tehran", role: "owner" },
+      { id: "caspian", name: "Caspian House", type: "house", address: "Ramsar, Mazandaran", coverPhoto: "exterior", timeZone: "Asia/Tehran", role: "owner" },
     ],
     rooms: {
       tehran: [room("living", "Living room", "living", 0), room("kitchen", "Kitchen", "kitchen", 1), room("bedroom", "Primary suite", "bedroom", 2), room("terrace", "Garden terrace", "exterior", 3)],
