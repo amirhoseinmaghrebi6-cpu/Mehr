@@ -72,6 +72,8 @@ export interface HomeGateway {
    * the home. Real homes only: the demo adds sample devices with addDemoDevice instead.
    */
   pairBoard?(propertyId: string, pairingCode: string): Promise<PairBoardResponse>;
+  /** Removes a board with all its devices; the board must be paired again to be used. */
+  removeBoard(propertyId: string, boardId: string): Promise<void>;
 
   /**
    * Demo only. Real devices come from boards paired with the home, never from a form, so the API

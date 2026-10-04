@@ -3,6 +3,11 @@
  *   POST /v1/boards/announce                    (the board: "I am in pairing mode and online")
  *   POST /v1/boards/credentials                 (the board: asks for its broker account)
  *   POST /v1/properties/:propertyId/boards      (owner, admin: uploads the board's pairing code)
+ *   DELETE /v1/properties/:propertyId/boards/:boardId   (owner, admin: removes the board)
+ *
+ * Removing a board from the app does what a factory reset does on the server: the board, all its
+ * devices and everything about them are deleted, and its broker account is closed. The physical
+ * board then has to be paired again to be used.
  *
  * The two board routes have no user session: the board proves itself with its factory secret.
  * A wrong secret, an unknown board and a wrong code all get the same answer.
@@ -14,10 +19,10 @@ import { boardAnnounceRequest, boardCredentialsRequest, pairBoardRequest, parseP
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { SessionVerifier } from "../auth/session-verifier";
-import { announceBoard, issueCredentials, pairBoard } from "../boards/pairing";
+import { announceBoard, issueCredentials, pairBoard, removeBoard } from "../boards/pairing";
 import type { Broker } from "../broker/broker";
 import { listDevices } from "./devices";
-import { createHandler, HttpError, invalidRequest, notFound, parse, requireAction } from "./route-helpers";
+import { createHandler, HttpError, invalidRequest, notFound, parse, requireAction, requireUuid } from "./route-helpers";
 
 export function registerBoardRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier | undefined, getBroker: () => Broker | null): void {
   const refused = { error: "unauthenticated" } as const;
@@ -55,6 +60,21 @@ export function registerBoardRoutes(app: FastifyInstance, pool: Pool, verifier: 
       const paired = await pairBoard(pool, broker, propertyId, code.hardwareUid, code.code);
       if (!paired) throw notFound();
       return { ...paired, devices: await listDevices(tx, propertyId, paired.boardId) };
+    }),
+  );
+
+  app.delete<{ Params: { propertyId: string; boardId: string } }>("/v1/properties/:propertyId/boards/:boardId", (request, reply) =>
+    handle(request, reply, 204, async (tx) => {
+      const { propertyId } = request.params;
+      await requireAction(tx, propertyId, "board.remove");
+      const boardId = requireUuid(request.params.boardId);
+      // Members can read their home's boards; a board of another home is simply not found.
+      const { rows } = await tx.query("select 1 from public.controllers where id = $1 and property_id = $2", [boardId, propertyId]);
+      if (!rows.length) throw notFound();
+      const broker = getBroker();
+      if (!broker) throw new HttpError(503, "internal_error");
+      await removeBoard(pool, broker, boardId);
+      return null;
     }),
   );
 }

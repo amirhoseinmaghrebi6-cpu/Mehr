@@ -76,7 +76,7 @@ The contract is [../board-protocol.md](../board-protocol.md).
 - **The registry of manufactured boards and the pending pairings are backend-only.** The server stores only hashes of factory secrets and pairing codes.
 - **A pairing code** is made by the board, fresh on every pairing mode, valid once and for 24 hours.
 - **A broker secret** is replaced at every pairing; the old one stops working.
-- **A factory reset leaves nothing on the server** about the board: no devices, states, commands, audit entry or notification.
+- **A factory reset leaves nothing on the server** about the board: no devices, states, commands, audit entry or notification. Removing the board in the app (owners and admins only) does the same and closes its broker account.
 - **Accepted risk:** whoever can hold the button owns the board (owning = holding).
 
 ### 4. No history

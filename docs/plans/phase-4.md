@@ -161,10 +161,13 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
   - pairing in the demo.
 - **With every foreign host unreachable:** all screens in the three languages load with no request abroad and no failed request.
 
+**Added after the exit (2026-10-04):**
+- **Removing a board in the app:** an owner or admin removes a board from a device's details; the server does what it does for a factory reset.
+- **Hiding devices:** an input or output that is not wired to anything can be hidden; it stays out of every screen and of scenarios until it is shown again.
+
 **Carried over:**
 - **Firmware (Phases 6–7):** the ESP32 side of `docs/board-protocol.md`, including the board's setup page and its QR code.
 - **Factory tooling:** writing real boards into the registry of manufactured boards (today only dev and test boards are written).
 - **Production broker:** TLS with our own certificate authority, and a per-address rate limit on the board routes at the reverse proxy.
-- **Removing a board from the app:** today a board leaves a home only by a factory reset or by pairing with another home.
 - **Many API processes:** use MQTT shared subscriptions so each message is handled once (today every process handles it; that is harmless but wasteful).
 - **Not started:** realtime push to open apps, the energy chart screen, the real SMS provider, member invitations.

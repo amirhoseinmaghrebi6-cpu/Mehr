@@ -1,8 +1,8 @@
 /**
  * Pairing and factory reset against the dev database and broker: a board joins a home only with
  * its factory secret, a fresh pairing code, and an owner or admin uploading that code; a code
- * works once and for 24 hours; pairing with another home, or a reset, leaves nothing of the board
- * behind in the old home.
+ * works once and for 24 hours; pairing with another home, a reset, or removing the board in the
+ * app leaves nothing of the board behind in the old home. Unused channels can be hidden.
  */
 import { boardTopic, formatPairingCode, type Device, type PairBoardResponse, type Property, type Scenario } from "@m2smart/contracts";
 import mqtt from "mqtt";
@@ -63,7 +63,7 @@ describe("pairing and factory reset", () => {
   let homeB: Property;
   let boardInA: PairBoardResponse;
 
-  const call = async (user: UserKey | null, method: "GET" | "POST" | "PATCH", url: string, payload?: object) => {
+  const call = async (user: UserKey | null, method: "GET" | "POST" | "PATCH" | "DELETE", url: string, payload?: object) => {
     const response = await app.inject({ method, url, headers: user ? { authorization: `Bearer ${user}` } : {}, ...(payload ? { payload } : {}) });
     return { status: response.statusCode, body: response.body ? response.json() : null };
   };
@@ -266,6 +266,56 @@ describe("pairing and factory reset", () => {
       expect(await count("public.controllers where id = $1", [paired.boardId])).toBe(1);
       await client.endAsync();
       await broker.removeBoard(stranger);
+    });
+  });
+
+  describe("hiding channels and removing the board in the app", () => {
+    let paired: PairBoardResponse;
+
+    beforeAll(async () => {
+      // "one board cannot reset another" left the board paired with home A.
+      const [board] = await adminQuery<{ id: string; name: string }>("select id, name from public.controllers where hardware_uid = $1", [UID]);
+      paired = { boardId: board.id, boardName: board.name, devices: await devicesOf("ownerA", homeA) };
+    });
+
+    it("every device names its board", async () => {
+      expect(paired.devices).toHaveLength(2);
+      expect(paired.devices.every((device) => device.boardId === paired.boardId && device.boardName === "Pairing test switch" && device.hidden === false)).toBe(true);
+    });
+
+    it("an owner or admin hides a channel that is not wired, and shows it again", async () => {
+      const url = `/v1/properties/${homeA.id}/devices/${paired.devices[1].id}`;
+      expect((await call("memberA", "PATCH", url, { hidden: true })).status).toBe(403);
+      expect((await call("ownerB", "PATCH", url, { hidden: true })).status).toBe(404);
+      expect((await call("adminA", "PATCH", url, { hidden: true })).body).toMatchObject({ hidden: true, name: "Lamp 2" });
+      expect((await devicesOf("memberA", homeA)).map((device) => device.hidden)).toEqual([false, true]);
+      expect((await call("ownerA", "PATCH", url, { hidden: false })).body).toMatchObject({ hidden: false });
+    });
+
+    it("only an owner or admin of the board's home can remove it", async () => {
+      const url = `/v1/properties/${homeA.id}/boards/${paired.boardId}`;
+      expect((await call("memberA", "DELETE", url)).status).toBe(403);
+      expect((await call("ownerB", "DELETE", url)).status).toBe(404);
+      expect((await call("ownerB", "DELETE", `/v1/properties/${homeB.id}/boards/${paired.boardId}`)).status).toBe(404);
+      expect((await call(null, "DELETE", url)).status).toBe(401);
+      expect(await devicesOf("ownerA", homeA)).toHaveLength(2);
+    });
+
+    it("removing it deletes the board, its devices and its broker account, like a factory reset", async () => {
+      const { brokerSecret } = (await credentials(CODE_1)).body;
+      await reportDeviceState(pool, paired.devices[0].id, "power", true);
+      const ids = paired.devices.map((device) => device.id);
+
+      expect((await call("adminA", "DELETE", `/v1/properties/${homeA.id}/boards/${paired.boardId}`)).status).toBe(204);
+      expect(await devicesOf("ownerA", homeA)).toEqual([]);
+      expect(await count("public.controllers where id = $1", [paired.boardId])).toBe(0);
+      expect(await count("public.device_states where device_id = any($1::uuid[])", [ids])).toBe(0);
+      expect(await count("public.board_pairings where hardware_uid = $1", [UID])).toBe(0);
+      await expect(mqtt.connectAsync(brokerConfig.url, { username: paired.boardId, password: brokerSecret, reconnectPeriod: 0 })).rejects.toThrow();
+      expect((await call("adminA", "DELETE", `/v1/properties/${homeA.id}/boards/${paired.boardId}`)).status).toBe(404);
+      // The physical board can be paired again, with a new code.
+      expect((await announce(CODE_2)).status).toBe(204);
+      expect((await pair("ownerA", homeA, CODE_2)).status).toBe(201);
     });
   });
 });

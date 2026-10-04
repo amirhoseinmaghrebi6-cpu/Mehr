@@ -188,6 +188,7 @@ export function createDemoGateway(userId: string): HomeGateway {
       if (!device) throw new GatewayError("not_found");
       if (input.name !== undefined) device.name = input.name.trim();
       if (input.roomId !== undefined) device.roomId = input.roomId;
+      if (input.hidden !== undefined) device.hidden = input.hidden;
       save();
       return clone(device);
     },
@@ -301,10 +302,19 @@ export function createDemoGateway(userId: string): HomeGateway {
       if (!board) throw new GatewayError("not_found");
       await later(700);
       const boardId = newId("board");
-      const devices = board.channels.map(([type, name, values]) => demoDevice(newId("device"), type, name, null, values));
+      const devices = board.channels.map(([type, name, values]) => ({ ...demoDevice(newId("device"), type, name, null, values), boardId, boardName: board.name }));
       (data.devices[propertyId] ??= []).push(...devices);
       save();
-      return { boardId, boardName: parsed!.hardwareUid, devices: clone(devices) };
+      return { boardId, boardName: board.name, devices: clone(devices) };
+    },
+    async removeBoard(propertyId, boardId) {
+      const devices = data.devices[propertyId] ?? [];
+      const removed = new Set(devices.filter((device) => device.boardId === boardId).map((device) => device.id));
+      if (!removed.size) throw new GatewayError("not_found");
+      data.devices[propertyId] = devices.filter((device) => !removed.has(device.id));
+      // Like the database: actions on the board's devices go with it.
+      for (const scenario of scenariosOf(propertyId)) scenario.actions = scenario.actions.filter((action) => !removed.has(action.deviceId));
+      save();
     },
 
     async addDemoDevice(propertyId, input) {

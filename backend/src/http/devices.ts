@@ -1,7 +1,7 @@
 /**
  * Devices and commands of a home:
  *   GET   /v1/properties/:propertyId/devices
- *   PATCH /v1/properties/:propertyId/devices/:deviceId          (rename, move to a room)
+ *   PATCH /v1/properties/:propertyId/devices/:deviceId          (rename, move to a room, hide)
  *   POST  /v1/properties/:propertyId/commands                   (absolute target value)
  *   GET   /v1/properties/:propertyId/commands/:commandId
  *
@@ -64,11 +64,15 @@ type DeviceRow = {
   room_id: string | null;
   online: boolean;
   last_seen_at: Date | null;
+  hidden: boolean;
+  controller_id: string | null;
+  board_name: string | null;
   capabilities: Array<{ capability: string; writable: boolean; value: CapabilityValue | null; reportedAt: string | null }>;
 };
 
 const DEVICE_SELECT = `
-  select device.id, device.name, device.device_type, device.room_id, device.online, device.last_seen_at,
+  select device.id, device.name, device.device_type, device.room_id, device.online, device.last_seen_at, device.hidden, device.controller_id,
+    (select board.name from public.controllers as board where board.id = device.controller_id) as board_name,
     coalesce(
       json_agg(
         json_build_object('capability', capability.capability, 'writable', capability.writable, 'value', state.value, 'reportedAt', state.reported_at)
@@ -89,6 +93,9 @@ function toDevice(row: DeviceRow): Device {
     roomId: row.room_id,
     online: row.online,
     lastSeenAt: row.last_seen_at ? row.last_seen_at.toISOString() : null,
+    boardId: row.controller_id,
+    boardName: row.board_name,
+    hidden: row.hidden,
     capabilities: row.capabilities
       .filter((entry): entry is typeof entry & { capability: CapabilityName } => isCapabilityName(entry.capability))
       .map((entry): CapabilityState => ({
@@ -167,9 +174,10 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
       const { rowCount } = await tx.query(
         `update public.devices set
            name = coalesce($3, name),
-           room_id = case when $4::boolean then $5::uuid else room_id end
+           room_id = case when $4::boolean then $5::uuid else room_id end,
+           hidden = coalesce($6, hidden)
          where id = $2 and property_id = $1 and device_type is not null`,
-        [propertyId, deviceId, body.name ?? null, body.roomId !== undefined, body.roomId ?? null],
+        [propertyId, deviceId, body.name ?? null, body.roomId !== undefined, body.roomId ?? null, body.hidden ?? null],
       );
       if (!rowCount) throw notFound();
       return loadDevice(tx, propertyId, deviceId);

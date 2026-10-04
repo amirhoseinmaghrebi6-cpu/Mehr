@@ -104,6 +104,11 @@ export interface Device {
   online: boolean;
   lastSeenAt: string | null;
   capabilities: CapabilityState[];
+  /** The board this device is a channel of. Removing the board removes all its devices. */
+  boardId: string | null;
+  boardName: string | null;
+  /** Hidden by an owner or admin: an input or output that is not wired to anything. */
+  hidden: boolean;
 }
 
 /** GET /v1/properties/:propertyId/devices */
@@ -123,6 +128,7 @@ export const updateDeviceRequest = z
   .strictObject({
     name: name(60),
     roomId: z.uuid().nullable(),
+    hidden: z.boolean(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "nothing to update");

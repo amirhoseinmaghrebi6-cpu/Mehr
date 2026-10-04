@@ -52,6 +52,10 @@ type Props = {
   displayName: string;
   rooms: Room[];
   devices: Device[];
+  /** Devices an owner or admin has hidden; listed only at the end of Devices. */
+  hiddenDevices: Device[];
+  /** Opens a device's details (name, room, hide, its board); only for those who may edit. */
+  onEditDevice?: (device: Device) => void;
   loading: boolean;
   canEditRooms: boolean;
   nameOf: (name: string) => string;
@@ -272,18 +276,32 @@ function RoomTile({ room, devices, nameOf, valueOf, canEditRooms, onEditRoom, on
 
 function DeviceCollection(props: Props & { roomName: (device: Device) => string; title: string }) {
   const { devices, title, nameOf, onNavigate, onRemoveDevice } = props;
-  const { m, rtl } = useI18n();
+  const { locale, m, rtl } = useI18n();
   return (
     <section className="collection-section">
       <SectionHeading title={title} detail={m.dashboard.statesNote} action={m.dashboard.browseRooms} onAction={() => onNavigate("rooms")} arrow={rtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />} />
-      {devices.length === 0 ? <NoDevices {...props} /> : (
+      {devices.length === 0 && props.hiddenDevices.length === 0 ? <NoDevices {...props} /> : (
         <div className="collection-device-grid">
           {devices.map((device) => (
             <div className="device-management-row" key={device.id}>
               <DeviceCard device={device} {...props} showRoom />
-              {onRemoveDevice && <button type="button" className="device-remove-button" onClick={() => onRemoveDevice(device)} aria-label={m.shell.removeDevice.label(nameOf(device.name))}><Trash2 size={15} /></button>}
+              {onRemoveDevice && !device.boardId && <button type="button" className="device-remove-button" onClick={() => onRemoveDevice(device)} aria-label={m.shell.removeDevice.label(nameOf(device.name))}><Trash2 size={15} /></button>}
             </div>
           ))}
+        </div>
+      )}
+      {props.section === "devices" && props.hiddenDevices.length > 0 && (
+        <div className="hidden-devices">
+          <span className="panel-overline">{m.dashboard.hiddenDevices(formatNumber(props.hiddenDevices.length, locale))}</span>
+          <p className="form-note">{m.dashboard.hiddenDevicesNote}</p>
+          <ul>
+            {props.hiddenDevices.map((device) => (
+              <li key={device.id}>
+                <span>{nameOf(device.name)}<small>{typeLabel(device.type, locale)}{device.boardName ? ` · ${nameOf(device.boardName)}` : ""}</small></span>
+                {props.onEditDevice && <button type="button" className="text-action" onClick={() => props.onEditDevice!(device)} aria-label={m.dashboard.editHidden(nameOf(device.name))}><Pencil size={13} />{m.dashboard.showAgain}</button>}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>

@@ -6,7 +6,7 @@ import { can, defaultTimeZone, deviceTypeNames, propertyTypes, type Device, type
 import { useI18n } from "@/components/i18n-provider";
 import { PairBoard } from "@/features/boards/pair-board";
 import { photoPresetList, photoUrl, typeLabel } from "@/lib/device-ui";
-import { offeredTimeZones, timeZoneCity, timeZoneOffset } from "@/lib/i18n";
+import { formatNumber, offeredTimeZones, timeZoneCity, timeZoneOffset } from "@/lib/i18n";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { demoBoards } from "@/services/demo-home";
 import { GatewayError } from "@/services/home-gateway";
@@ -196,41 +196,85 @@ export function RoomEditorDialog({ room, nameOf, canDelete, onClose, onSave, onD
 }
 
 /** Rename a device or move it to another space. Its hardware (board, pins, type) never changes here. */
-export function DeviceDetailsDialog({ device, name: currentName, rooms, nameOf, onClose, onSave }: { device: Device; name: string; rooms: Room[]; nameOf: (name: string) => string; onClose: () => void; onSave: (form: { name: string; roomId: string | null }) => Promise<void> }) {
+export function DeviceDetailsDialog({
+  device,
+  name: currentName,
+  rooms,
+  siblings,
+  canRemoveBoard,
+  nameOf,
+  onClose,
+  onSave,
+  onRemoveBoard,
+}: {
+  device: Device;
+  name: string;
+  rooms: Room[];
+  /** Every device of the same board, this one included. */
+  siblings: Device[];
+  canRemoveBoard: boolean;
+  nameOf: (name: string) => string;
+  onClose: () => void;
+  onSave: (form: { name: string; roomId: string | null; hidden: boolean }) => Promise<void>;
+  onRemoveBoard: (boardId: string) => Promise<void>;
+}) {
   const { locale, m, rtl } = useI18n();
   const d = m.dialogs;
   const [name, setName] = useState(currentName);
   const [roomId, setRoomId] = useState(device.roomId ?? "");
+  const [hidden, setHidden] = useState(Boolean(device.hidden));
+  const [removing, setRemoving] = useState(false);
   const saving = useSaving();
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) return;
-    void saving.run(() => onSave({ name: name.trim(), roomId: roomId || null }));
+    void saving.run(() => onSave({ name: name.trim(), roomId: roomId || null, hidden }));
   };
 
   return (
     <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="device-dialog-title" dir={rtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={onClose} aria-label={m.common.close}><X size={18} /></button>
-        <span className="workspace-dialog-icon"><Pencil size={18} /></span><span className="panel-overline">{typeLabel(device.type, locale)}</span>
-        <h2 id="device-dialog-title">{d.nameAndSpace}</h2>
-        <form className="workspace-form" onSubmit={submit}>
-          <label className="form-field"><span>{d.deviceName}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label className="form-field"><span>{d.space}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{d.noSpace}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
-          {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
-          <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{m.common.cancel}</button><button type="submit" className="button-primary" disabled={saving.busy}><Check size={15} />{m.common.save}</button></div>
-        </form>
+        {removing && device.boardId ? (
+          <>
+            <span className="workspace-dialog-icon delete-dialog-icon"><Trash2 size={19} /></span>
+            <h2 id="device-dialog-title">{d.removeBoardQuestion(nameOf(device.boardName ?? ""))}</h2>
+            <p className="workspace-dialog-description">{d.removeBoardText(formatNumber(siblings.length, locale))}</p>
+            <ul className="board-devices">{siblings.map((item) => <li key={item.id}>{nameOf(item.name)}<small>{typeLabel(item.type, locale)}</small></li>)}</ul>
+            <p className="form-note">{d.removeBoardNote}</p>
+            {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+            <div className="workspace-form-actions">
+              <button type="button" className="button-subtle" onClick={() => { saving.setError(""); setRemoving(false); }}>{d.keepBoard}</button>
+              <button type="button" className="button-danger" disabled={saving.busy} onClick={() => void saving.run(() => onRemoveBoard(device.boardId!))}><Trash2 size={15} />{d.removeBoard}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="workspace-dialog-icon"><Pencil size={18} /></span><span className="panel-overline">{typeLabel(device.type, locale)}</span>
+            <h2 id="device-dialog-title">{d.nameAndSpace}</h2>
+            <form className="workspace-form" onSubmit={submit}>
+              <label className="form-field"><span>{d.deviceName}</span><input autoFocus required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} /></label>
+              <label className="form-field"><span>{d.space}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{d.noSpace}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
+              <label className="check-field"><input type="checkbox" checked={hidden} onChange={(event) => setHidden(event.target.checked)} /><span><strong>{d.hideDevice}</strong><small>{d.hideDeviceNote}</small></span></label>
+              {device.boardId && (
+                <div className="board-box">
+                  <span className="panel-overline">{d.boardOfDevice}</span>
+                  <strong>{nameOf(device.boardName ?? "")}</strong>
+                  <small>{d.boardDevices(formatNumber(siblings.length, locale))}: {siblings.map((item) => nameOf(item.name)).join(rtl ? "، " : ", ")}</small>
+                  {canRemoveBoard && <button type="button" className="text-action board-remove" onClick={() => setRemoving(true)}><Trash2 size={14} />{d.removeBoard}</button>}
+                </div>
+              )}
+              {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
+              <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{m.common.cancel}</button><button type="submit" className="button-primary" disabled={saving.busy}><Check size={15} />{m.common.save}</button></div>
+            </form>
+          </>
+        )}
       </section>
     </div>
   );
 }
 
-/**
- * Adding a device. Real devices come from M2smart boards paired through the home's hub (hold the
- * board's setup button, then confirm), never from a form, so real users see how that works. The
- * demo can add sample devices of any catalog type.
- */
 export function AddDeviceDialog({
   rooms,
   nameOf,

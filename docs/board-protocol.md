@@ -108,6 +108,8 @@ The factory secret is a random value written to the board at production. It prov
 
 The server then deletes everything about the board: the board, its devices, their states and commands, and the scenario actions that used them. Nothing is kept. If the server never hears of the reset, pairing the board with any home removes it from the old one.
 
+**Removed in the app.** An owner or admin can also remove a board from the app. The server does the same as for a reset and closes the board's broker account, so the board's connection is refused from then on. A board that is refused keeps obeying its wall switches and waits for its setup button: pairing mode makes it a new board for any home.
+
 ## Firmware base
 
 Built on Espressif's official ESP-IDF components (Wi-Fi, HTTP server, TLS, MQTT, storage). The setup page, the pairing and reset logic and this protocol are M2smart's own code. No third-party Wi-Fi manager library. Time sync, firmware updates and certificates all come from our own servers in Iran.

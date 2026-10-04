@@ -25,6 +25,9 @@ export function demoDevice(id: string, type: DeviceType, name: string, roomId: s
     roomId,
     online: true,
     lastSeenAt: now,
+    boardId: null,
+    boardName: null,
+    hidden: false,
     capabilities: names.map((capability) => ({
       capability,
       writable: capabilities[capability].writable,
@@ -89,10 +92,11 @@ export function createDemoData(): DemoData {
  * the app (public/images/demo); uploading one adds the board's channels, like a real board would.
  * In the demo a sample code can be used again and again.
  */
-export const demoBoards: Record<string, { image: string; channels: Array<[type: DeviceType, name: string, values?: Partial<Record<CapabilityName, CapabilityValue>>]> }> = {
-  "DEMO-SWITCH-2CH": { image: "/images/demo/pairing-switch-2ch.png", channels: [["switch", "Switch 1"], ["switch", "Switch 2"]] },
-  "DEMO-COOLER": { image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
+export const demoBoards: Record<string, { name: string; image: string; channels: Array<[type: DeviceType, name: string, values?: Partial<Record<CapabilityName, CapabilityValue>>]> }> = {
+  "DEMO-SWITCH-2CH": { name: "2-switch board", image: "/images/demo/pairing-switch-2ch.png", channels: [["switch", "Switch 1"], ["switch", "Switch 2"]] },
+  "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
   "DEMO-MULTI-6CH": {
+    name: "6-channel board",
     image: "/images/demo/pairing-multi-6ch.png",
     channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket", { power: false, power_w: 0, energy_kwh: 0 }], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
   },

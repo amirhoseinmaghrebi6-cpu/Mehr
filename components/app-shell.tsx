@@ -171,6 +171,10 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   const home = useHomeData(gateway, requestedPropertyId, onOutcome);
   const { property, propertyId, properties, rooms, devices } = home;
   const activeDevice = devices.find((device) => device.id === activeDeviceId) ?? null;
+  // Hidden devices (inputs and outputs that are not wired) stay out of every screen but the
+  // "hidden devices" list at the end of Devices.
+  const visibleDevices = useMemo(() => devices.filter((device) => !device.hidden), [devices]);
+  const hiddenDevices = useMemo(() => devices.filter((device) => device.hidden), [devices]);
   const demoSnapshot = useMemo(() => (demoMode && propertyId ? getMockHomeSnapshot(propertyId) : null), [demoMode, propertyId]);
   const canEditRooms = property ? can(property.role, "room.edit") : false;
   const canEditDevices = property ? can(property.role, "device.edit") : false;
@@ -377,7 +381,9 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
               property={property}
               displayName={displayName}
               rooms={rooms}
-              devices={devices}
+              devices={visibleDevices}
+              hiddenDevices={hiddenDevices}
+              onEditDevice={canEditDevices ? setEditingDevice : undefined}
               loading={home.homeLoading}
               canEditRooms={canEditRooms}
               nameOf={nameOf}
@@ -409,13 +415,13 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         <MobileNavigationItem id="overview" icon={LayoutDashboard} active={section === "overview"} onClick={() => navigate("overview")} />
         <MobileNavigationItem id="rooms" icon={BedDouble} active={section === "rooms"} onClick={() => navigate("rooms")} />
         <MobileNavigationItem id="devices" icon={Lightbulb} active={section === "devices"} onClick={() => navigate("devices")} />
-        <MobileNavigationItem id="automations" icon={Sparkles} active={section === "automations"} onClick={() => navigate("automations")} />
+        <MobileNavigationItem id="scenes" icon={Sunset} active={section === "scenes"} onClick={() => navigate("scenes")} />
         <button type="button" className={`mobile-nav-item${mobileMoreOpen ? " is-active" : ""}`} onClick={() => setMobileMoreOpen((open) => !open)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={20} /><span>{m.nav.more}</span></button>
       </nav>
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
-          {([["scenes", Sunset], ["energy", Zap], ["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {([["automations", Sparkles], ["energy", Zap], ["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>
@@ -512,6 +518,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         device={editingDevice}
         name={nameOf(editingDevice.name)}
         rooms={rooms}
+        siblings={editingDevice.boardId ? devices.filter((device) => device.boardId === editingDevice.boardId) : [editingDevice]}
+        canRemoveBoard={property ? can(property.role, "board.remove") : false}
         nameOf={nameOf}
         onClose={() => setEditingDevice(null)}
         onSave={async (form) => {
@@ -520,13 +528,20 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
           setEditingDevice(null);
           showToast(m.shell.toasts.deviceSaved);
         }}
+        onRemoveBoard={async (boardId) => {
+          await gateway.removeBoard(propertyId, boardId);
+          home.setDevices((current) => current.filter((device) => device.boardId !== boardId));
+          setEditingDevice(null);
+          void scenarioData.refresh();
+          showToast(m.shell.toasts.boardRemoved);
+        }}
       />}
 
       {scenarioEditor && property && <ScenarioEditorDialog
         scenario={scenarioEditor === "new" ? null : scenarioEditor}
         property={property}
         timeZone={homeTimeZone(property)}
-        devices={devices}
+        devices={visibleDevices}
         nameOf={nameOf}
         onClose={() => setScenarioEditor(null)}
         onSave={async (input) => {

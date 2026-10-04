@@ -90,6 +90,8 @@ export function createApiGateway(): HomeGateway {
     // Not retried: a pairing code works once.
     pairBoard: (id, pairingCode) => request<PairBoardResponse>("POST", `/properties/${id}/boards`, { pairingCode }),
 
+    removeBoard: (id, boardId) => request<void>("DELETE", `/properties/${id}/boards/${boardId}`),
+
     getSettings: () => request<UserSettings>("GET", "/me/settings"),
     updateSettings: (input) => request<UserSettings>("PATCH", "/me/settings", input),
   };
