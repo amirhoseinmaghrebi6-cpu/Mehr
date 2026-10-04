@@ -45,9 +45,11 @@ type Props = {
   /** Adds the board; resolves with its devices. */
   onPair: (pairingCode: string) => Promise<Device[]>;
   onRename: (device: Device, form: { name: string; roomId: string | null }) => Promise<void>;
+  /** Demo only: sample boards whose pairing QR codes can be saved and uploaded. */
+  samples?: Array<{ label: string; image: string }>;
 };
 
-export function PairBoard({ rooms, canPair, nameOf, onClose, onPair, onRename }: Props) {
+export function PairBoard({ rooms, canPair, nameOf, onClose, onPair, onRename, samples }: Props) {
   const { locale, m } = useI18n();
   const d = m.dialogs;
   const [text, setText] = useState("");
@@ -62,7 +64,7 @@ export function PairBoard({ rooms, canPair, nameOf, onClose, onPair, onRename }:
     setError("");
     try {
       const paired = await onPair(code.trim());
-      setForms(Object.fromEntries(paired.map((device) => [device.id, { name: device.name, roomId: rooms[0]?.id ?? "" }])));
+      setForms(Object.fromEntries(paired.map((device) => [device.id, { name: nameOf(device.name), roomId: rooms[0]?.id ?? "" }])));
       setDevices(paired);
     } catch (caught) {
       const code = caught instanceof GatewayError ? caught.code : "network";
@@ -131,6 +133,17 @@ export function PairBoard({ rooms, canPair, nameOf, onClose, onPair, onRename }:
         <li><Wifi size={15} />{d.pairingSteps[1]}</li>
         <li><QrCode size={15} />{d.pairingSteps[2]}</li>
       </ol>
+      {samples && (
+        <div className="sample-boards">
+          <span>{d.demoSampleBoards}</span>
+          <div>
+            {samples.map((sample) => (
+              // eslint-disable-next-line @next/next/no-img-element -- a small static QR image; the user saves the file itself
+              <a key={sample.image} href={sample.image} download title={sample.label}><img src={sample.image} alt="" width={54} height={54} /><span>{sample.label}</span></a>
+            ))}
+          </div>
+        </div>
+      )}
       {canPair ? (
         <form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void pair(text); }}>
           <label className={`qr-upload${busy ? " is-busy" : ""}`}>

@@ -30,3 +30,7 @@ The Unsplash License allows free commercial and non-commercial use without attri
 1. Convert it to WebP with a sensible width (960 px for cards, 1920 px for full-width images).
 2. Put it in `public/images`.
 3. Add a row to the table above with its source and licence.
+
+## Demo pairing QR codes
+
+`public/images/demo/pairing-*.png` are the pairing QR codes of the demo's three sample boards (`services/demo-home.ts`, `demoBoards`). We generated them ourselves from the codes in that file; they work only in the demo account and never reach the API.

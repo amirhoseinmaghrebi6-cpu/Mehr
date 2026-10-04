@@ -1034,3 +1034,12 @@ a.auth-submit { text-decoration: none; }
 .channel-type { overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .channel-row > input, .channel-row > select { min-width: 0; height: 37px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; outline: 0; background: var(--surface); color: var(--ink); font-size: 10px; }
 @media (max-width: 600px) { .channel-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .channel-type { grid-column: 1 / -1; } }
+
+/* Demo: sample boards' pairing QR codes. */
+.sample-boards { display: grid; gap: 8px; margin-bottom: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
+.sample-boards > span { color: var(--ink-soft); font-size: 9.5px; line-height: 1.55; }
+.sample-boards > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.sample-boards a { display: flex; flex: 1 1 110px; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; color: #202820; font-size: 9.5px; font-weight: 600; text-decoration: none; }
+.sample-boards a:hover { border-color: var(--accent); }
+.sample-boards img { display: block; border-radius: 3px; }
+.demo-quick-add { margin-top: 10px; }

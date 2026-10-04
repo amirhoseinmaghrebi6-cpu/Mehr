@@ -8,6 +8,7 @@ import { PairBoard } from "@/features/boards/pair-board";
 import { photoPresetList, photoUrl, typeLabel } from "@/lib/device-ui";
 import { offeredTimeZones, timeZoneCity, timeZoneOffset } from "@/lib/i18n";
 import { gatewayMessage } from "@/lib/gateway-messages";
+import { demoBoards } from "@/services/demo-home";
 import { GatewayError } from "@/services/home-gateway";
 
 type PropertyForm = { name: string; address: string; type: PropertyType; coverPhoto: PhotoPreset; timeZone: string };
@@ -253,6 +254,8 @@ export function AddDeviceDialog({
   const [type, setType] = useState<DeviceType>("switch");
   const [name, setName] = useState("");
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? "");
+  // The demo opens on pairing, like a real home; "quick" is its one-tap sample device form.
+  const [quick, setQuick] = useState(false);
   const saving = useSaving();
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -265,19 +268,30 @@ export function AddDeviceDialog({
     <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="add-device-title" dir={rtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={onClose} aria-label={m.common.close}><X size={18} /></button>
-        <span className="workspace-dialog-icon">{onAddDemo ? <Plus size={19} /> : <QrCode size={19} />}</span><span className="panel-overline">{d.devicesOverline}</span>
+        <span className="workspace-dialog-icon">{quick ? <Plus size={19} /> : <QrCode size={19} />}</span><span className="panel-overline">{d.devicesOverline}</span>
         <h2 id="add-device-title">{d.addDevice}</h2>
-        {onAddDemo ? (
+        {onAddDemo && quick ? (
           <form className="workspace-form" onSubmit={submit}>
             <p className="workspace-dialog-description">{d.demoAddText}</p>
             <label className="form-field"><span>{d.deviceType}</span><select value={type} onChange={(event) => setType(event.target.value as DeviceType)}>{deviceTypeNames.map((item) => <option key={item} value={item}>{typeLabel(item, locale)}</option>)}</select></label>
             <label className="form-field"><span>{d.deviceName}</span><input maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder={typeLabel(type, locale)} /></label>
             <label className="form-field"><span>{d.space}</span><select value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">{d.noSpace}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{nameOf(room.name)}</option>)}</select></label>
             {saving.error && <p className="form-error" role="alert">{saving.error}</p>}
-            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={onClose}>{m.common.cancel}</button><button type="submit" className="button-primary" disabled={saving.busy}><Plus size={15} />{m.dashboard.addDevice}</button></div>
+            <div className="workspace-form-actions"><button type="button" className="button-subtle" onClick={() => setQuick(false)}>{m.common.back}</button><button type="submit" className="button-primary" disabled={saving.busy}><Plus size={15} />{m.dashboard.addDevice}</button></div>
           </form>
         ) : (
-          <PairBoard rooms={rooms} canPair={canPair} nameOf={nameOf} onClose={onClose} onPair={onPair} onRename={onRename} />
+          <>
+            <PairBoard
+              rooms={rooms}
+              canPair={canPair}
+              nameOf={nameOf}
+              onClose={onClose}
+              onPair={onPair}
+              onRename={onRename}
+              samples={onAddDemo ? Object.values(demoBoards).map((board, index) => ({ label: d.demoBoardNames[index], image: board.image })) : undefined}
+            />
+            {onAddDemo && <button type="button" className="text-action demo-quick-add" onClick={() => setQuick(true)}>{d.demoQuickAdd}</button>}
+          </>
         )}
       </section>
     </div>

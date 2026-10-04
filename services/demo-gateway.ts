@@ -9,6 +9,7 @@ import {
   DEFAULT_SCENARIO_LATE_WINDOW,
   defaultSettings,
   defaultTimeZone,
+  parsePairingCode,
   type Command,
   type CommandStatus,
   type Device,
@@ -20,7 +21,7 @@ import {
 } from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
 import { nextRun } from "@/lib/scenario-time";
-import { createDemoData, createDemoScenarios, demoDevice, type DemoData } from "@/services/demo-home";
+import { createDemoData, createDemoScenarios, demoBoards, demoDevice, type DemoData } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
@@ -290,6 +291,20 @@ export function createDemoGateway(userId: string): HomeGateway {
         // The preferences still apply in this tab (cookies).
       }
       return next;
+    },
+
+    // Pairing in the demo: the sample boards' QR codes add their channels, as a real board would.
+    async pairBoard(propertyId, pairingCode) {
+      home(propertyId);
+      const parsed = parsePairingCode(pairingCode);
+      const board = parsed ? demoBoards[parsed.hardwareUid] : undefined;
+      if (!board) throw new GatewayError("not_found");
+      await later(700);
+      const boardId = newId("board");
+      const devices = board.channels.map(([type, name, values]) => demoDevice(newId("device"), type, name, null, values));
+      (data.devices[propertyId] ??= []).push(...devices);
+      save();
+      return { boardId, boardName: parsed!.hardwareUid, devices: clone(devices) };
     },
 
     async addDemoDevice(propertyId, input) {

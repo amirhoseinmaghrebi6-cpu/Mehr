@@ -356,7 +356,10 @@ export const en = {
     noSpace: "No space",
     devicesOverline: "HOME DEVICES",
     addDevice: "Add a device",
-    demoAddText: "In the demo you can try any kind of M2smart device.",
+    demoAddText: "Add one sample device of any kind to this demo home.",
+    demoSampleBoards: "Presenting without a board? Save one of these sample boards’ QR codes, then upload it:",
+    demoBoardNames: ["2 switches","Cooler","6-channel board"],
+    demoQuickAdd: "Or add one sample device directly",
     deviceType: "Device type",
     realAddText: "M2smart devices live on boards made for your home. A board joins your home with the pairing code it shows you; devices are never created by hand.",
     pairingSteps: [

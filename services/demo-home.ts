@@ -84,6 +84,20 @@ export function createDemoData(): DemoData {
   };
 }
 
+/**
+ * Sample boards for presenting pairing in the demo. Their pairing QR codes are images served by
+ * the app (public/images/demo); uploading one adds the board's channels, like a real board would.
+ * In the demo a sample code can be used again and again.
+ */
+export const demoBoards: Record<string, { image: string; channels: Array<[type: DeviceType, name: string, values?: Partial<Record<CapabilityName, CapabilityValue>>]> }> = {
+  "DEMO-SWITCH-2CH": { image: "/images/demo/pairing-switch-2ch.png", channels: [["switch", "Switch 1"], ["switch", "Switch 2"]] },
+  "DEMO-COOLER": { image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
+  "DEMO-MULTI-6CH": {
+    image: "/images/demo/pairing-multi-6ch.png",
+    channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket", { power: false, power_w: 0, energy_kwh: 0 }], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
+  },
+};
+
 /** Sample scenarios of the demo homes (their device ids are those above). */
 export function createDemoScenarios(): Record<string, Scenario[]> {
   const scenario = (id: string, name: string, actions: Array<[string, CapabilityName, CapabilityValue]>, schedule: Partial<Scenario> = {}): Scenario => ({
