@@ -9,12 +9,13 @@ import type { Pool } from "pg";
 import { registerIdentityWebhook } from "./auth/identity-webhook";
 import { followBoardStatus } from "./broker/board-status";
 import { connectBroker, type Broker } from "./broker/broker";
+import { startCommandBridge } from "./broker/command-bridge";
 import { startCommandExpiry } from "./commands/expiry";
 import { createKratosVerifier } from "./auth/kratos-verifier";
 import { withSessionCache, type SessionVerifier } from "./auth/session-verifier";
 import { ConfigError, loadConfig, type Config } from "./config";
 import { assertSafeDatabaseRole, createPool, UnsafeDatabaseRoleError } from "./db/pool";
-import { startHubSimulator } from "./dev/hub-simulator";
+import { startBoardSimulator, type BoardSimulator } from "./dev/board-simulator";
 import { loadBackendEnv } from "./env";
 import { registerDeviceRoutes } from "./http/devices";
 import { registerDevReportRoute } from "./http/dev-report";
@@ -24,6 +25,7 @@ import { registerHomeRoutes } from "./http/homes";
 import { registerMeRoute } from "./http/me";
 import { registerScenarioRoutes } from "./http/scenarios";
 import { registerSettingsRoutes } from "./http/settings";
+import { startCleanup } from "./maintenance/cleanup";
 
 export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
 export type ServerServices = {
@@ -112,17 +114,23 @@ async function main(): Promise<void> {
   }
 
   const stopExpiry = startCommandExpiry(pool, app.log);
-  const simulator = config.devHubSimulator ? startHubSimulator(pool, app.log) : null;
-  if (simulator) app.log.warn("Dev hub simulator enabled: simulated ESP32 boards confirm commands. Never enable in production.");
+  const stopCleanup = startCleanup(pool, app.log);
 
   // The boards' broker. If it is not reachable yet, the API still serves users and keeps trying.
   let broker: Broker | null = null;
   let brokerRetry: NodeJS.Timeout | null = null;
+  let stopBridge: (() => void) | null = null;
+  let simulator: BoardSimulator | null = null;
   const startBroker = async () => {
     if (!config.broker) return app.log.warn("MQTT_URL not set: no board connection; boards never come online.");
     try {
       broker = await connectBroker(config.broker, app.log);
       followBoardStatus(broker, pool, app.log);
+      stopBridge = startCommandBridge(pool, broker, app.log);
+      if (config.devBoardSimulator) {
+        simulator = startBoardSimulator(pool, broker, config.broker.url, app.log);
+        app.log.warn("Dev board simulator enabled: simulated ESP32 boards answer commands. Never enable in production.");
+      }
     } catch (error) {
       app.log.error({ err: { message: (error as Error).message } }, "Cannot reach the MQTT broker; trying again in 5 s");
       brokerRetry = setTimeout(() => void startBroker(), 5_000);
@@ -136,9 +144,11 @@ async function main(): Promise<void> {
     shuttingDown = true;
     app.log.info({ signal }, "Shutting down: finishing in-flight requests, then closing the database pool");
     stopExpiry();
-    simulator?.stop();
+    stopCleanup();
+    stopBridge?.();
     if (brokerRetry) clearTimeout(brokerRetry);
     try {
+      await simulator?.stop();
       await broker?.close();
       await app.close();
       await pool.end();

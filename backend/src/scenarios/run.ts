@@ -5,8 +5,8 @@
  *
  * - startRun: one run, inside the caller's transaction. A tap runs as the user (RLS: any member of
  *   the home); a scheduled run runs as the hub (system).
- * - runDueScenarios: the scheduler of the dev hub simulator. Scenarios run on the home's hub
- *   (Phase 4); until then the simulator runs them for homes with simulated boards. Each occurrence
+ * - runDueScenarios: the scheduler. Until step 4D makes it a server job for every home, the dev
+ *   board simulator calls it for homes with simulated boards. Each occurrence
  *   runs at most once (unique per scenario and occurrence, so a restart never runs it twice); a
  *   periodic one more than 2 minutes late is skipped and recorded as missed, a one-time one gets
  *   10 minutes.

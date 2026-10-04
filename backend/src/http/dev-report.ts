@@ -6,7 +6,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { reportDeviceState } from "../dev/hub-simulator";
+import { reportDeviceState } from "../devices/reports";
 
 const reportSchema = z.strictObject({
   deviceId: z.uuid(),

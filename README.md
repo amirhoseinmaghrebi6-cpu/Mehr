@@ -37,7 +37,7 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
 3. **Start the API and the web app**, in two terminals:
 
    ```bash
-   pnpm api:dev          # API on http://127.0.0.1:4000 (with M2SMART_DEV_HUB_SIMULATOR=true, simulated ESP32s confirm commands)
+   pnpm api:dev          # API on http://127.0.0.1:4000 (with M2SMART_DEV_BOARD_SIMULATOR=true, simulated ESP32 boards connect to the broker and answer commands)
    pnpm dev              # web app on http://localhost:3000
    ```
 

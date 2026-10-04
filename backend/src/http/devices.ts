@@ -5,8 +5,8 @@
  *   POST  /v1/properties/:propertyId/commands                   (absolute target value)
  *   GET   /v1/properties/:propertyId/commands/:commandId
  *
- * A command is only a request: it is "applied" once the ESP32 reports the value (through the hub
- * from Phase 4, through the dev simulator before that). Commands nobody confirms in time become
+ * A command is only a request: it is "applied" once the ESP32 reports the value (over MQTT, see
+ * broker/command-bridge.ts; simulated boards in development). Commands nobody confirms in time become
  * "timed_out" (commands/expiry.ts). Only board devices (with a catalog type) are listed; Phase 1
  * devices without a board are not part of the product.
  *

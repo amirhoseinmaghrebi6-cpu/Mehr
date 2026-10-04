@@ -10,7 +10,12 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { syncIdentity } from "../src/auth/identity-webhook";
 import type { SessionCredential, SessionVerifier, VerifiedSession } from "../src/auth/session-verifier";
-import { startHubSimulator } from "../src/dev/hub-simulator";
+import { followBoardStatus } from "../src/broker/board-status";
+import { connectBroker } from "../src/broker/broker";
+import { startCommandBridge } from "../src/broker/command-bridge";
+import { loadConfig } from "../src/config";
+import { startBoardSimulator } from "../src/dev/board-simulator";
+import { loadBackendEnv } from "../src/env";
 import { runDueScenarios } from "../src/scenarios/run";
 import { buildServer } from "../src/server";
 import { adminQuery, createApiPool, deleteUsers } from "./fixtures";
@@ -221,7 +226,12 @@ describe("scenarios", () => {
 
     it("carries out a scenario on the simulated hub in order: camera on, then recording", async () => {
       const created = (await call("ownerA", "POST", base(homeA), { kind: "themed", name: "Watch", actions: [on(cameraA), on(cameraA, true, "recording")] })).body as Scenario;
-      const simulator = startHubSimulator(pool, silentLog, { pollMs: 25, defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 30], boardPrefix: "TEST-SCN-A-", scenarioPollMs: 0 });
+      loadBackendEnv();
+      const brokerConfig = loadConfig().broker!;
+      const broker = await connectBroker(brokerConfig, silentLog);
+      followBoardStatus(broker, pool, silentLog);
+      const stopBridge = startCommandBridge(pool, broker, silentLog, { pollMs: 25 });
+      const simulator = startBoardSimulator(pool, broker, brokerConfig.url, silentLog, { boardPrefix: "TEST-SCN-A-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 30], rescanMs: 200, scenarioPollMs: 0 });
       try {
         const { commandIds } = (await call("ownerA", "POST", `${base(homeA)}/${created.id}/run`)).body as ScenarioRunResponse;
         let statuses: string[] = [];
@@ -233,7 +243,10 @@ describe("scenarios", () => {
         // All of them (earlier runs' commands too) are carried out; this run's both applied.
         expect(statuses).toEqual(["applied", "applied"]);
       } finally {
-        simulator.stop();
+        stopBridge();
+        await simulator.stop();
+        for (const board of await adminQuery<{ id: string }>("select id from public.controllers where starts_with(hardware_uid, 'TEST-SCN-')")) await broker.removeBoard(board.id).catch(() => undefined);
+        await broker.close();
       }
     });
   });

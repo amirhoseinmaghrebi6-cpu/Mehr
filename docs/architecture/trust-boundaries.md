@@ -63,7 +63,8 @@ The contract is [../board-protocol.md](../board-protocol.md).
 - **Outbound only:** a board connects out to the cloud MQTT broker over TLS. The cloud never connects into a home.
 - **One account per board:** the username is the board's id, the secret is issued at pairing, and broker rules limit the board to its own topics. A board can never read or write another board's messages, in its own home or any other.
 - **The API is the only other broker client.** It publishes commands and reads reports; browsers and apps never talk to the broker.
-- **Reports are checked like requests:** a value is stored only if it fits a capability that board really has.
+- **Reports are checked like requests:** a value is stored only if it fits a capability that board really has, and a report completes a command only if the command belongs to that same board.
+- **A command is "applied" only when the board reports the target value.** A different reported value marks it failed; a refusal marks it rejected.
 - **Commands carry how long they are valid;** an expired command is never sent or replayed.
 
 ### 3. Pairing and reset (Phase 4)

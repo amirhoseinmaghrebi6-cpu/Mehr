@@ -19,8 +19,8 @@ const configSchema = z.object({
   MQTT_URL: z.url({ protocol: /^mqtts?$/, error: "must be an mqtt:// or mqtts:// URL" }).optional(),
   MQTT_USERNAME: z.string().min(1).optional(),
   MQTT_PASSWORD: z.string().min(16, { error: "must be at least 16 characters" }).optional(),
-  // Development only: simulated hub and ESP32 boards confirm commands (src/dev/hub-simulator.ts).
-  M2SMART_DEV_HUB_SIMULATOR: z.enum(["true", "false"]).default("false"),
+  // Development only: simulated ESP32 boards connect to the broker (src/dev/board-simulator.ts).
+  M2SMART_DEV_BOARD_SIMULATOR: z.enum(["true", "false"]).default("false"),
 });
 
 export type Config = {
@@ -31,8 +31,8 @@ export type Config = {
    * production never opens them.
    */
   devRoutes: boolean;
-  /** The dev hub simulator; only ever true together with devRoutes. */
-  devHubSimulator: boolean;
+  /** The dev board simulator; only ever true together with devRoutes. */
+  devBoardSimulator: boolean;
   host: string;
   port: number;
   databaseUrl: string;
@@ -60,7 +60,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     nodeEnv: value.NODE_ENV,
     devRoutes: env.NODE_ENV === "development",
-    devHubSimulator: env.NODE_ENV === "development" && value.M2SMART_DEV_HUB_SIMULATOR === "true",
+    devBoardSimulator: env.NODE_ENV === "development" && value.M2SMART_DEV_BOARD_SIMULATOR === "true",
     host: value.API_HOST,
     port: value.API_PORT,
     databaseUrl: value.DATABASE_URL,

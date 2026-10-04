@@ -1,11 +1,12 @@
 /**
  * Adds a simulated ESP32 board of a catalog model to a home, for local development. Real boards
- * are added by QR pairing through the hub (Phase 4); this is the stand-in until then.
+ * join a home with their own pairing code (Phase 4, step 4E); this is the stand-in until then.
  *
  * Usage: pnpm dev:board <property-id> <model-code> [board name]
  *        pnpm dev:board                      (lists homes and models)
  *
- * The home gets a "Dev hub" if it has no hub yet. The board's devices start with a neutral
+ * The home gets its internal hub row (its cloud connection; there is no physical hub) if it has
+ * none yet. The board's devices start with a neutral
  * reported state (off, closed, 0), as if the ESP32 had just reported. Refuses to run when
  * NODE_ENV=production.
  */

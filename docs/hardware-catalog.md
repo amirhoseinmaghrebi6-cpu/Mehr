@@ -123,7 +123,7 @@ where code = 'cooler-rev-a';
 
 ## Trying a model in development
 
-`pnpm dev:board <home-id> <model-code>` adds a simulated board of that model to a home. With `M2SMART_DEV_HUB_SIMULATOR=true`, the API's dev simulator then plays the ESP32 for it: it confirms commands after the hardware's time, and `POST /internal/dev/report` simulates wall switches and sensors.
+`pnpm dev:board <home-id> <model-code>` adds a simulated board of that model to a home. With `M2SMART_DEV_BOARD_SIMULATOR=true`, the API's dev simulator then plays the ESP32 for it: the simulated board connects to the broker with its own account and follows [board-protocol.md](board-protocol.md), answering commands after the hardware's time. `POST /internal/dev/report` simulates wall switches and sensors.
 
 The `sample-*` models from `pnpm db:seed` are examples for development only. They are not real M2smart PCBs.
 
