@@ -7,6 +7,8 @@ import type { ApiErrorResponse } from "@m2smart/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { registerIdentityWebhook } from "./auth/identity-webhook";
+import { followBoardStatus } from "./broker/board-status";
+import { connectBroker, type Broker } from "./broker/broker";
 import { startCommandExpiry } from "./commands/expiry";
 import { createKratosVerifier } from "./auth/kratos-verifier";
 import { withSessionCache, type SessionVerifier } from "./auth/session-verifier";
@@ -113,6 +115,21 @@ async function main(): Promise<void> {
   const simulator = config.devHubSimulator ? startHubSimulator(pool, app.log) : null;
   if (simulator) app.log.warn("Dev hub simulator enabled: simulated ESP32 boards confirm commands. Never enable in production.");
 
+  // The boards' broker. If it is not reachable yet, the API still serves users and keeps trying.
+  let broker: Broker | null = null;
+  let brokerRetry: NodeJS.Timeout | null = null;
+  const startBroker = async () => {
+    if (!config.broker) return app.log.warn("MQTT_URL not set: no board connection; boards never come online.");
+    try {
+      broker = await connectBroker(config.broker, app.log);
+      followBoardStatus(broker, pool, app.log);
+    } catch (error) {
+      app.log.error({ err: { message: (error as Error).message } }, "Cannot reach the MQTT broker; trying again in 5 s");
+      brokerRetry = setTimeout(() => void startBroker(), 5_000);
+    }
+  };
+  void startBroker();
+
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
@@ -120,7 +137,9 @@ async function main(): Promise<void> {
     app.log.info({ signal }, "Shutting down: finishing in-flight requests, then closing the database pool");
     stopExpiry();
     simulator?.stop();
+    if (brokerRetry) clearTimeout(brokerRetry);
     try {
+      await broker?.close();
       await app.close();
       await pool.end();
       process.exit(0);

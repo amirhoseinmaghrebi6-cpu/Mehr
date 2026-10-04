@@ -2,7 +2,7 @@
 
 How an M2smart ESP32 board talks to the cloud. There is no hub: every board connects straight to our MQTT broker in Iran. This document is the contract for the firmware (Phases 6–7); the message shapes live as code in `packages/contracts/src/board-protocol.ts`, and the API and the simulated board use that file.
 
-Status: the messages and the database are in place (Phase 4A). The broker access, the command path and pairing are built in steps 4B–4E of [plans/phase-4.md](plans/phase-4.md).
+Status: the messages, the database, broker accounts and online/offline status are in place (Phases 4A–4B). The command path and pairing are built in steps 4C–4E of [plans/phase-4.md](plans/phase-4.md).
 
 ## Rules the board always follows
 

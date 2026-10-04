@@ -17,6 +17,7 @@
   "dependencies": {
     "@m2smart/contracts": "workspace:*",
     "fastify": "^5.12.5",
+    "mqtt": "^5.16.0",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },

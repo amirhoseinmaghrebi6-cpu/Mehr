@@ -1,6 +1,6 @@
 # Phase 4 plan: boards connect straight to the cloud (no hub)
 
-Status: approved 2026-10-04. Step 4A is implemented; 4B–4F are not yet.
+Status: approved 2026-10-04. Steps 4A and 4B are implemented; 4C–4F are not yet.
 
 **Goal:** a real ESP32 board can join a home, receive commands and report its state through our own servers in Iran, with no hub in the home. Scheduled scenarios run on the server. The firmware itself comes in Phases 6–7; this phase builds the server side and the contract the firmware will follow, tested with a simulated board that speaks the real protocol.
 
@@ -40,7 +40,7 @@ Still valid from before:
 
 ### Connection
 
-- **Broker:** our Mosquitto. Each board has its own username and secret, and may use only its own topics. Access rules are managed by the API through Mosquitto's built-in dynamic security, which also holds each board's broker secret; the database stores none.
+- **Broker:** our Mosquitto. Each board has its own username, secret and role, and the role names exactly that board's topics. Access rules are managed by the API through Mosquitto's built-in dynamic security, which also holds each board's broker secret; the database stores none.
 - **Encryption:** TLS in production, with our own certificate authority built into the firmware (no foreign certificate service).
 - **Topics** (small JSON messages):
 

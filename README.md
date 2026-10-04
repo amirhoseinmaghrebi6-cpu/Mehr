@@ -22,6 +22,7 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
 
    - `KRATOS_WEBHOOK_SECRET` must be the same in `infra/dev/.env` and `backend/.env.local`.
    - `DATABASE_ADMIN_URL` in `backend/.env.local` uses the `POSTGRES_PASSWORD` from `infra/dev/.env`.
+   - `MQTT_USERNAME` and `MQTT_PASSWORD` in `backend/.env.local` are `MQTT_API_USERNAME` and `MQTT_API_PASSWORD` from `infra/dev/.env`.
    - The env files are gitignored; never commit them.
 
 2. **Start the database, broker and Kratos**, then create the schema, run the RLS tests and load sample data:

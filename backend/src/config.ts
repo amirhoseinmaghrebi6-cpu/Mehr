@@ -14,6 +14,11 @@ const configSchema = z.object({
   KRATOS_PUBLIC_URL: z.url({ protocol: /^https?$/, error: "must be an http(s) URL" }).default("http://127.0.0.1:4433"),
   // Shared secret Kratos sends with the identity webhook. Without it the webhook route is off.
   KRATOS_WEBHOOK_SECRET: z.string().min(32, { error: "must be at least 32 characters" }).optional(),
+  // The MQTT broker the ESP32 boards connect to, and the API's account on it. Without MQTT_URL the
+  // API runs with no board connection (boards then never come online).
+  MQTT_URL: z.url({ protocol: /^mqtts?$/, error: "must be an mqtt:// or mqtts:// URL" }).optional(),
+  MQTT_USERNAME: z.string().min(1).optional(),
+  MQTT_PASSWORD: z.string().min(16, { error: "must be at least 16 characters" }).optional(),
   // Development only: simulated hub and ESP32 boards confirm commands (src/dev/hub-simulator.ts).
   M2SMART_DEV_HUB_SIMULATOR: z.enum(["true", "false"]).default("false"),
 });
@@ -35,6 +40,8 @@ export type Config = {
   logLevel: string;
   kratosPublicUrl: string;
   kratosWebhookSecret: string | null;
+  /** The boards' MQTT broker, or null when MQTT_URL is not set. */
+  broker: { url: string; username: string; password: string } | null;
 };
 
 export class ConfigError extends Error {}
@@ -47,6 +54,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`Invalid API configuration:\n${problems.join("\n")}`);
   }
   const value = parsed.data;
+  if (value.MQTT_URL && !(value.MQTT_USERNAME && value.MQTT_PASSWORD)) {
+    throw new ConfigError("Invalid API configuration:\n  MQTT_USERNAME, MQTT_PASSWORD: are required with MQTT_URL");
+  }
   return {
     nodeEnv: value.NODE_ENV,
     devRoutes: env.NODE_ENV === "development",
@@ -58,5 +68,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: value.LOG_LEVEL,
     kratosPublicUrl: value.KRATOS_PUBLIC_URL.replace(/\/+$/, ""),
     kratosWebhookSecret: value.KRATOS_WEBHOOK_SECRET ?? null,
+    broker: value.MQTT_URL ? { url: value.MQTT_URL, username: value.MQTT_USERNAME!, password: value.MQTT_PASSWORD! } : null,
   };
 }

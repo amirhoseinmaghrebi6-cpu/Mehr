@@ -25,13 +25,27 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.0.22@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21
+    environment:
+      MQTT_API_USERNAME: ${MQTT_API_USERNAME:?set MQTT_API_USERNAME in infra/dev/.env}
+      MQTT_API_PASSWORD: ${MQTT_API_PASSWORD:?set MQTT_API_PASSWORD in infra/dev/.env}
+    # On the first start, creates the accounts file with the API's admin account; board accounts
+    # are added by the API later and live in the same file (in the data volume).
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /mosquitto/data/dynamic-security.json ]; then
+          mosquitto_ctrl dynsec init /mosquitto/data/dynamic-security.json "$MQTT_API_USERNAME" "$MQTT_API_PASSWORD"
+          chown mosquitto:mosquitto /mosquitto/data/dynamic-security.json
+        fi
+        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
     ports:
       - "127.0.0.1:${MQTT_HOST_PORT:-18830}:1883"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     healthcheck:
-      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-p", "1883", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      # Healthy when the broker accepts the API's login.
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -u \"$MQTT_API_USERNAME\" -P \"$MQTT_API_PASSWORD\" -t m2/health -m 1"]
       interval: 5s
       timeout: 5s
       retries: 10

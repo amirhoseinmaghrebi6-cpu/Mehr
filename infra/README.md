@@ -67,14 +67,13 @@ docker compose -f infra/dev/compose.yaml exec postgres psql -U m2smart -d m2smar
 **Mosquitto**
 
 ```
-mqtt://127.0.0.1:18830   (anonymous, plaintext)
+mqtt://127.0.0.1:18830   (plaintext; every client logs in)
 ```
 
-Quick round-trip check inside the container:
+The API's account (`MQTT_API_USERNAME` / `MQTT_API_PASSWORD` in `infra/dev/.env`) is created on the first start; the API creates one account per board at pairing. Accounts live in the `mosquitto-data` volume. List them:
 
 ```sh
-docker compose -f infra/dev/compose.yaml exec mosquitto mosquitto_sub -t m2smart/dev/ping -C 1 -W 10 &
-docker compose -f infra/dev/compose.yaml exec mosquitto mosquitto_pub -t m2smart/dev/ping -m hello
+docker compose -f infra/dev/compose.yaml exec mosquitto sh -c 'mosquitto_ctrl -u "$MQTT_API_USERNAME" -P "$MQTT_API_PASSWORD" dynsec listClients'
 ```
 
 ### Using a Docker registry mirror inside Iran

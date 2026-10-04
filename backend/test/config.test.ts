@@ -14,7 +14,19 @@ describe("loadConfig", () => {
       logLevel: "info",
       kratosPublicUrl: "http://127.0.0.1:4433",
       kratosWebhookSecret: null,
+      broker: null,
     });
+  });
+
+  it("reads the boards' broker, and requires its account with MQTT_URL", () => {
+    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart", MQTT_URL: "mqtt://127.0.0.1:18830" };
+    expect(loadConfig({ ...base, MQTT_USERNAME: "m2-api", MQTT_PASSWORD: "a-long-random-password" }).broker).toEqual({
+      url: "mqtt://127.0.0.1:18830",
+      username: "m2-api",
+      password: "a-long-random-password",
+    });
+    expect(() => loadConfig(base)).toThrow(/MQTT_USERNAME/);
+    expect(() => loadConfig({ ...base, MQTT_URL: "http://127.0.0.1:18830", MQTT_USERNAME: "m2-api", MQTT_PASSWORD: "a-long-random-password" })).toThrow(/MQTT_URL/);
   });
 
   it("enables development routes only when NODE_ENV=development is set explicitly", () => {
