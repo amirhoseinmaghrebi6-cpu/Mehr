@@ -28,6 +28,13 @@ async function inTransaction<T>(pool: Pool, setup: (client: PoolClient) => Promi
   // A connection that failed to begin or roll back is in an unknown state: destroy it instead of
   // returning it to the pool.
   let broken = true;
+  // The database may close the connection while it is checked out (e.g. a PostgreSQL restart).
+  // The pool only listens while a client is idle; without a listener here the error would crash
+  // the process. The pending or next query fails anyway, which fails this transaction.
+  const onConnectionError = () => {
+    broken = true;
+  };
+  client.on("error", onConnectionError);
   try {
     await client.query("begin");
     try {
@@ -45,6 +52,7 @@ async function inTransaction<T>(pool: Pool, setup: (client: PoolClient) => Promi
       throw error;
     }
   } finally {
+    client.off("error", onConnectionError);
     client.release(broken);
   }
 }

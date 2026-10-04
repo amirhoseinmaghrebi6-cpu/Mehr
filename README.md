@@ -53,6 +53,8 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
 
    Real boards are added through the hub by QR code (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).
 
+6. **Try scenarios.** Under Scenarios, create a themed one and run it with a tap, or create a repeating or one-time one. Times are in the home's time zone. The dev simulator runs due scenarios for homes with simulated boards, checking every 5 seconds.
+
 **Checks:**
 
 ```bash
@@ -69,7 +71,8 @@ pnpm --filter @m2smart/api typecheck && pnpm --filter @m2smart/api lint && pnpm 
 | `app/` | Route composition, document metadata, the PWA manifest. Also the self-hosted fonts (`app/fonts`). |
 | `components/` | Application shell and shared UI primitives. |
 | `features/` | Domain-specific experiences and presentation. |
-| `services/` | `HomeGateway`: the API for real users, a browser-only sample home for the demo; command tracking (`use-home-data.ts`). |
+| `services/` | `HomeGateway`: the API for real users, a browser-only sample home for the demo; command tracking (`use-home-data.ts`) and scenarios (`use-scenarios.ts`). |
+| `messages/` | All app text in English (the reference), Persian and Arabic. |
 | `lib/auth/` | The `AuthGateway` (Kratos and the demo account). App code imports only `@/lib/auth`. |
 | `backend/` | The M2smart API (`@m2smart/api`): Fastify, `pg`, the migration runner and the seed. |
 | `packages/contracts/` | Request and response schemas shared by the API and the web app. |

@@ -2,7 +2,7 @@ import type { DatabaseError, Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertSafeDatabaseRole } from "../src/db/pool";
 import { withSystemTx, withUserTx } from "../src/db/tx";
-import { createApiPool, createTenants, DEVICE_A, DEVICE_B, dropTenants, PROPERTY_A, PROPERTY_B, USER_A } from "./fixtures";
+import { adminQuery, createApiPool, createTenants, DEVICE_A, DEVICE_B, dropTenants, PROPERTY_A, PROPERTY_B, USER_A } from "./fixtures";
 
 const userA = { userId: USER_A };
 const TABLES = ["hubs", "devices", "device_capabilities", "device_states"] as const;
@@ -128,5 +128,19 @@ describe("database access as m2_api", () => {
     } finally {
       await single.end();
     }
+  });
+
+  it("survives the database closing a connection in the middle of a transaction", async () => {
+    // E.g. PostgreSQL restarting: the connection dies while it is checked out. That must fail this
+    // one transaction, not crash the API.
+    const attempt = withSystemTx(pool, async (tx) => {
+      const { rows } = await tx.query<{ pid: number }>("select pg_backend_pid() as pid");
+      await adminQuery("select pg_terminate_backend($1)", [rows[0].pid]);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.query("select 1");
+    });
+    await expect(attempt).rejects.toThrow();
+    const { rows } = await withSystemTx(pool, (tx) => tx.query<{ ok: number }>("select 1 as ok"));
+    expect(rows[0].ok).toBe(1);
   });
 });

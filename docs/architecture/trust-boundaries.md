@@ -44,6 +44,11 @@ This page defines who may talk to whom in M2smart and what each side must prove.
   - Their deadline is set by the database (30 s for the network + the hardware's time), not by the client.
   - Only the backend (and, later, the hub path) marks them sent or applied, and "applied" requires the ESP32's report.
   - A device accepts at most 20 open commands.
+- **Scenarios:**
+  - Every member of a home can read its scenarios. Only owners and admins can create or change them, and every member can run a themed one.
+  - An action can target only a writable capability of a device in the same home; RLS, composite foreign keys and a trigger enforce this in the database.
+  - A run creates ordinary commands under the same rules as above.
+  - Only the runner records scheduled runs and missed runs. That runner is the hub; the dev simulator stands in until Phase 4. Clients can record only their own manual runs.
 - **Hardware catalog:** pin maps, capability templates and interlocks are backend-only. Users never read or change which GPIO does what.
 - **Backend-only work** runs under `withSystemTx` (`service_role`, bypasses RLS). Keep its use rare and easy to find.
 - **Kratos → API webhooks** (identity sync, refusing password registration):

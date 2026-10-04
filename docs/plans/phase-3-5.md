@@ -1,6 +1,6 @@
 # Phase 3.5 plan: device lifecycle, settings, languages and scenarios
 
-Status: approved 2026-10-04; B, C, D, E1 and E2 implemented (A is built in Phase 4). Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
+Status: approved 2026-10-04; implemented (B, C, D, E1, E2; closed 2026-10-04). Section A is the specification Phase 4 builds. Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
 
 ## Requirements from the product owner (2026-09-29)
 
@@ -153,3 +153,22 @@ Each step is its own commit, tested on its own; the usual isolation tests (two h
 4. **Calendars:** Solar Hijri and Gregorian only, for every language (no lunar Hijri).
 5. **Camera:** on/off and recording on/off in this phase; live video and recordings later with a media service.
 6. **Settings defaults:** English (changed from Persian on 2026-10-05), Solar Hijri, °C; times are always 24-hour.
+
+## Exit (2026-10-04)
+
+**Done:**
+- **B:** pump and camera device types, the setup button pin, and icons that match each device.
+- **C:** the whole app in Persian, English and Arabic.
+- **D:** language, calendar and temperature unit saved on the account.
+- **E1:** home time zones and Solar Hijri ⇄ Gregorian conversion.
+- **E2:** periodic, one-time and themed scenarios, run by the dev hub simulator.
+- **API robustness:** a database connection lost in the middle of a transaction (e.g. a PostgreSQL restart) now fails only that request instead of crashing the API (`backend/src/db/tx.ts`, with a test).
+
+**Verified:**
+- **On a clean copy with an empty database:** migrations, SQL tests, seed, API and contract tests, typecheck, lint and builds.
+- **On the dev stack:** the browser flows (sign-in, homes, devices and deadlines, languages, settings, time zones, scenarios with a real scheduled run).
+
+**Carried over:**
+- **Section A**, board lifecycle (setup button, pairing, factory reset), is built in Phase 4 together with the hub. It also moves the scenario runner from the dev simulator to the hub.
+- **Arabic** should be reviewed by a native speaker.
+- **SMS:** the real Iranian SMS provider and its rate limits are still open.
