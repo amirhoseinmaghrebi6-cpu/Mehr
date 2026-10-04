@@ -415,6 +415,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
           {([["scenes", Sunset], ["energy", Zap], ["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>
         </motion.div>}
