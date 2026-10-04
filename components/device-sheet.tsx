@@ -23,7 +23,7 @@ type Props = {
 };
 
 export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHardware, canEdit, onCommand, onEdit, onClose }: Props) {
-  const { locale, m, rtl } = useI18n();
+  const { locale, m, rtl, temperatureUnit } = useI18n();
   const info = deviceTypeInfo[device.type];
   const Icon = info.icon;
   const writable = device.capabilities.filter((state) => state.writable);
@@ -71,7 +71,7 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
             {readOnly.map((state) => (
               <div className="capability-reading" key={state.capability}>
                 <span>{capabilityLabel(state.capability, locale)}</span>
-                <strong>{valueLabel(state.capability, valueOf(state.capability), locale)}</strong>
+                <strong>{valueLabel(state.capability, valueOf(state.capability), locale, temperatureUnit)}</strong>
               </div>
             ))}
           </section>

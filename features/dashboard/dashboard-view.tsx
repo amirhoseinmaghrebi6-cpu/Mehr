@@ -5,7 +5,6 @@ import {
   ArrowDownRight,
   ArrowLeft,
   ArrowRight,
-  BedDouble,
   Building2,
   Camera,
   Check,
@@ -32,14 +31,16 @@ import {
   TriangleAlert,
   Utensils,
   Wifi,
-  Wind,
   Zap,
 } from "lucide-react";
-import type { CapabilityName, CapabilityValue, Device, Property, Room } from "@m2smart/contracts";
+import { calendars, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
-import { formatNumber, type Messages } from "@/lib/i18n";
+import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
+
+/** Until each home has its own time zone (Phase 3.5 E1), homes are on Tehran time. */
+const HOME_TIME_ZONE = "Asia/Tehran";
 import type { HomeSnapshot } from "@/services/mock-home-service";
 
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "automations" | "energy" | "security" | "cameras" | "notifications" | "settings";
@@ -135,7 +136,7 @@ export function DashboardView(props: Props) {
 
 function Overview(props: Props) {
   const { property, displayName, devices, rooms, demo, activeScene, nameOf, onNavigate, onActivateScene } = props;
-  const { locale, m, rtl } = useI18n();
+  const { locale, m, rtl, calendar, temperatureUnit } = useI18n();
   const d = m.dashboard;
   const arrow = rtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />;
   const featured = [...devices].sort((a, b) => Number(primaryCapability(b) !== null) - Number(primaryCapability(a) !== null)).slice(0, 5);
@@ -152,7 +153,7 @@ function Overview(props: Props) {
         <div className="welcome-photo" style={{ backgroundImage: `url("${photoUrl(property.coverPhoto, "large")}")` }} />
         <div className="welcome-wash" />
         <div className="welcome-content">
-          <span className="welcome-kicker"><span className="welcome-live-dot" />{d.rightNow}</span>
+          <span className="welcome-kicker"><span className="welcome-live-dot" />{d.rightNow} · {formatDate(new Date(), locale, calendar, HOME_TIME_ZONE)}</span>
           <h2>{greeting(m)}{rtl ? "،" : ","}<br />{displayName.split(/\s+/)[0]}.</h2>
           <p>{alerts.length ? d.needsAttention : d.homeStatusDetail}</p>
           {nameOf(property.address) && <div className="welcome-weather"><CloudSun size={16} />{nameOf(property.address)}</div>}
@@ -167,7 +168,7 @@ function Overview(props: Props) {
         <article className="metric-item">
           <span className="metric-symbol climate-symbol"><Thermometer size={17} /></span>
           <div className="metric-content"><span className="metric-label">{d.indoorComfort}</span>
-            {temperatures.length ? <strong>{formatNumber(average(temperatures), locale, 1)}° <small>{d.celsius}</small></strong> : <strong className="metric-empty">{m.common.none}</strong>}
+            {temperatures.length ? <strong>{formatNumber(displayTemperature(average(temperatures), temperatureUnit), locale, 1)}° <small>{temperatureUnit === "fahrenheit" ? d.fahrenheit : d.celsius}</small></strong> : <strong className="metric-empty">{m.common.none}</strong>}
             <span className="metric-foot"><span className="metric-dot" />{humidity.length ? d.humidity(formatNumber(average(humidity), locale)) : d.noClimateSensor}</span></div>
         </article>
         <article className="metric-item">
@@ -226,7 +227,7 @@ function Overview(props: Props) {
 }
 
 function DeviceCard({ device, nameOf, valueOf, activityOf, onOpenDevice, onQuickAction, showRoom, roomName }: Props & { device: Device; showRoom?: boolean; roomName?: (device: Device) => string }) {
-  const { locale } = useI18n();
+  const { locale, temperatureUnit } = useI18n();
   const primary = primaryCapability(device);
   const value = (capability: CapabilityName) => valueOf(device, capability);
   const primaryValue = primary ? value(primary) : device.capabilities[0] ? value(device.capabilities[0].capability) : null;
@@ -234,7 +235,7 @@ function DeviceCard({ device, nameOf, valueOf, activityOf, onOpenDevice, onQuick
     <DeviceControl
       device={device}
       name={nameOf(device.name)}
-      summary={deviceSummary(device, value, locale)}
+      summary={deviceSummary(device, value, locale, temperatureUnit)}
       roomName={showRoom ? roomName?.(device) : undefined}
       active={isActive(device.type, primaryValue)}
       alert={isAlert(device)}
@@ -269,7 +270,7 @@ function SectionHeading({ title, detail, action, onAction, arrow }: { title: str
 }
 
 function RoomTile({ room, devices, nameOf, valueOf, canEditRooms, onEditRoom, onClick }: Props & { room: Room; onClick: () => void }) {
-  const { locale, m } = useI18n();
+  const { locale, m, temperatureUnit } = useI18n();
   const inRoom = devices.filter((device) => device.roomId === room.id);
   const active = inRoom.filter((device) => {
     const primary = primaryCapability(device);
@@ -282,7 +283,7 @@ function RoomTile({ room, devices, nameOf, valueOf, canEditRooms, onEditRoom, on
       <motion.button className="room-tile" type="button" onClick={onClick} whileHover={{ y: -3 }} transition={{ duration: 0.18 }}>
         <span className="room-image" style={{ backgroundImage: `url("${photoUrl(room.photo)}")` }} />
         <span className="room-overlay" />
-        <span className="room-topline"><span><span className="room-live-dot" />{active ? m.dashboard.roomInUse : m.dashboard.roomQuiet}</span>{temperature !== undefined && <span className="room-temp"><Thermometer size={13} />{formatNumber(temperature, locale)}°</span>}</span>
+        <span className="room-topline"><span><span className="room-live-dot" />{active ? m.dashboard.roomInUse : m.dashboard.roomQuiet}</span>{temperature !== undefined && <span className="room-temp"><Thermometer size={13} />{formatNumber(displayTemperature(temperature, temperatureUnit), locale)}°</span>}</span>
         <span className="room-bottomline"><span><strong>{name}</strong><small>{m.dashboard.roomDevices(formatNumber(inRoom.length, locale), formatNumber(active, locale))}</small></span><span className="room-arrow"><ChevronRight size={17} /></span></span>
       </motion.button>
       {canEditRooms && <button type="button" className="room-edit-button" onClick={() => onEditRoom(room)} aria-label={m.dashboard.editRoom(name)}><Pencil size={14} /></button>}
@@ -323,7 +324,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   }
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
-  if (section === "settings") return <SettingsSection />;
+  if (section === "settings") return <SettingsSection demo={Boolean(demo)} />;
   if (!demo) return <ComingSoon section={section} />;
 
   if (section === "scenes") {
@@ -389,8 +390,31 @@ function CameraSection() {
   return <section className="camera-grid">{tile(0, "camera-entry", "camera-image-entry")}{tile(1, "camera-garden", "camera-image-garden")}<div className="camera-status-card"><span className="camera-health-icon"><CircleCheck size={18} /></span><strong>{demo.allInView}</strong><p>{demo.camerasOnline}</p><span><span className="status-pulse" />{demo.camerasCount}</span></div></section>;
 }
 
-function SettingsSection() {
-  const { m } = useI18n();
-  const icons = [House, LockKeyhole, Wifi, Sun, Wind, BedDouble];
-  return <section className="settings-layout"><div className="surface-panel settings-list">{m.dashboard.settingsRows.map(([label, description], index) => { const Icon = icons[index]; return <button className="settings-row" key={label} type="button"><span className="settings-icon"><Icon size={18} /></span><span className="settings-copy"><strong>{label}</strong><small>{description}</small></span><ChevronRight size={17} /></button>; })}</div><aside className="settings-aside"><span className="m2-mark small-mark">M2</span><span className="panel-overline">M2SMART HOME</span><strong>{m.dashboard.settingsAside}</strong><small>{m.dashboard.version}</small></aside></section>;
+function SettingsSection({ demo }: { demo: boolean }) {
+  const { locale, m, calendar, temperatureUnit, setPreferences } = useI18n();
+  const t = m.settings;
+  const choice = <T extends string>(label: string, options: readonly T[], value: T, name: (option: T) => string, onPick: (option: T) => void) => (
+    <section className="segmented-section">
+      <span className="panel-overline">{label}</span>
+      <div className="segmented-control" role="radiogroup" aria-label={label}>
+        {options.map((option) => (
+          <button key={option} type="button" role="radio" aria-checked={value === option} className={value === option ? "selected" : ""} onClick={() => value !== option && onPick(option)}>{name(option)}</button>
+        ))}
+      </div>
+    </section>
+  );
+  return (
+    <section className="settings-layout">
+      <div className="surface-panel settings-preferences">
+        <div className="panel-intro"><span className="panel-overline">{m.nav.settings}</span><h2>{t.title}</h2><p>{demo ? t.demoSubtitle : t.subtitle}</p></div>
+        {choice(t.language, languages, locale, (option) => messages[option].meta.languageName, (language) => setPreferences({ language }))}
+        {choice(t.calendar, calendars, calendar, (option) => t.calendars[option], (next) => setPreferences({ calendar: next }))}
+        {choice(t.temperature, temperatureUnits, temperatureUnit, (option) => t.temperatureUnits[option], (next) => setPreferences({ temperatureUnit: next }))}
+        <p className="settings-preview">{t.today(formatDate(new Date(), locale, calendar, HOME_TIME_ZONE))}</p>
+        <p className="form-note">{t.timeNote}</p>
+        <p className="form-note">{t.moreSoon}</p>
+      </div>
+      <aside className="settings-aside"><span className="m2-mark small-mark">M2</span><span className="panel-overline">M2SMART HOME</span><strong>{m.dashboard.settingsAside}</strong><small>{m.dashboard.version}</small></aside>
+    </section>
+  );
 }

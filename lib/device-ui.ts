@@ -25,7 +25,7 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
-import type { CapabilityName, CapabilityState, CapabilityValue, Device, DeviceType, PhotoPreset } from "@m2smart/contracts";
+import { displayTemperature, type CapabilityName, type CapabilityState, type CapabilityValue, type Device, type DeviceType, type PhotoPreset, type TemperatureUnit } from "@m2smart/contracts";
 import { EvaporativeCooler, WaterPump } from "@/components/icons";
 import { formatNumber, messages, type Locale } from "@/lib/i18n";
 
@@ -58,8 +58,11 @@ export const deviceTypeInfo: Record<DeviceType, { icon: LucideIcon; tone: string
 export const typeLabel = (type: DeviceType, locale: Locale) => messages[locale].devices.types[type];
 export const capabilityLabel = (capability: CapabilityName, locale: Locale) => messages[locale].devices.capabilities[capability];
 
-/** A capability value as people read it, e.g. "Open", "68%", "On", "620 ppm". */
-export function valueLabel(capability: CapabilityName, value: CapabilityValue | null, locale: Locale): string {
+/**
+ * A capability value as people read it, e.g. "Open", "68%", "On", "620 ppm". Temperatures are
+ * stored in °C and shown in the user's unit.
+ */
+export function valueLabel(capability: CapabilityName, value: CapabilityValue | null, locale: Locale, temperatureUnit: TemperatureUnit = "celsius"): string {
   const m = messages[locale].devices;
   if (value === null) return m.waitingForReport;
   if (typeof value === "string") return m.enumValues[value] ?? value;
@@ -71,7 +74,7 @@ export function valueLabel(capability: CapabilityName, value: CapabilityValue | 
   const units: Partial<Record<CapabilityName, string>> = {
     brightness: m.units.percent,
     humidity: m.units.percent,
-    temperature: m.units.celsius,
+    temperature: temperatureUnit === "fahrenheit" ? m.units.fahrenheit : m.units.celsius,
     co_ppm: m.units.ppm,
     co2_ppm: m.units.ppm,
     illuminance_lux: m.units.lux,
@@ -79,7 +82,8 @@ export function valueLabel(capability: CapabilityName, value: CapabilityValue | 
     energy_kwh: m.units.kwh,
   };
   const digits = capability === "energy_kwh" || capability === "temperature" ? 1 : 0;
-  return `${formatNumber(value, locale, digits)}${units[capability] ?? ""}`;
+  const shown = capability === "temperature" ? displayTemperature(value, temperatureUnit) : value;
+  return `${formatNumber(shown, locale, digits)}${units[capability] ?? ""}`;
 }
 
 export function stateOf(device: Device, capability: CapabilityName): CapabilityState | undefined {
@@ -158,13 +162,13 @@ export function isAlert(device: Device): boolean {
 }
 
 /** One line under the device name: its most telling values. */
-export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale): string {
+export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale, temperatureUnit: TemperatureUnit = "celsius"): string {
   if (!device.online) return messages[locale].devices.offline;
   // With several values, plain "On"/"Off" would be ambiguous ("Off · Off"), so those get their name.
   const several = device.capabilities.length > 1;
   const plain = (capability: CapabilityName) => capability === "power" || capability === "pump" || capability === "speed";
   const shown = device.capabilities.slice(0, 2).map((entry) => {
-    const value = valueLabel(entry.capability, valueOf(entry.capability), locale);
+    const value = valueLabel(entry.capability, valueOf(entry.capability), locale, temperatureUnit);
     return several && plain(entry.capability) ? `${capabilityLabel(entry.capability, locale)}: ${value}` : value;
   });
   return shown.join(" · ") || typeLabel(device.type, locale);

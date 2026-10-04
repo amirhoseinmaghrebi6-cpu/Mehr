@@ -20,6 +20,7 @@ import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
 import { registerHomeRoutes } from "./http/homes";
 import { registerMeRoute } from "./http/me";
+import { registerSettingsRoutes } from "./http/settings";
 
 export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
 export type ServerServices = {
@@ -63,6 +64,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerMeRoute(app, pool, services.sessionVerifier);
     registerHomeRoutes(app, pool, services.sessionVerifier);
     registerDeviceRoutes(app, pool, services.sessionVerifier);
+    registerSettingsRoutes(app, pool, services.sessionVerifier);
   }
   if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
   if (config.devRoutes) {

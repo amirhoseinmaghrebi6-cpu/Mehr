@@ -97,7 +97,7 @@ Stored on the user's account, so they follow the user to every device and browse
 
 | Setting | Choices | Default |
 |---------|---------|---------|
-| Language | فارسی، English، العربية | Persian |
+| Language | فارسی، English، العربية | English |
 | Calendar | Solar Hijri, Gregorian | Solar Hijri |
 | Temperature | °C, °F | °C |
 
@@ -152,4 +152,4 @@ Each step is its own commit, tested on its own; the usual isolation tests (two h
 3. **Missed runs:** periodic runs are skipped and marked missed; one-time runs get a 10-minute grace period.
 4. **Calendars:** Solar Hijri and Gregorian only, for every language (no lunar Hijri).
 5. **Camera:** on/off and recording on/off in this phase; live video and recordings later with a media service.
-6. **Settings defaults:** Persian, Solar Hijri, °C; times are always 24-hour.
+6. **Settings defaults:** English (changed from Persian on 2026-10-05), Solar Hijri, °C; times are always 24-hour.

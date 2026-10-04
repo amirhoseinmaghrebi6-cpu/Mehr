@@ -950,3 +950,8 @@ a.auth-submit { text-decoration: none; }
 .mobile-more-language { padding: 4px 0; }
 .mobile-language-button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 10px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; font-size: 11px; }
 .mobile-more-language .language-menu-list { inset-inline-start: 0; inset-inline-end: auto; top: auto; bottom: calc(100% + 6px); }
+
+/* Settings: preferences form. */
+.settings-preferences { display: grid; gap: 4px; padding: 20px 22px; }
+.settings-preferences .segmented-section { margin-top: 12px; }
+.settings-preview { margin: 16px 0 4px; color: var(--ink); font-family: var(--font-display); font-size: 13px; font-weight: 600; }

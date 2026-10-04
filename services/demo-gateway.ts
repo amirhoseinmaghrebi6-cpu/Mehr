@@ -3,7 +3,7 @@
  * commands go through the same stages as real ones (pending → sent → acknowledged → applied), with
  * the hardware's time (a parking door takes seconds, not milliseconds). Nothing reaches the API.
  */
-import { capabilities, capabilityValueError, type Command, type CommandStatus, type Device, type Property, type Room } from "@m2smart/contracts";
+import { capabilities, capabilityValueError, defaultSettings, type Command, type CommandStatus, type Device, type Property, type Room, type UserSettings } from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
 import { createDemoData, demoDevice, type DemoData } from "@/services/demo-home";
 
@@ -169,6 +169,26 @@ export function createDemoGateway(userId: string): HomeGateway {
       const command = commands.get(commandId);
       if (!command || command.propertyId !== propertyId) throw new GatewayError("not_found");
       return clone(command);
+    },
+
+    // The demo has no account: its preferences stay in this browser.
+    async getSettings() {
+      try {
+        const stored = window.localStorage.getItem(`${key}-settings`);
+        if (stored) return { ...defaultSettings, ...(JSON.parse(stored) as Partial<UserSettings>) };
+      } catch {
+        // Storage unavailable: defaults.
+      }
+      return { ...defaultSettings };
+    },
+    async updateSettings(input) {
+      const next = { ...(await this.getSettings()), ...input };
+      try {
+        window.localStorage.setItem(`${key}-settings`, JSON.stringify(next));
+      } catch {
+        // The preferences still apply in this tab (cookies).
+      }
+      return next;
     },
 
     async addDemoDevice(propertyId, input) {

@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, MeResponse, OrganizationRole } from "@m2smart/contracts";
+import type { ApiErrorResponse, Calendar, Language, MeResponse, OrganizationRole, TemperatureUnit } from "@m2smart/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { IdentityConflictError, syncIdentity } from "../auth/identity-webhook";
@@ -49,7 +49,10 @@ export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: Sess
 
     // Everything below runs as the user, so RLS decides what is visible.
     const body = await withUserTx(pool, { userId: session.userId }, async (tx): Promise<MeResponse> => {
-      const profile = await tx.query<{ full_name: string }>("select full_name from public.profiles where user_id = auth.uid()");
+      const profile = await tx.query<{ full_name: string; language: Language; calendar: Calendar; temperature_unit: TemperatureUnit }>(
+        "select full_name, language, calendar, temperature_unit from public.profiles where user_id = auth.uid()",
+      );
+      const preferences = profile.rows[0];
       const organizations = await tx.query<{ id: string; name: string; role: OrganizationRole }>(
         `select organization.id, organization.name, membership.role
          from public.organization_members as membership
@@ -65,6 +68,11 @@ export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: Sess
           email: session.identity.email,
         },
         organizations: organizations.rows,
+        settings: {
+          language: preferences?.language ?? "en",
+          calendar: preferences?.calendar ?? "solar_hijri",
+          temperatureUnit: preferences?.temperature_unit ?? "celsius",
+        },
         session: { authMethods: session.authMethods, expiresAt: session.expiresAt.toISOString() },
       };
     });

@@ -17,6 +17,8 @@ import type {
   UpdateDeviceRequest,
   UpdatePropertyRequest,
   UpdateRoomRequest,
+  UpdateSettingsRequest,
+  UserSettings,
 } from "@m2smart/contracts";
 
 export type GatewayErrorCode = "network" | "timeout" | "unauthenticated" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "unavailable";
@@ -44,6 +46,10 @@ export interface HomeGateway {
   /** Sends a command; retrying with the same idempotency key never creates a second one. */
   sendCommand(propertyId: string, input: CreateCommandRequest): Promise<Command>;
   getCommand(propertyId: string, commandId: string): Promise<Command>;
+
+  /** The user's display preferences (language, calendar, temperature unit). */
+  getSettings(): Promise<UserSettings>;
+  updateSettings(input: UpdateSettingsRequest): Promise<UserSettings>;
 
   /**
    * Demo only. Real devices come from boards paired through the hub (Phase 4), never from a form,

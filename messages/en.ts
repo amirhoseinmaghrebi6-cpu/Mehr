@@ -171,14 +171,6 @@ export const en = {
     allCaughtUp: "You’re all caught up",
     comingSoonTitle: "Coming soon",
     comingSoonText: "This part arrives in a coming release, built on your home’s real data. The demo account shows a preview.",
-    settingsRows: [
-      ["Account & profile", "Your name, mobile number and account details"],
-      ["Security & sign-in", "Password and sessions"],
-      ["Notifications", "Channels and notification preferences"],
-      ["Language & region", "Language, timezone and calendar"],
-      ["Appearance & accessibility", "Theme, color and display density"],
-      ["Homes & members", "Connected homes and member access"],
-    ] as Array<[string, string]>,
     settingsAside: "A little more at home.",
     version: "Version 1.0 · Up to date",
   },
@@ -391,6 +383,21 @@ export const en = {
     not_found: "That no longer exists. The page will refresh.",
     invalid_request: "Some details aren't valid. Check them and try again.",
     conflict: "That already exists or a limit was reached.",
+  },
+
+  settings: {
+    title: "Your preferences",
+    subtitle: "Saved to your account, so every phone and browser you sign in on shows the same.",
+    demoSubtitle: "In the demo, preferences stay in this browser.",
+    language: "Language",
+    calendar: "Calendar",
+    calendars: { solar_hijri: "Solar Hijri", gregorian: "Gregorian" },
+    temperature: "Temperature",
+    temperatureUnits: { celsius: "Celsius (°C)", fahrenheit: "Fahrenheit (°F)" },
+    today: (date: string) => `Today: ${date}`,
+    timeNote: "Times are always shown in 24-hour format, in each home's own time.",
+    saveFailed: "Your preferences couldn’t be saved to your account; they apply on this device for now.",
+    moreSoon: "Account, security and notification settings are coming soon.",
   },
 
   auth: {

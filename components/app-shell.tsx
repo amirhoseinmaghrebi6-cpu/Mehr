@@ -32,7 +32,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { can, type CapabilityName, type CapabilityValue, type Device, type Room } from "@m2smart/contracts";
+import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
 import { DashboardView, type DashboardSection } from "@/features/dashboard/dashboard-view";
 import { DeviceSheet } from "@/components/device-sheet";
 import { useI18n } from "@/components/i18n-provider";
@@ -82,7 +82,7 @@ type Confirmation = { device: Device; capability: CapabilityName; target: Capabi
 export function AppShell({ userId, displayName, demoMode = false }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { locale, m, rtl } = useI18n();
+  const { locale, m, rtl, calendar, temperatureUnit, setPreferences } = useI18n();
   const [theme, setTheme] = useState<Theme>("light");
   const [section, setSection] = useState<DashboardSection>("overview");
   const [search, setSearch] = useState("");
@@ -119,6 +119,49 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
     },
     [demoMode],
   );
+
+  // Preferences live on the account (the demo keeps them in its browser). On load the account's
+  // preferences apply, except on a first visit: if the account still has the defaults and a different
+  // language, calendar or unit was already chosen here (e.g. on the sign-up screen), that choice is
+  // kept and saved to the account. Later changes, from the settings page or the language menu, are
+  // saved as they happen.
+  const preferences = useRef<UserSettings>({ language: locale, calendar, temperatureUnit });
+  preferences.current = { language: locale, calendar, temperatureUnit };
+  const account = useRef<UserSettings | null>(null);
+  useEffect(() => {
+    let active = true;
+    account.current = null;
+    gateway.getSettings().then(
+      (stored) => {
+        if (!active) return;
+        const current = preferences.current;
+        const untouched = stored.language === defaultSettings.language && stored.calendar === defaultSettings.calendar && stored.temperatureUnit === defaultSettings.temperatureUnit;
+        const differs = current.language !== stored.language || current.calendar !== stored.calendar || current.temperatureUnit !== stored.temperatureUnit;
+        if (untouched && differs) {
+          account.current = current;
+          void gateway.updateSettings(current).catch(() => undefined);
+        } else {
+          account.current = stored;
+          if (differs) setPreferences(stored);
+        }
+      },
+      () => undefined, // Offline: the cookies keep this device's preferences.
+    );
+    return () => {
+      active = false;
+    };
+  }, [gateway, setPreferences]);
+  useEffect(() => {
+    const saved = account.current;
+    if (!saved) return;
+    const changes: UpdateSettingsRequest = {};
+    if (locale !== saved.language) changes.language = locale;
+    if (calendar !== saved.calendar) changes.calendar = calendar;
+    if (temperatureUnit !== saved.temperatureUnit) changes.temperatureUnit = temperatureUnit;
+    if (!Object.keys(changes).length) return;
+    account.current = { ...saved, ...changes };
+    gateway.updateSettings(changes).catch(() => setToast({ message: messages[locale].settings.saveFailed, tone: "warn" }));
+  }, [gateway, locale, calendar, temperatureUnit]);
 
   const home = useHomeData(gateway, requestedPropertyId, onOutcome);
   const { property, propertyId, properties, rooms, devices } = home;

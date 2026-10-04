@@ -1,3 +1,5 @@
+import type { UserSettings } from "./settings.js";
+
 export type OrganizationRole = "owner" | "admin" | "member";
 
 /** GET /v1/me — the signed-in user, their profile and the organizations they belong to. */
@@ -13,6 +15,8 @@ export interface MeResponse {
     name: string;
     role: OrganizationRole;
   }>;
+  /** Display preferences (also GET/PATCH /v1/me/settings). */
+  settings: UserSettings;
   session: {
     /** How the user signed in for this session, e.g. "code" (SMS) or "password". */
     authMethods: string[];

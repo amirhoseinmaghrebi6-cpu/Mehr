@@ -43,7 +43,8 @@ The whole app is in Persian, English and Arabic.
 - **Message files:** all text lives in `messages/en.ts` (the reference), `messages/fa.ts` and `messages/ar.ts`. The English file's shape is the type of the others, so a missing key fails the type check.
 - **Direction and digits:** Persian and Arabic are right to left. Numbers use each language's digits through `Intl.NumberFormat` (۰۱۲, ٠١٢, 012).
 - **Where the language is kept:** in a cookie (`m2smart-locale`), so the server renders the first byte in the right language and direction. `components/i18n-provider.tsx` gives components the messages, and `components/language-menu.tsx` switches language on the sign-in screens and in the app.
-- **Still to come (Phase 3.5, steps D and E):** moving the preferences (language, Solar Hijri or Gregorian calendar, °C or °F) onto the account, home time zones, and Solar Hijri dates.
+- **Preferences on the account:** language, calendar (Solar Hijri or Gregorian) and temperature unit (°C or °F) are stored on the account (`GET`/`PATCH /v1/me/settings`; defaults English, Solar Hijri, °C) and in cookies for the first render. The app shell applies the account’s preferences after sign-in; on a first visit, choices made before signing up are kept and saved. The demo keeps them in its browser. Values are always stored in °C and Gregorian; only the display converts.
+- **Still to come (Phase 3.5, step E):** per-home time zones, and Solar Hijri dates in scenarios.
 
 ## Delivery sequence
 
