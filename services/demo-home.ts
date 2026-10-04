@@ -65,11 +65,18 @@ export function createDemoData(): DemoData {
         demoDevice("window", "contact_sensor", "Bedroom window", "bedroom", { contact: "closed" }),
         demoDevice("path-lights", "switch", "Path lighting", "terrace", { power: false }),
         demoDevice("garage", "garage_door", "Parking door", "terrace", { door: "closed" }),
+        demoDevice("garden-pump", "pump", "Garden pump", "terrace", { power: false }),
+        demoDevice("entrance-camera", "camera", "Entrance camera", "terrace", { power: true, recording: false }),
       ],
       caspian: [
         demoDevice("c-lamp", "dimmer", "Reading lamp", "c-living", { brightness: 40 }),
         demoDevice("c-fan", "fan", "Ceiling fan", "c-bedroom", { speed: "off" }),
         demoDevice("c-window", "contact_sensor", "Balcony door", "c-living", { contact: "closed" }),
+        demoDevice("c-motion", "motion_sensor", "Hallway motion", "c-living", { motion: false }),
+        demoDevice("c-presence", "presence_sensor", "Bedroom presence", "c-bedroom", { presence: true }),
+        demoDevice("c-co", "co_sensor", "Heater CO sensor", "c-living", { co_ppm: 3 }),
+        demoDevice("c-light", "light_sensor", "Daylight sensor", "c-living", { illuminance_lux: 320 }),
+        demoDevice("c-meter", "energy_meter", "Main energy meter", null, { power_w: 1240, energy_kwh: 512.4 }),
       ],
     },
   };
@@ -101,6 +108,13 @@ const persianNames: Record<string, string> = {
   "Reading lamp": "چراغ مطالعه",
   "Ceiling fan": "پنکه‌ی سقفی",
   "Balcony door": "درب بالکن",
+  "Garden pump": "پمپ باغ",
+  "Entrance camera": "دوربین ورودی",
+  "Hallway motion": "سنسور حرکت راهرو",
+  "Bedroom presence": "سنسور حضور اتاق خواب",
+  "Heater CO sensor": "سنسور CO بخاری",
+  "Daylight sensor": "سنسور نور روز",
+  "Main energy meter": "کنتور اصلی",
 };
 
 /** Persian names of the demo's sample homes, rooms and devices; other names are shown as typed. */

@@ -59,6 +59,10 @@ export function createDemoGateway(userId: string): HomeGateway {
     }
     state.value = command.targetValue;
     state.reportedAt = new Date().toISOString();
+    if (device.type === "camera" && command.capability === "power" && command.targetValue === false) {
+      const recording = device.capabilities.find((entry) => entry.capability === "recording");
+      if (recording) recording.value = false;
+    }
     save();
     step("applied", { completedAt: new Date().toISOString() });
   }
@@ -138,6 +142,10 @@ export function createDemoGateway(userId: string): HomeGateway {
       if (!device) throw new GatewayError("not_found");
       const state = device.capabilities.find((entry) => entry.capability === input.capability);
       if (!state || !state.writable || capabilityValueError(capabilities[input.capability], input.targetValue) !== null) throw new GatewayError("invalid_request");
+      // Like the API: a camera records only while it is on.
+      if (device.type === "camera" && input.capability === "recording" && input.targetValue === true && device.capabilities.find((entry) => entry.capability === "power")?.value !== true) {
+        throw new GatewayError("conflict");
+      }
       const now = Date.now();
       const command = {
         id: newId("command"),

@@ -31,6 +31,8 @@ export const capabilities = {
   curtain: { valueType: "enum", values: ["open", "closed"], writable: true },
   door: { valueType: "enum", values: ["open", "closed"], writable: true },
   alarm_mode: { valueType: "enum", values: ["disarmed", "armed_home", "armed_away"], writable: true },
+  /** A camera records only while it is on; switching it off also stops recording. */
+  recording: { valueType: "boolean", writable: true },
 
   // Inputs and measurements (reported only).
   triggered: { valueType: "boolean", writable: false },
@@ -79,6 +81,8 @@ export const deviceTypes = {
   humidity_sensor: { required: ["humidity"], optional: ["temperature"] },
   light_sensor: { required: ["illuminance_lux"], optional: [] },
   energy_meter: { required: ["power_w", "energy_kwh"], optional: [] },
+  pump: { required: ["power"], optional: [] },
+  camera: { required: ["power", "recording"], optional: [] },
 } as const satisfies Record<string, { required: readonly CapabilityName[]; optional: readonly CapabilityName[] }>;
 
 export type DeviceType = keyof typeof deviceTypes;
@@ -115,8 +119,11 @@ export function capabilityValueError(definition: CapabilityDefinition, value: un
   }
 }
 
-/** Functions a board pin can have in the hardware catalog. */
-export const pinFunctions = ["relay", "triac_gate", "zero_cross", "digital_in", "pulse_in", "i2c_sda", "i2c_scl", "uart_rx", "uart_tx", "adc"] as const;
+/**
+ * Functions a board pin can have in the hardware catalog. Every board has exactly one
+ * "setup_button": held 10–15 s it starts pairing, held over 20 s it factory-resets the board.
+ */
+export const pinFunctions = ["relay", "triac_gate", "zero_cross", "digital_in", "pulse_in", "i2c_sda", "i2c_scl", "uart_rx", "uart_tx", "adc", "setup_button"] as const;
 export type PinFunction = (typeof pinFunctions)[number];
 
 /** Built-in photos for homes and rooms (public/images); uploads are not supported yet. */

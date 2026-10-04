@@ -28,7 +28,8 @@ insert into public.hardware_model_channels (model_id, channel_key, device_type, 
 insert into public.hardware_model_pins (model_id, gpio, function, channel_key, role) values
   ('c4000000-0000-4000-8000-000000000001', 16, 'relay', 'light', 'relay'),
   ('c4000000-0000-4000-8000-000000000001', 17, 'relay', 'door', 'pulse'),
-  ('c4000000-0000-4000-8000-000000000001', 18, 'relay', 'slow_door', 'pulse');
+  ('c4000000-0000-4000-8000-000000000001', 18, 'relay', 'slow_door', 'pulse'),
+  ('c4000000-0000-4000-8000-000000000001', 35, 'setup_button', null, 'setup');
 insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, enum_values, writable) values
   ('c4000000-0000-4000-8000-000000000001', 'light', 'power', 'boolean', null, true),
   ('c4000000-0000-4000-8000-000000000001', 'door', 'door', 'enum', array['open', 'closed'], true),

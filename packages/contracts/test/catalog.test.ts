@@ -18,6 +18,9 @@ describe("device catalog", () => {
     expect(capabilities.speed.values).toEqual(["off", "low", "high"]);
     expect(capabilities.curtain.values).toEqual(["open", "closed"]);
     expect(capabilities.door.values).toEqual(["open", "closed"]);
+    expect(deviceTypes.pump.required).toEqual(["power"]);
+    expect(deviceTypes.camera.required).toEqual(["power", "recording"]);
+    expect(capabilities.recording).toMatchObject({ valueType: "boolean", writable: true });
   });
 
   it("keeps sensor values read-only", () => {

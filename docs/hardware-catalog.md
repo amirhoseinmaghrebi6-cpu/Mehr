@@ -30,7 +30,7 @@ Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins
 | Function | Allowed GPIO |
 |----------|--------------|
 | `relay`, `triac_gate`, `i2c_sda`, `i2c_scl`, `uart_tx` | 4, 13, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33 |
-| `digital_in`, `zero_cross`, `pulse_in`, `uart_rx` | the above, plus 14 and 34–39 |
+| `digital_in`, `zero_cross`, `pulse_in`, `uart_rx`, `setup_button` | the above, plus 14 and 34–39 |
 | `adc` | 32–39 (ADC1; ADC2 does not work while Wi-Fi is on) |
 
 - **Never allowed:**
@@ -40,6 +40,16 @@ Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins
 - **Not allowed as an output:** 14 (it pulses at boot and could click a relay).
 - **On WROVER modules,** 16 and 17 are wired to PSRAM, so don't use them there.
 - **Other chips** (ESP32-S3, -C3) need their own pin list in `esp32_pin_allowed()` before they can be used.
+
+### Setup button
+
+- **Exactly one per model.** Every board has one push button on a GPIO, function `setup_button`, used by the firmware:
+  - held 10–15 s: pairing mode for 5 minutes;
+  - held 15–20 s: nothing;
+  - held over 20 s: factory reset.
+- **Required to join a home.** A model without one cannot be added to a home, and a second one is rejected.
+- **Not on GPIO 0:** that pin is the dev kit's BOOT button, and holding it during power-up starts the flasher.
+- **The full rules** for ownership (whoever holds the board owns it), pairing and reset are in [plans/phase-3-5.md](plans/phase-3-5.md), section A.
 
 ### Frozen models
 
@@ -87,7 +97,8 @@ with model as (
   insert into public.hardware_model_pins (model_id, gpio, function, channel_key, role)
   select id, gpio, function, channel_key, role from model,
     (values (16, 'relay', 'ch1', 'relay'), (17, 'relay', 'ch2', 'relay'),
-            (32, 'digital_in', 'ch1', 'wall_switch'), (33, 'digital_in', 'ch2', 'wall_switch'))
+            (32, 'digital_in', 'ch1', 'wall_switch'), (33, 'digital_in', 'ch2', 'wall_switch'),
+            (35, 'setup_button', null, 'setup'))
       as pin (gpio, function, channel_key, role)
   returning model_id
 )

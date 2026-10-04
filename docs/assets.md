@@ -26,8 +26,6 @@ The images are starter photos for the demo home. They are WebP files made from t
 
 The Unsplash License allows free commercial and non-commercial use without attribution. It does not allow selling the photos unaltered or using them to build a competing photo service.
 
-**Saved workspaces.** A workspace saved in the browser before this change still holds `images.unsplash.com` URLs. `services/workspace-store.ts` maps them to the local copies when the workspace is loaded.
-
 **Adding an image.**
 1. Convert it to WebP with a sensible width (960 px for cards, 1920 px for full-width images).
 2. Put it in `public/images`.

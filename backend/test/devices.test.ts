@@ -22,7 +22,7 @@ const USERS = {
 } as const;
 type UserKey = keyof typeof USERS;
 const ALL_USERS = Object.values(USERS);
-const MODEL_CODES = ["test-api-switch-2ch", "test-api-sensor", "test-api-cooler"];
+const MODEL_CODES = ["test-api-switch-2ch", "test-api-sensor", "test-api-cooler", "test-api-camera"];
 
 const verifier: SessionVerifier = {
   async verify(credential: SessionCredential): Promise<VerifiedSession | null> {
@@ -44,22 +44,27 @@ async function createModels(): Promise<void> {
   await adminQuery(`
     with models as (
       insert into public.hardware_models (code, name) values
-        ('test-api-switch-2ch', 'API test switch'), ('test-api-sensor', 'API test sensor'), ('test-api-cooler', 'API test cooler')
+        ('test-api-switch-2ch', 'API test switch'), ('test-api-sensor', 'API test sensor'), ('test-api-cooler', 'API test cooler'), ('test-api-camera', 'API test camera')
       returning id, code
     ), channels as (
       insert into public.hardware_model_channels (model_id, channel_key, device_type, default_name)
       select id, channel.key, channel.type, channel.name from models
       join (values ('test-api-switch-2ch', 'ch1', 'switch', 'Lamp 1'), ('test-api-switch-2ch', 'ch2', 'switch', 'Lamp 2'),
-                   ('test-api-sensor', 'contact', 'contact_sensor', 'Window'), ('test-api-cooler', 'cooler', 'cooler', 'Cooler'))
+                   ('test-api-sensor', 'contact', 'contact_sensor', 'Window'), ('test-api-cooler', 'cooler', 'cooler', 'Cooler'),
+                   ('test-api-camera', 'camera', 'camera', 'Camera'))
         as channel (code, key, type, name) on channel.code = models.code
       returning model_id, channel_key
+    )
+    , buttons as (
+      insert into public.hardware_model_pins (model_id, gpio, function, role) select id, 35, 'setup_button', 'setup' from models
     )
     insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, enum_values, writable)
     select model_id, channel_key, capability.name, capability.type, capability.values, capability.writable
     from channels
     join (values ('ch1', 'power', 'boolean', null::text[], true), ('ch2', 'power', 'boolean', null, true),
                  ('contact', 'contact', 'enum', array['open', 'closed'], false),
-                 ('cooler', 'pump', 'boolean', null, true), ('cooler', 'speed', 'enum', array['off', 'low', 'high'], true))
+                 ('cooler', 'pump', 'boolean', null, true), ('cooler', 'speed', 'enum', array['off', 'low', 'high'], true),
+                 ('camera', 'power', 'boolean', null, true), ('camera', 'recording', 'boolean', null, true))
       as capability (channel, name, type, values, writable) on capability.channel = channels.channel_key`);
 }
 
@@ -74,6 +79,7 @@ describe("devices and commands", () => {
   let windowA: Device;
   let coolerA: Device;
   let lampB: Device;
+  let cameraA: Device;
 
   const call = async (user: UserKey | null, method: "GET" | "POST" | "PATCH", url: string, payload?: object) => {
     const response = await app.inject({ method, url, headers: user ? { authorization: `Bearer ${user}` } : {}, ...(payload ? { payload } : {}) });
@@ -106,11 +112,13 @@ describe("devices and commands", () => {
     await provision(homeA, "test-api-sensor", `TEST-API-A-SE-${homeA.id.slice(0, 8)}`);
     await provision(homeA, "test-api-cooler", `TEST-API-A-CO-${homeA.id.slice(0, 8)}`);
     await provision(homeB, "test-api-switch-2ch", `TEST-API-B-SW-${homeB.id.slice(0, 8)}`);
+    await provision(homeA, "test-api-camera", `TEST-API-A-CA-${homeA.id.slice(0, 8)}`);
 
     const devicesA = await devicesOf("ownerA", homeA);
     lampA = devicesA.find((device) => device.name === "Lamp 1")!;
     windowA = devicesA.find((device) => device.type === "contact_sensor")!;
     coolerA = devicesA.find((device) => device.type === "cooler")!;
+    cameraA = devicesA.find((device) => device.type === "camera")!;
     lampB = (await devicesOf("ownerB", homeB)).find((device) => device.name === "Lamp 1")!;
   });
 
@@ -123,7 +131,7 @@ describe("devices and commands", () => {
   describe("GET devices", () => {
     it("lists a home's board devices with their capabilities, for every member", async () => {
       const devices = await devicesOf("memberA", homeA);
-      expect(devices.map((device) => device.name).sort()).toEqual(["Cooler", "Lamp 1", "Lamp 2", "Window"]);
+      expect(devices.map((device) => device.name).sort()).toEqual(["Camera", "Cooler", "Lamp 1", "Lamp 2", "Window"]);
       expect(lampA).toMatchObject({ type: "switch", roomId: null, capabilities: [{ capability: "power", writable: true, value: null, reportedAt: null }] });
       expect(coolerA.capabilities.map((capability) => capability.capability)).toEqual(["pump", "speed"]);
       expect(windowA.capabilities).toEqual([{ capability: "contact", writable: false, value: null, reportedAt: null }]);
@@ -271,6 +279,30 @@ describe("devices and commands", () => {
       } finally {
         simulator.stop();
       }
+    });
+  });
+
+  describe("camera", () => {
+    it("records only while it is on", async () => {
+      await reportDeviceState(pool, cameraA.id, "power", false);
+      const refused = await command("memberA", homeA, { deviceId: cameraA.id, capability: "recording", targetValue: true });
+      expect([refused.status, refused.body]).toEqual([409, { error: "conflict" }]);
+      expect((await command("memberA", homeA, { deviceId: cameraA.id, capability: "recording", targetValue: false })).status).toBe(201);
+
+      await reportDeviceState(pool, cameraA.id, "power", true);
+      const created = (await command("memberA", homeA, { deviceId: cameraA.id, capability: "recording", targetValue: true })).body as Command;
+      expect(created.status).toBe("pending");
+      const claimed = (await claimPendingCommands(pool, "TEST-API-")).filter((entry) => entry.device_id === cameraA.id);
+      for (const entry of claimed) await confirmCommand(pool, entry);
+      expect(((await call("memberA", "GET", `/v1/properties/${homeA.id}/commands/${created.id}`)).body as Command).status).toBe("applied");
+    });
+
+    it("stops recording when it is switched off", async () => {
+      const off = (await command("memberA", homeA, { deviceId: cameraA.id, capability: "power", targetValue: false })).body as Command;
+      const claimed = (await claimPendingCommands(pool, "TEST-API-")).find((entry) => entry.id === off.id)!;
+      expect(await confirmCommand(pool, claimed)).toBe(true);
+      const camera = (await devicesOf("memberA", homeA)).find((device) => device.id === cameraA.id)!;
+      expect(Object.fromEntries(camera.capabilities.map((state) => [state.capability, state.value]))).toEqual({ power: false, recording: false });
     });
   });
 

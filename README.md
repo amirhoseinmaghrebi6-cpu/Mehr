@@ -48,7 +48,7 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
 
    ```bash
    pnpm dev:board                                         # lists homes and board models
-   pnpm dev:board <home-id> sample-switch-2ch-rev-a       # adds a simulated board to that home
+   pnpm dev:board <home-id> sample-switch-2ch-rev-b       # adds a simulated board to that home
    ```
 
    Real boards are added through the hub by QR code (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).

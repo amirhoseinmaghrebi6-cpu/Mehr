@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { LoaderCircle, Pencil, Power, X } from "lucide-react";
+import { Droplets, LoaderCircle, Pencil, Power, Video, X } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
 import type { Locale } from "@/lib/i18n";
 import { capabilityLabels, deviceTypeInfo, formatNumber, text, valueLabel } from "@/lib/device-ui";
@@ -50,9 +50,21 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
           <span className={`sheet-connection${device.online ? "" : " is-disconnected"}`}><span />{device.online ? (isRtl ? "متصل" : "Online") : (isRtl ? "آفلاین" : "Offline")}</span>
         </div>
 
-        {writable.map((state) => (
-          <CapabilityControl key={state.capability} capability={state.capability} value={valueOf(state.capability)} locale={locale} disabled={!device.online} onChange={(value) => onCommand(state.capability, value)} />
-        ))}
+        {writable.map((state) => {
+          // A camera records only while it is on.
+          const needsPower = device.type === "camera" && state.capability === "recording" && valueOf("power") !== true;
+          return (
+            <CapabilityControl
+              key={state.capability}
+              capability={state.capability}
+              value={valueOf(state.capability)}
+              locale={locale}
+              disabled={!device.online || needsPower}
+              note={needsPower ? (isRtl ? "برای ضبط، اول دوربین را روشن کنید." : "Turn the camera on to record.") : undefined}
+              onChange={(value) => onCommand(state.capability, value)}
+            />
+          );
+        })}
 
         {readOnly.length > 0 && (
           <section className="capability-readings" aria-label={isRtl ? "گزارش‌های دستگاه" : "Readings"}>
@@ -86,17 +98,18 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
   );
 }
 
-function CapabilityControl({ capability, value, locale, disabled, onChange }: { capability: CapabilityName; value: CapabilityValue | null; locale: Locale; disabled: boolean; onChange: (value: CapabilityValue) => void }) {
+function CapabilityControl({ capability, value, locale, disabled, note, onChange }: { capability: CapabilityName; value: CapabilityValue | null; locale: Locale; disabled: boolean; note?: string; onChange: (value: CapabilityValue) => void }) {
   const definition = capabilities[capability];
   const label = text(capabilityLabels[capability], locale);
 
   if (definition.valueType === "boolean") {
     const on = value === true;
+    const Icon = capability === "recording" ? Video : capability === "pump" ? Droplets : Power;
     return (
       <section className="plug-control">
-        <span className={`plug-status${on ? " is-on" : ""}`}><Power size={23} /></span>
-        <div><strong>{label}</strong><small>{valueLabel(capability, value, locale)}</small></div>
-        <button type="button" className={`plug-toggle${on ? " selected" : ""}`} onClick={() => onChange(!on)} aria-pressed={on} aria-label={label} disabled={disabled}><Power size={18} /></button>
+        <span className={`plug-status${on ? " is-on" : ""}`}><Icon size={23} /></span>
+        <div><strong>{label}</strong><small>{note ?? valueLabel(capability, value, locale)}</small></div>
+        <button type="button" className={`plug-toggle${on ? " selected" : ""}`} onClick={() => onChange(!on)} aria-pressed={on} aria-label={label} disabled={disabled}><Icon size={18} /></button>
       </section>
     );
   }

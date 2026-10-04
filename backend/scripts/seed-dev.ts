@@ -59,7 +59,7 @@ type SampleModel = {
 // Each channel lists its capabilities with the initial reported value.
 const SAMPLE_MODELS: SampleModel[] = [
   {
-    code: "sample-dimmer-1ch-rev-a",
+    code: "sample-dimmer-1ch-rev-b",
     name: "Sample TRIAC dimmer, 1 channel",
     board: { hardwareUid: "DEV-TEHRAN-DIMMER-01", name: "Living room dimmer" },
     channels: [{ key: "light", type: "dimmer", name: "Pendant lights", room: "Living room", capabilities: { brightness: 68 } }],
@@ -67,10 +67,11 @@ const SAMPLE_MODELS: SampleModel[] = [
       { gpio: 25, fn: "triac_gate", channel: "light", role: "gate" },
       { gpio: 34, fn: "zero_cross", channel: null, role: "zero_cross" },
       { gpio: 32, fn: "digital_in", channel: "light", role: "wall_switch" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
   },
   {
-    code: "sample-switch-2ch-rev-a",
+    code: "sample-switch-2ch-rev-b",
     name: "Sample relay switch, 2 channels",
     board: { hardwareUid: "DEV-TEHRAN-SWITCH-01", name: "Terrace and kitchen switch" },
     channels: [
@@ -82,20 +83,22 @@ const SAMPLE_MODELS: SampleModel[] = [
       { gpio: 17, fn: "relay", channel: "ch2", role: "relay" },
       { gpio: 32, fn: "digital_in", channel: "ch1", role: "wall_switch" },
       { gpio: 33, fn: "digital_in", channel: "ch2", role: "wall_switch" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
   },
   {
-    code: "sample-socket-rev-a",
+    code: "sample-socket-rev-b",
     name: "Sample smart socket with energy metering",
     board: { hardwareUid: "DEV-TEHRAN-SOCKET-01", name: "Kitchen socket" },
     channels: [{ key: "socket", type: "socket", name: "Coffee machine", room: "Kitchen", capabilities: { power: false, power_w: 0, energy_kwh: 3.2 } }],
     pins: [
       { gpio: 16, fn: "relay", channel: "socket", role: "relay" },
       { gpio: 35, fn: "pulse_in", channel: "socket", role: "energy_cf" },
+      { gpio: 34, fn: "setup_button", channel: null, role: "setup" },
     ],
   },
   {
-    code: "sample-cooler-rev-a",
+    code: "sample-cooler-rev-b",
     name: "Sample evaporative cooler controller",
     board: { hardwareUid: "DEV-TEHRAN-COOLER-01", name: "Bedroom cooler" },
     channels: [{ key: "cooler", type: "cooler", name: "Evaporative cooler", room: "Primary suite", capabilities: { pump: false, speed: "off" } }],
@@ -103,39 +106,64 @@ const SAMPLE_MODELS: SampleModel[] = [
       { gpio: 16, fn: "relay", channel: "cooler", role: "pump" },
       { gpio: 17, fn: "relay", channel: "cooler", role: "low" },
       { gpio: 18, fn: "relay", channel: "cooler", role: "high" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
     interlocks: [{ group: "speed", gpios: [17, 18] }],
   },
   {
-    code: "sample-curtain-rev-a",
+    code: "sample-curtain-rev-b",
     name: "Sample curtain motor controller",
     board: { hardwareUid: "DEV-TEHRAN-CURTAIN-01", name: "Living room curtain" },
     channels: [{ key: "curtain", type: "curtain", name: "Sheer curtains", room: "Living room", capabilities: { curtain: "open" } }],
     pins: [
       { gpio: 16, fn: "relay", channel: "curtain", role: "open" },
       { gpio: 17, fn: "relay", channel: "curtain", role: "close" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
     interlocks: [{ group: "motion", gpios: [16, 17] }],
   },
   {
-    code: "sample-garage-rev-a",
+    code: "sample-garage-rev-b",
     name: "Sample parking door controller",
     board: { hardwareUid: "DEV-TEHRAN-GARAGE-01", name: "Parking door" },
     channels: [{ key: "door", type: "garage_door", name: "Parking door", room: "Garden terrace", capabilities: { door: "closed" } }],
     pins: [
       { gpio: 16, fn: "relay", channel: "door", role: "pulse" },
       { gpio: 32, fn: "digital_in", channel: "door", role: "door_sensor" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
   },
   {
-    code: "sample-contact-rev-a",
+    code: "sample-pump-rev-b",
+    name: "Sample water pump controller",
+    board: { hardwareUid: "DEV-TEHRAN-PUMP-01", name: "Garden pump" },
+    channels: [{ key: "pump", type: "pump", name: "Garden pump", room: "Garden terrace", capabilities: { power: false } }],
+    pins: [
+      { gpio: 16, fn: "relay", channel: "pump", role: "relay" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
+    ],
+  },
+  {
+    code: "sample-camera-rev-b",
+    name: "Sample security camera controller",
+    board: { hardwareUid: "DEV-TEHRAN-CAMERA-01", name: "Entrance camera" },
+    channels: [{ key: "camera", type: "camera", name: "Entrance camera", room: "Garden terrace", capabilities: { power: true, recording: false } }],
+    pins: [
+      { gpio: 16, fn: "relay", channel: "camera", role: "power" },
+      { gpio: 17, fn: "uart_tx", channel: "camera", role: "camera_tx" },
+      { gpio: 18, fn: "uart_rx", channel: "camera", role: "camera_rx" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
+    ],
+  },
+  {
+    code: "sample-contact-rev-b",
     name: "Sample door/window contact sensor",
     board: { hardwareUid: "DEV-TEHRAN-CONTACT-01", name: "Bedroom window sensor" },
     channels: [{ key: "contact", type: "contact_sensor", name: "Bedroom window", room: "Primary suite", capabilities: { contact: "closed" } }],
-    pins: [{ gpio: 32, fn: "digital_in", channel: "contact", role: "reed" }],
+    pins: [{ gpio: 32, fn: "digital_in", channel: "contact", role: "reed" }, { gpio: 35, fn: "setup_button", channel: null, role: "setup" }],
   },
   {
-    code: "sample-air-rev-a",
+    code: "sample-air-rev-b",
     name: "Sample air quality and humidity sensor (I2C)",
     board: { hardwareUid: "DEV-TEHRAN-AIR-01", name: "Living room air sensor" },
     channels: [
@@ -145,6 +173,7 @@ const SAMPLE_MODELS: SampleModel[] = [
     pins: [
       { gpio: 21, fn: "i2c_sda", channel: null, role: "sda" },
       { gpio: 22, fn: "i2c_scl", channel: null, role: "scl" },
+      { gpio: 35, fn: "setup_button", channel: null, role: "setup" },
     ],
   },
 ];

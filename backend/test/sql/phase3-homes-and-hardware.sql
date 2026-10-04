@@ -2,7 +2,7 @@
 -- devices built from them. Two homes (A and B) with separate users; nothing of one home may be
 -- visible to or changeable by the other. Runs as the superuser in one transaction that is
 -- rolled back. Run with: pnpm db:test
--- expect-pass: 54
+-- expect-pass: 57
 begin;
 
 create function pg_temp.act(uid uuid) returns void language plpgsql as $$
@@ -114,7 +114,9 @@ insert into public.hardware_model_pins (model_id, gpio, function, channel_key, r
   ('c3000000-0000-4000-8000-000000000001', 33, 'digital_in', 'ch2', 'wall_switch'),
   ('c3000000-0000-4000-8000-000000000002', 16, 'relay', 'cooler', 'pump'),
   ('c3000000-0000-4000-8000-000000000002', 17, 'relay', 'cooler', 'low'),
-  ('c3000000-0000-4000-8000-000000000002', 18, 'relay', 'cooler', 'high');
+  ('c3000000-0000-4000-8000-000000000002', 18, 'relay', 'cooler', 'high'),
+  ('c3000000-0000-4000-8000-000000000001', 35, 'setup_button', null, 'setup'),
+  ('c3000000-0000-4000-8000-000000000002', 35, 'setup_button', null, 'setup');
 insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, enum_values, writable) values
   ('c3000000-0000-4000-8000-000000000001', 'ch1', 'power', 'boolean', null, true),
   ('c3000000-0000-4000-8000-000000000001', 'ch2', 'power', 'boolean', null, true),
@@ -220,6 +222,13 @@ begin
   perform pg_temp.sys_error('insert into public.hardware_model_pins (model_id, gpio, function, role) values (''c3000000-0000-4000-8000-000000000003'', 25, ''adc'', ''x'')', '23514', 'ADC2 GPIO 25 rejected for analog input');
   perform pg_temp.sys_error('insert into public.hardware_model_pins (model_id, gpio, function, role) values (''c3000000-0000-4000-8000-000000000002'', 16, ''digital_in'', ''x'')', '42501', 'a model in use is frozen');
   perform pg_temp.sys_error('delete from public.hardware_models where id = ''c3000000-0000-4000-8000-000000000001''', '42501', 'a model in use cannot be deleted');
+
+  -- Setup button: exactly one per model, never on a boot-strapping pin, required to pair.
+  perform pg_temp.sys_error('insert into public.hardware_model_pins (model_id, gpio, function, role) values (''c3000000-0000-4000-8000-000000000003'', 0, ''setup_button'', ''setup'')', '23514', 'a setup button cannot use boot pin GPIO 0');
+  insert into public.hardware_model_channels (model_id, channel_key, device_type, default_name) values ('c3000000-0000-4000-8000-000000000003', 'ch1', 'switch', 'No button');
+  perform pg_temp.sys_error('select public.provision_controller(''a3000000-2222-4000-8000-000000000001'', ''test-unused-rev-a'', ''P3-NO-BUTTON'', ''x'')', '23514', 'a model without a setup button cannot join a home');
+  insert into public.hardware_model_pins (model_id, gpio, function, role) values ('c3000000-0000-4000-8000-000000000003', 34, 'setup_button', 'setup');
+  perform pg_temp.sys_error('insert into public.hardware_model_pins (model_id, gpio, function, role) values (''c3000000-0000-4000-8000-000000000003'', 35, ''setup_button'', ''setup2'')', '23505', 'a model has only one setup button');
 
   -- Deleting a room keeps its devices, just without a room.
   delete from public.rooms where id = room_a;

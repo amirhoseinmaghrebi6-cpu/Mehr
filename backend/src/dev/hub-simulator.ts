@@ -89,6 +89,18 @@ export async function acknowledgeCommand(pool: Pool, commandId: string): Promise
  */
 export async function confirmCommand(pool: Pool, command: SentCommand): Promise<boolean> {
   return withSystemTx(pool, async (tx) => {
+    // Like the camera firmware: it refuses to record while off, and stops recording when switched off.
+    if (command.device_type === "camera" && command.capability === "recording" && command.target_value === true) {
+      const power = await tx.query<{ value: unknown }>("select value from public.device_states where device_id = $1 and capability = 'power'", [command.device_id]);
+      if (power.rows[0]?.value !== true) {
+        await tx.query(
+          `update public.device_commands set status = 'rejected', completed_at = now(), error_code = 'camera_off'
+           where id = $1 and status = 'sent'`,
+          [command.id],
+        );
+        return false;
+      }
+    }
     const { rows } = await tx.query(
       `update public.device_commands set status = 'applied', applied_at = now(), completed_at = now()
        where id = $1 and status = 'sent' and expires_at > now()
@@ -97,6 +109,9 @@ export async function confirmCommand(pool: Pool, command: SentCommand): Promise<
     );
     if (!rows.length) return false;
     await storeReport(tx, command.property_id, command.device_id, command.capability, command.target_value);
+    if (command.device_type === "camera" && command.capability === "power" && command.target_value === false) {
+      await storeReport(tx, command.property_id, command.device_id, "recording", false);
+    }
     await tx.query(
       `insert into public.realtime_events (property_id, event_type, device_id, command_id, payload)
        values ($1, 'command.status_changed', $2, $3, '{"status":"applied"}'::jsonb)`,

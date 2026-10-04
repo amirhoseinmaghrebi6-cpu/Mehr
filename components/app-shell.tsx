@@ -114,6 +114,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       const name = demoMode ? demoName(outcome.device.name, current) : outcome.device.name;
       if (outcome.status === "applied") {
         setToast({ message: `${name}: ${valueLabel(outcome.capability, outcome.target, current)}`, tone: "ok" });
+      } else if (outcome.status === "not_sent" && outcome.device.type === "camera" && outcome.capability === "recording" && outcome.error === "conflict") {
+        setToast({ message: fa ? `${name}: برای ضبط، اول دوربین را روشن کنید.` : `${name}: turn the camera on to record.`, tone: "warn" });
       } else if (outcome.status === "not_sent") {
         setToast({ message: `${name}: ${gatewayMessage(outcome.error ?? "network", current)}`, tone: "warn" });
       } else if (outcome.status === "timed_out") {

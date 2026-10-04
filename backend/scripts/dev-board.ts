@@ -15,7 +15,10 @@ import { connectAdmin, runTool, ToolError } from "../src/db/admin";
 
 async function listChoices(client: Client): Promise<string> {
   const homes = await client.query<{ id: string; name: string }>("select id, name from public.properties order by created_at desc limit 20");
-  const models = await client.query<{ code: string; name: string }>("select code, name from public.hardware_models order by code");
+  // Models without a setup button cannot join a home any more (Phase 3.5); they are not offered.
+  const models = await client.query<{ code: string; name: string }>(
+    "select code, name from public.hardware_models as model where exists (select 1 from public.hardware_model_pins as pin where pin.model_id = model.id and pin.function = 'setup_button') order by code",
+  );
   return [
     "Usage: pnpm dev:board <property-id> <model-code> [board name]",
     "",

@@ -177,8 +177,8 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
       await requireAction(tx, propertyId, "device.control");
       const body = parse(createCommandRequest, request.body);
 
-      const { rows: capabilities } = await tx.query<CapabilityRow>(
-        `select capability.value_type, capability.min_value, capability.max_value, capability.enum_values, capability.writable
+      const { rows: capabilities } = await tx.query<CapabilityRow & { device_type: DeviceType }>(
+        `select capability.value_type, capability.min_value, capability.max_value, capability.enum_values, capability.writable, device.device_type
          from public.device_capabilities as capability
          join public.devices as device on device.id = capability.device_id
          where device.id = $1 and device.property_id = $2 and device.device_type is not null and capability.capability = $3`,
@@ -190,6 +190,11 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
       }
       const definition = definitionFromRow(capabilities[0]);
       if (!definition.writable || capabilityValueError(definition, body.targetValue) !== null) throw invalidRequest();
+      // A camera records only while it is on (the ESP32 enforces this too).
+      if (capabilities[0].device_type === "camera" && body.capability === "recording" && body.targetValue === true) {
+        const power = await tx.query<{ value: unknown }>("select value from public.device_states where device_id = $1 and capability = 'power'", [body.deviceId]);
+        if (power.rows[0]?.value !== true) throw new HttpError(409, "conflict");
+      }
 
       // The same idempotency key returns the original command (a retried request), unless it was
       // used for a different command.
