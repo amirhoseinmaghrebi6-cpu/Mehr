@@ -95,16 +95,27 @@ export function createDemoData(): DemoData {
  * real board would. In the demo a sample code can be used again and again.
  */
 export const demoBoards: Record<string, { name: string; image: string; channels: Array<[type: DeviceType, name: string, values?: Partial<Record<CapabilityName, CapabilityValue>>]> }> = {
-  "DEMO-SWITCH-2CH": { name: "2-switch board", image: "/images/demo/pairing-switch-2ch.png", channels: [["switch", "Switch 1"], ["switch", "Switch 2"]] },
-  "DEMO-DIMMER": { name: "Dimmer board", image: "/images/demo/pairing-dimmer.png", channels: [["dimmer", "Dimmer", { brightness: 0 }]] },
-  "DEMO-MULTI-6CH": {
-    name: "6-channel board",
-    image: "/images/demo/pairing-multi-6ch.png",
-    channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket"], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
-  },
-  "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
-  "DEMO-CURTAIN": { name: "Curtain board", image: "/images/demo/pairing-curtain.png", channels: [["curtain", "Curtain"]] },
-  "DEMO-GARAGE": { name: "Parking door board", image: "/images/demo/pairing-garage.png", channels: [["garage_door", "Parking door"]] },
+  "DEMO-SWITCH-1CH": { name: "1-switch board", image: "/images/demo/pairing-switch-1ch.png", channels: [["switch","Switch"]] },
+  "DEMO-SWITCH-2CH": { name: "2-switch board", image: "/images/demo/pairing-switch-2ch.png", channels: [["switch","Switch 1"],["switch","Switch 2"]] },
+  "DEMO-DIMMER": { name: "Dimmer board", image: "/images/demo/pairing-dimmer.png", channels: [["dimmer","Dimmer",{"brightness":0}]] },
+  "DEMO-MULTI-6CH": { name: "6-channel board", image: "/images/demo/pairing-multi-6ch.png", channels: [["switch","Switch 1"],["switch","Switch 2"],["dimmer","Dimmer",{"brightness":0}],["socket","Socket"],["curtain","Curtain"],["contact_sensor","Window sensor"]] },
+  "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler","Cooler"]] },
+  "DEMO-FAN": { name: "Fan board", image: "/images/demo/pairing-fan.png", channels: [["fan","Fan"]] },
+  "DEMO-CURTAIN": { name: "Curtain board", image: "/images/demo/pairing-curtain.png", channels: [["curtain","Curtain"]] },
+  "DEMO-GARAGE": { name: "Parking door board", image: "/images/demo/pairing-garage.png", channels: [["garage_door","Parking door"]] },
+  "DEMO-SOCKET": { name: "Smart socket", image: "/images/demo/pairing-socket.png", channels: [["socket","Socket"]] },
+  "DEMO-PUMP": { name: "Water pump board", image: "/images/demo/pairing-pump.png", channels: [["pump","Water pump"]] },
+  "DEMO-ALARM": { name: "Alarm board", image: "/images/demo/pairing-alarm.png", channels: [["alarm","Alarm",{"alarm_mode":"disarmed","triggered":false}]] },
+  "DEMO-CAMERA": { name: "Camera board", image: "/images/demo/pairing-camera.png", channels: [["camera","Camera",{"power":false,"recording":false}]] },
+  "DEMO-MOTION": { name: "Motion sensor", image: "/images/demo/pairing-motion.png", channels: [["motion_sensor","Motion sensor",{"motion":false}]] },
+  "DEMO-PRESENCE": { name: "Presence sensor", image: "/images/demo/pairing-presence.png", channels: [["presence_sensor","Presence sensor",{"presence":false}]] },
+  "DEMO-CONTACT": { name: "Door and window sensor", image: "/images/demo/pairing-contact.png", channels: [["contact_sensor","Door and window sensor",{"contact":"closed"}]] },
+  "DEMO-LEAK": { name: "Leak sensor", image: "/images/demo/pairing-leak.png", channels: [["leak_sensor","Leak sensor",{"leak":false}]] },
+  "DEMO-SMOKE": { name: "Smoke sensor", image: "/images/demo/pairing-smoke.png", channels: [["smoke_sensor","Smoke sensor",{"smoke":false}]] },
+  "DEMO-CO": { name: "CO sensor", image: "/images/demo/pairing-co.png", channels: [["co_sensor","CO sensor",{"co_ppm":2}]] },
+  "DEMO-AIR": { name: "Air quality sensor", image: "/images/demo/pairing-air.png", channels: [["air_quality_sensor","Air quality sensor",{"co2_ppm":600,"voc_index":80}]] },
+  "DEMO-HUMIDITY": { name: "Humidity and temperature sensor", image: "/images/demo/pairing-humidity.png", channels: [["humidity_sensor","Humidity and temperature sensor",{"humidity":40,"temperature":23}]] },
+  "DEMO-LIGHT": { name: "Light sensor", image: "/images/demo/pairing-light.png", channels: [["light_sensor","Light sensor",{"illuminance_lux":300}]] },
 };
 
 /** Sample scenarios of the demo homes (their device ids are those above). */
