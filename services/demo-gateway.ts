@@ -9,6 +9,7 @@ import {
   DEFAULT_SCENARIO_LATE_WINDOW,
   defaultSettings,
   defaultTimeZone,
+  isDeviceType,
   parsePairingCode,
   type Command,
   type CommandStatus,
@@ -40,7 +41,12 @@ export function createDemoGateway(userId: string): HomeGateway {
   function load(): DemoData {
     try {
       const stored = window.localStorage.getItem(key);
-      if (stored) return JSON.parse(stored) as DemoData;
+      if (stored) {
+        const saved = JSON.parse(stored) as DemoData;
+        // Device types that no longer exist (e.g. the energy meter) leave demo data saved earlier.
+        for (const id of Object.keys(saved.devices)) saved.devices[id] = saved.devices[id].filter((device) => isDeviceType(device.type));
+        return saved;
+      }
     } catch {
       // Storage unavailable or corrupt: start from the sample homes.
     }

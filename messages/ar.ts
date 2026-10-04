@@ -261,7 +261,6 @@ export const ar: Messages = {
       air_quality_sensor: "مستشعر جودة الهواء",
       humidity_sensor: "مستشعر رطوبة",
       light_sensor: "مستشعر ضوء",
-      energy_meter: "عدّاد طاقة",
     },
     capabilities: {
       power: "التشغيل / الإيقاف",

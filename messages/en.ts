@@ -216,7 +216,6 @@ export const en = {
       air_quality_sensor: "Air quality sensor",
       humidity_sensor: "Humidity sensor",
       light_sensor: "Light sensor",
-      energy_meter: "Energy meter",
     },
     capabilities: {
       power: "Power",

@@ -261,7 +261,6 @@ export const fa: Messages = {
       air_quality_sensor: "سنسور کیفیت هوا",
       humidity_sensor: "سنسور رطوبت",
       light_sensor: "سنسور نور",
-      energy_meter: "کنتور انرژی",
     },
     capabilities: {
       power: "روشن / خاموش",

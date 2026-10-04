@@ -14,7 +14,6 @@ import {
   Droplets,
   Fan,
   Footprints,
-  Gauge,
   Lightbulb,
   PersonStanding,
   PlugZap,
@@ -52,7 +51,6 @@ export const deviceTypeInfo: Record<DeviceType, { icon: LucideIcon; tone: string
   air_quality_sensor: { icon: Wind, tone: "air" },
   humidity_sensor: { icon: Droplet, tone: "climate" },
   light_sensor: { icon: Sun, tone: "light" },
-  energy_meter: { icon: Gauge, tone: "plug" },
 };
 
 export const typeLabel = (type: DeviceType, locale: Locale) => messages[locale].devices.types[type];

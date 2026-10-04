@@ -80,7 +80,6 @@ export const deviceTypes = {
   air_quality_sensor: { required: [], optional: ["co2_ppm", "voc_index"] },
   humidity_sensor: { required: ["humidity"], optional: ["temperature"] },
   light_sensor: { required: ["illuminance_lux"], optional: [] },
-  energy_meter: { required: ["power_w", "energy_kwh"], optional: [] },
   pump: { required: ["power"], optional: [] },
   camera: { required: ["power", "recording"], optional: [] },
 } as const satisfies Record<string, { required: readonly CapabilityName[]; optional: readonly CapabilityName[] }>;
