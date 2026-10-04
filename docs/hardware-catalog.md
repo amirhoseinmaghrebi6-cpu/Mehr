@@ -76,7 +76,7 @@ Set `action_seconds` from the real motor, with some margin. A command is applied
 
 ### Interlocks
 
-Interlocks are stored as data so the firmware, the hub and the simulator can enforce them on the device itself, with or without internet. Examples:
+Interlocks are stored as data so the firmware and the simulator can enforce them on the device itself, with or without internet. Examples:
 - a cooler's low and high relays;
 - a curtain's open and close relays.
 
@@ -127,4 +127,4 @@ where code = 'cooler-rev-a';
 
 The `sample-*` models from `pnpm db:seed` are examples for development only. They are not real M2smart PCBs.
 
-Real boards are added through the hub by scanning the board's QR code (Phase 4).
+Real boards join a home by the pairing code they show on their own setup page (Phase 4, [board-protocol.md](board-protocol.md)). Every board ever made is listed in the registry of manufactured boards, with its model.

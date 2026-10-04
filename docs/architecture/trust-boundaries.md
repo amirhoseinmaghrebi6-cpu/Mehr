@@ -2,7 +2,7 @@
 
 This page defines who may talk to whom in M2smart and what each side must prove. Authentication is described in [../auth.md](../auth.md).
 
-**Standing constraint.** Production runs on servers inside Iran and must keep working when international internet is cut. No channel below may depend on a foreign host at runtime, including fonts, images, SMS, telemetry and package or image registries at deploy time (use mirrors inside Iran). The hub must keep working with no internet at all.
+**Standing constraint.** Production runs on servers inside Iran and must keep working when international internet is cut. No channel below may depend on a foreign host at runtime, including fonts, images, SMS, telemetry and package or image registries at deploy time (use mirrors inside Iran). Without any internet, a board still obeys its wall switches and keeps its relay states.
 
 ## Components
 
@@ -13,9 +13,10 @@ This page defines who may talk to whom in M2smart and what each side must prove.
 | M2smart API | cloud, in Iran | the only app-level PostgreSQL client; the webhook secret |
 | Ory Kratos | cloud, in Iran | identities, credentials, sessions (own `kratos` database) |
 | PostgreSQL | cloud, in Iran | app data, protected by RLS |
-| MQTT broker | cloud, in Iran | hub connections (Phase 4) |
-| Hub | the home's LAN | local broker, cached grants and keys (later phases) |
-| ESP32 devices | the home's LAN | per-device credentials for the hub (Phases 6–7) |
+| MQTT broker | cloud, in Iran | one account per board, limited to that board's topics (Phase 4) |
+| ESP32 boards | the home's Wi-Fi | their factory secret and, once paired, their broker secret (firmware in Phases 6–7) |
+
+There is no hub (decided 2026-10-04): boards connect straight to the broker. Without internet nothing is controlled from the app; wall switches keep working on the board itself.
 
 ## Channels
 
@@ -42,47 +43,50 @@ This page defines who may talk to whom in M2smart and what each side must prove.
 - **Commands:**
   - Clients can only create pending commands.
   - Their deadline is set by the database (30 s for the network + the hardware's time), not by the client.
-  - Only the backend (and, later, the hub path) marks them sent or applied, and "applied" requires the ESP32's report.
+  - Only the backend marks them sent or applied, and "applied" requires the ESP32's report.
   - A device accepts at most 20 open commands.
 - **Scenarios:**
   - Every member of a home can read its scenarios. Only owners and admins can create or change them, and every member can run a themed one.
   - An action can target only a writable capability of a device in the same home; RLS, composite foreign keys and a trigger enforce this in the database.
   - A run creates ordinary commands under the same rules as above.
-  - Only the runner records scheduled runs and missed runs. That runner is the hub; the dev simulator stands in until Phase 4. Clients can record only their own manual runs.
+  - Only the runner records scheduled runs and missed runs. The runner is the server (the dev simulator stands in until step 4D). Clients can record only their own manual runs.
 - **Hardware catalog:** pin maps, capability templates and interlocks are backend-only. Users never read or change which GPIO does what.
 - **Backend-only work** runs under `withSystemTx` (`service_role`, bypasses RLS). Keep its use rare and easy to find.
 - **Kratos → API webhooks** (identity sync, refusing password registration):
   - Accepted only from loopback or private addresses.
   - Must carry the shared `KRATOS_WEBHOOK_SECRET`.
 
-### 2. Hub ↔ cloud (Phase 4)
+### 2. Board ↔ cloud (Phase 4)
 
-- The hub connects outbound to the cloud MQTT broker over TLS, with a per-hub credential. The cloud never connects into a home.
-- Broker ACLs limit each hub to its own property's topics.
-- The cloud sends commands with an expiry; an expired command is never replayed.
+The contract is [../board-protocol.md](../board-protocol.md).
 
-### 3. Device ↔ hub (Phases 6–7)
+- **Outbound only:** a board connects out to the cloud MQTT broker over TLS. The cloud never connects into a home.
+- **One account per board:** the username is the board's id, the secret is issued at pairing, and broker rules limit the board to its own topics. A board can never read or write another board's messages, in its own home or any other.
+- **The API is the only other broker client.** It publishes commands and reads reports; browsers and apps never talk to the broker.
+- **Reports are checked like requests:** a value is stored only if it fits a capability that board really has.
+- **Commands carry how long they are valid;** an expired command is never sent or replayed.
 
-- ESP32 devices talk only to the hub's local broker, with per-device credentials and ACLs. They never talk to the cloud directly.
+### 3. Pairing and reset (Phase 4)
 
-### 4. Client ↔ hub over the LAN (reserved, not implemented)
+- **A board joins a home only when all three hold:**
+  - someone holds it (setup button, pairing mode);
+  - an owner or admin uploads its one-time pairing code in the app;
+  - the board proves it is genuine with its factory secret.
+- **The registry of manufactured boards and the pending pairings are backend-only.** The server stores only hashes of factory secrets and pairing codes.
+- **A pairing code** is made by the board, fresh on every pairing mode, valid once and for 24 hours.
+- **A broker secret** is replaced at every pairing; the old one stops working.
+- **A factory reset leaves nothing on the server** about the board: no devices, states, commands, audit entry or notification.
+- **Accepted risk:** whoever can hold the button owns the board (owning = holding).
 
-Design rules to keep in mind now:
+### 4. No history
 
-- **Offline grants:**
-  - The cloud issues each member short-lived, signed offline grants: user, property, role, allowed actions, expiry and key ID.
-  - The hub checks them without internet, using the property's cached public keys.
-  - Revocation uses short expiry plus a revocation list the hub syncs.
-- **Finding and trusting the hub:**
-  - The phone finds the hub by mDNS and connects over TLS.
-  - It trusts the hub's certificate by a fingerprint the cloud gave it earlier (pinning), not a public CA.
-- **Local commands:**
-  - They carry the same envelope as cloud commands: idempotency key, `origin` (`cloud`, `lan`, `automation` or `physical`), principal, and the hub's sequence number.
-  - The hub decides LAN commands and syncs them to the cloud afterwards for audit.
+The server keeps only the current state:
+- the last reported value per capability;
+- the latest result per scenario;
+- finished commands for 24 hours;
+- one energy total per metered device per day, for one year.
 
-Hooks that already exist:
-- `Principal.issuer` is `"cloud"` today, so a `"hub"` issuer needs no interface change.
-- Role-to-action rules will live as plain data in `packages/contracts`, so the hub can enforce the same rules.
+A cleanup job deletes the rest.
 
 ## Demo account
 

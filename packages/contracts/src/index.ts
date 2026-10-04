@@ -6,3 +6,4 @@ export * from "./permissions.js";
 export * from "./settings.js";
 export * from "./calendar.js";
 export * from "./scenarios.js";
+export * from "./board-protocol.js";

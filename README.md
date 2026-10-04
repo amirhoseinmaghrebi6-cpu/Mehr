@@ -1,6 +1,6 @@
 # M2smart
 
-M2smart is a smart-home platform: a Next.js web app, a Fastify API, self-hosted PostgreSQL, Ory Kratos for sign-in, and MQTT for hubs. Everything runs on our own servers inside Iran; the app makes no requests to foreign hosts at runtime, so it keeps working on Iran's national internet.
+M2smart is a smart-home platform: a Next.js web app, a Fastify API, self-hosted PostgreSQL, Ory Kratos for sign-in, and MQTT for the ESP32 boards, which connect straight to our broker (there is no hub). Everything runs on our own servers inside Iran; the app makes no requests to foreign hosts at runtime, so it keeps working on Iran's national internet.
 
 ## Run locally
 
@@ -51,7 +51,7 @@ No Supabase CLI or cloud account is needed. Behind a restricted network, see the
    pnpm dev:board <home-id> sample-switch-2ch-rev-b       # adds a simulated board to that home
    ```
 
-   Real boards are added through the hub by QR code (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).
+   Real boards join a home with the pairing code from their own setup page (Phase 4). See [docs/hardware-catalog.md](docs/hardware-catalog.md).
 
 6. **Try scenarios.** Under Scenarios, create a themed one and run it with a tap, or create a repeating or one-time one. Times are in the home's time zone. The dev simulator runs due scenarios for homes with simulated boards, checking every 5 seconds.
 
@@ -85,7 +85,8 @@ pnpm --filter @m2smart/api typecheck && pnpm --filter @m2smart/api lint && pnpm 
 | Document | Covers |
 |----------|--------|
 | [docs/auth.md](docs/auth.md) | Sign-in by SMS code and optional password, sessions, the demo account. |
-| [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md) | Who talks to whom, including the future hub and LAN channels. |
+| [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md) | Who talks to whom: browser, API, Kratos, broker and boards. |
+| [docs/board-protocol.md](docs/board-protocol.md) | The contract between an ESP32 board and the cloud: connection, messages, pairing, reset. |
 | [docs/product-architecture.md](docs/product-architecture.md) | Product map, routes, state boundaries, responsive design. |
 | [docs/hardware-catalog.md](docs/hardware-catalog.md) | Board models, pin rules, command deadlines; how to add a board or a device type. |
 | [docs/assets.md](docs/assets.md) | Fonts and images, with sources and licences. |

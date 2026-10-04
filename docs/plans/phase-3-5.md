@@ -1,6 +1,8 @@
 # Phase 3.5 plan: device lifecycle, settings, languages and scenarios
 
-Status: approved 2026-10-04; implemented (B, C, D, E1, E2; closed 2026-10-04). Section A is the specification Phase 4 builds. Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
+Status: approved 2026-10-04; implemented (B, C, D, E1, E2; closed 2026-10-04). Section A is the specification Phase 4 builds.
+
+> **Changed on 2026-10-04 (see [phase-4.md](phase-4.md)):** there is no hub. Boards connect straight to the cloud, scenarios run on the server with a validity window per scenario, and pairing uses a one-time code from the app instead of "found by the hub on the LAN". Decisions 2 and 3 below and the hub parts of sections A and E are replaced by that plan. Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
 
 ## Requirements from the product owner (2026-09-29)
 
