@@ -1,6 +1,6 @@
 # Phase 3.5 plan: device lifecycle, settings, languages and scenarios
 
-Status: approved 2026-10-04; implementation in progress (starting with B). Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
+Status: approved 2026-10-04; B, C, D, E1 and E2 implemented (A is built in Phase 4). Comes before Phase 4 (hub), because the pairing and reset rules below are what Phase 4 builds on.
 
 ## Requirements from the product owner (2026-09-29)
 

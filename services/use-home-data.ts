@@ -152,7 +152,9 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
             if (isFinalStatus(command.status)) finish(key, entry, command.status);
             else
               setPending((current) =>
-                current[key]?.commandId === command.id ? { ...current, [key]: { ...current[key], status: command.status, acknowledged: Boolean(command.acknowledgedAt) } } : current,
+                current[key]?.commandId === command.id
+                  ? { ...current, [key]: { ...current[key], status: command.status, acknowledged: Boolean(command.acknowledgedAt), expiresAt: Date.parse(command.expiresAt) } }
+                  : current,
               );
           },
           () => undefined, // A lost status request is retried on the next tick.
@@ -188,6 +190,15 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
     [gateway, propertyId],
   );
 
+  /**
+   * Follows a command created elsewhere (e.g. by a scenario run) like one sent from a control. Its
+   * deadline is learned on the first status check.
+   */
+  const followCommand = useCallback((device: Device, capability: CapabilityName, target: CapabilityValue, commandId: string) => {
+    const entry: PendingCommand = { deviceId: device.id, capability, target, commandId, status: "pending", acknowledged: false, expiresAt: Date.now() + 60_000 };
+    setPending((current) => ({ ...current, [keyOf(device.id, capability)]: entry }));
+  }, []);
+
   /** What a control shows: the target of a command on its way, else the reported value. */
   const valueOf = useCallback(
     (device: Device, capability: CapabilityName): CapabilityValue | null =>
@@ -217,6 +228,7 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
     valueOf,
     activityOf,
     sendCommand,
+    followCommand,
     refreshDevices,
     reloadProperties: loadProperties,
     setProperties,

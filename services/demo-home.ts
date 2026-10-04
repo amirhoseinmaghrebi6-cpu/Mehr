@@ -2,13 +2,15 @@
  * Sample homes for the demo account, in the same shape the API returns. The demo never touches
  * the database: this data lives in the demo visitor's browser (services/demo-gateway.ts).
  */
-import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type Property, type Room } from "@m2smart/contracts";
+import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { messages, type Locale } from "@/lib/i18n";
 
 export type DemoData = {
   properties: Property[];
   rooms: Record<string, Room[]>;
   devices: Record<string, Device[]>;
+  /** Missing in demo data saved before scenarios existed: then the samples are added. */
+  scenarios?: Record<string, Scenario[]>;
 };
 
 /** A device of `type` with every capability of the type and the given reported values. */
@@ -79,6 +81,33 @@ export function createDemoData(): DemoData {
         demoDevice("c-meter", "energy_meter", "Main energy meter", null, { power_w: 1240, energy_kwh: 512.4 }),
       ],
     },
+  };
+}
+
+/** Sample scenarios of the demo homes (their device ids are those above). */
+export function createDemoScenarios(): Record<string, Scenario[]> {
+  const scenario = (id: string, name: string, actions: Array<[string, CapabilityName, CapabilityValue]>, schedule: Partial<Scenario> = {}): Scenario => ({
+    id,
+    name,
+    kind: "themed",
+    enabled: true,
+    weekdays: null,
+    time: null,
+    date: null,
+    actions: actions.map(([deviceId, capability, targetValue]) => ({ deviceId, capability, targetValue })),
+    nextRunAt: null,
+    lastRun: null,
+    ...schedule,
+  });
+  return {
+    tehran: [
+      scenario("scenario-morning", "Good morning", [["pendant", "brightness", 80], ["curtains", "curtain", "open"]]),
+      scenario("scenario-movie", "Movie night", [["pendant", "brightness", 15], ["curtains", "curtain", "closed"]]),
+      scenario("scenario-away", "Away", [["pendant", "brightness", 0], ["kitchen-lights", "power", false], ["coffee", "power", false], ["path-lights", "power", false]]),
+      scenario("scenario-evening", "Evening path lights", [["path-lights", "power", true]], { kind: "periodic", weekdays: [0, 1, 2, 3, 4, 5, 6], time: "19:00" }),
+      scenario("scenario-garden", "Water the garden", [["garden-pump", "power", true]], { kind: "periodic", weekdays: [2, 6], time: "06:30" }),
+    ],
+    caspian: [scenario("scenario-night", "Good night", [["c-lamp", "brightness", 0], ["c-fan", "speed", "off"]])],
   };
 }
 

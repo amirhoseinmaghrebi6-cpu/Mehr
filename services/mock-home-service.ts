@@ -1,15 +1,8 @@
 /**
- * Sample scenes, routines and energy figures for the demo account. Real homes have no such data
- * yet (those sections show "coming soon"); homes, rooms and devices of the demo live in
+ * Sample routines and energy figures for the demo account. Real homes have no such data yet (those
+ * sections show "coming soon"); homes, rooms, devices and scenarios of the demo live in
  * services/demo-home.ts.
  */
-
-export const scenes = [
-  { id: "morning", name: "Good morning", detail: "Lights up · Curtains open", icon: "sunrise" },
-  { id: "movie", name: "Movie night", detail: "Lights dim · Curtains close", icon: "film" },
-  { id: "dinner", name: "Dinner", detail: "Warm light", icon: "utensils" },
-  { id: "away", name: "Away", detail: "Lights and sockets off", icon: "door" },
-];
 
 export const automations = [
   { id: "sunset", name: "A softer sunset", detail: "Every day at sunset", destination: "Garden path lights", enabled: true, icon: "sunset" },
@@ -19,7 +12,6 @@ export const automations = [
 
 export type HomeSnapshot = {
   propertyId: string;
-  scenes: typeof scenes;
   automations: typeof automations;
   energy: {
     currentWatts: number;
@@ -33,7 +25,6 @@ export function getMockHomeSnapshot(propertyId = "tehran"): HomeSnapshot {
   const multiplier = propertyId === "caspian" ? 0.72 : 1;
   return {
     propertyId,
-    scenes,
     automations,
     energy: {
       currentWatts: Math.round(642 * multiplier),

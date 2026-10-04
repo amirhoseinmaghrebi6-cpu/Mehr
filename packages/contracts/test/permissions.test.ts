@@ -12,6 +12,8 @@ describe("permissions", () => {
     "property.edit": [true, true, false],
     "room.edit": [true, true, false],
     "device.edit": [true, true, false],
+    "scenario.edit": [true, true, false],
+    "scenario.run": [true, true, true],
     "property.delete": [true, false, false],
   };
 

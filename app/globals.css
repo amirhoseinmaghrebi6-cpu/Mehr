@@ -955,3 +955,69 @@ a.auth-submit { text-decoration: none; }
 .settings-preferences { display: grid; gap: 4px; padding: 20px 22px; }
 .settings-preferences .segmented-section { margin-top: 12px; }
 .settings-preview { margin: 16px 0 4px; color: var(--ink); font-family: var(--font-display); font-size: 13px; font-weight: 600; }
+
+/* Scenarios: list, quick list and editor. */
+.scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.scenario-card { position: relative; display: flex; min-height: 168px; flex-direction: column; align-items: stretch; gap: 5px; padding: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: var(--shadow-card); text-align: start; }
+.scenario-card.is-off { background: var(--surface-soft); }
+.scenario-card.is-off .scenario-name, .scenario-card.is-off .scenario-schedule { color: var(--muted); }
+.scenario-card-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.scenario-icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.scenario-icon-periodic { background: #eef2f6; color: #4f6a85; }
+.scenario-icon-one_time { background: #f7f2e7; color: #aa8251; }
+:root[data-theme="dark"] .scenario-icon-periodic { background: #26303a; color: #9fb6cc; }
+:root[data-theme="dark"] .scenario-icon-one_time { background: #342e24; color: #d6b07f; }
+.scenario-kind { flex: 1; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+.scenario-edit { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.scenario-edit:hover { border-color: var(--line-strong); color: var(--accent); }
+.scenario-name { color: var(--ink); font-family: var(--font-display); font-size: 12px; font-weight: 650; }
+.scenario-schedule { color: var(--ink-soft); font-size: 9px; }
+.scenario-meta { color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.scenario-missed { color: var(--warning); }
+.scenario-card-foot { display: flex; justify-content: flex-end; margin-top: auto; padding-top: 10px; }
+.scenario-run { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 0 13px; border: 1px solid var(--accent); border-radius: 16px; background: var(--accent); color: #fff; cursor: pointer; font-size: 9.5px; font-weight: 600; transition: background .16s, opacity .16s; }
+.scenario-run:hover:not(:disabled) { background: var(--accent-deep); }
+.scenario-run:disabled { opacity: .55; cursor: progress; }
+[dir="rtl"] .scenario-run svg { transform: scaleX(-1); }
+.scenario-switch { position: relative; width: 40px; height: 23px; padding: 0; border: 0; border-radius: 12px; background: var(--line-strong); cursor: pointer; transition: background .18s; }
+.scenario-switch > span { position: absolute; top: 3px; inset-inline-start: 3px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 18%); transition: inset-inline-start .18s var(--ease-out); }
+.scenario-switch[aria-checked="true"] { background: var(--accent); }
+.scenario-switch[aria-checked="true"] > span { inset-inline-start: 20px; }
+.scenario-switch:disabled { opacity: .5; cursor: not-allowed; }
+.scenario-new { align-items: flex-start; border-style: dashed; box-shadow: none; cursor: pointer; }
+.scenario-new:hover { border-color: var(--accent); background: var(--accent-pale); }
+.scenario-new .scenario-icon { margin-bottom: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.scenario-zone-note { margin-top: 14px; }
+.scenario-empty { margin-top: 0; }
+.scene-row:disabled { cursor: progress; opacity: .65; }
+.scene-icon.scenario-icon-themed { background: var(--accent-soft); color: var(--accent); }
+.scenario-dialog { width: min(100%, 560px); }
+.scenario-dialog .segmented-control { margin-top: 0; }
+.scenario-dialog .form-field > small { margin: 0; }
+.weekday-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.weekday-picker > button { min-height: 36px; padding: 0 2px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink-soft); cursor: pointer; font-size: 9px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weekday-picker > button.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); }
+.time-picker, .date-picker { display: flex; align-items: center; gap: 6px; }
+.time-picker > select, .date-picker > select, .action-row > select, .action-row > input { min-width: 0; height: 39px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; outline: 0; background: var(--surface); color: var(--ink); font-size: 10px; }
+.time-picker > select { width: 74px; }
+.time-picker > span { color: var(--muted); font-weight: 700; }
+.date-picker > select { flex: 1; }
+.date-picker > select:nth-child(2) { flex: 1.6; }
+.action-list { display: grid; gap: 7px; }
+.action-row { display: flex; align-items: center; gap: 6px; }
+.action-row > select:first-child { flex: 1.5; }
+.action-row > select, .action-row > input { flex: 1; }
+.action-row.is-duplicate > select { border-color: var(--warning); }
+.action-remove { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.action-remove:hover { background: var(--surface-hover); color: var(--danger); }
+.action-list .workspace-add-button { margin-top: 2px; }
+.scenario-delete { margin-inline-end: auto; color: var(--danger); }
+@media (max-width: 1180px) { .scenario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .scenario-grid { grid-template-columns: minmax(0, 1fr); }
+  .scenario-card { min-height: 0; }
+  .action-row { flex-wrap: wrap; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+  .action-row > select:first-child { flex-basis: calc(100% - 40px); }
+  .weekday-picker > button { font-size: 8px; }
+  .workspace-form-actions { flex-wrap: wrap; }
+}

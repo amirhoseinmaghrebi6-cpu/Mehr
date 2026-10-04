@@ -4,6 +4,8 @@
  * - createApiGateway (services/api-gateway.ts): real users, through the M2smart API (/api/v1).
  * - createDemoGateway (services/demo-gateway.ts): the demo account, with sample data kept in the
  *   browser; it answers like the API, including commands that take the hardware's time.
+ *
+ * The interface covers homes, rooms, devices, commands, scenarios and settings.
  */
 import type {
   Command,
@@ -14,6 +16,9 @@ import type {
   DeviceType,
   Property,
   Room,
+  Scenario,
+  ScenarioRequest,
+  ScenarioRunResponse,
   UpdateDeviceRequest,
   UpdatePropertyRequest,
   UpdateRoomRequest,
@@ -46,6 +51,16 @@ export interface HomeGateway {
   /** Sends a command; retrying with the same idempotency key never creates a second one. */
   sendCommand(propertyId: string, input: CreateCommandRequest): Promise<Command>;
   getCommand(propertyId: string, commandId: string): Promise<Command>;
+
+  /** Scenarios of a home; times and dates are in the home's time zone. */
+  listScenarios(propertyId: string): Promise<Scenario[]>;
+  createScenario(propertyId: string, input: ScenarioRequest): Promise<Scenario>;
+  /** Replaces the whole scenario (name, schedule, actions). */
+  updateScenario(propertyId: string, scenarioId: string, input: ScenarioRequest): Promise<Scenario>;
+  setScenarioEnabled(propertyId: string, scenarioId: string, enabled: boolean): Promise<Scenario>;
+  deleteScenario(propertyId: string, scenarioId: string): Promise<void>;
+  /** Runs a themed scenario now: one command per action. */
+  runScenario(propertyId: string, scenarioId: string): Promise<ScenarioRunResponse>;
 
   /** The user's display preferences (language, calendar, temperature unit). */
   getSettings(): Promise<UserSettings>;

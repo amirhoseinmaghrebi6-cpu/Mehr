@@ -3,9 +3,23 @@
  * commands go through the same stages as real ones (pending → sent → acknowledged → applied), with
  * the hardware's time (a parking door takes seconds, not milliseconds). Nothing reaches the API.
  */
-import { capabilities, capabilityValueError, defaultSettings, type Command, type CommandStatus, type Device, type Property, type Room, type UserSettings } from "@m2smart/contracts";
+import {
+  capabilities,
+  capabilityValueError,
+  defaultSettings,
+  defaultTimeZone,
+  type Command,
+  type CommandStatus,
+  type Device,
+  type Property,
+  type Room,
+  type Scenario,
+  type ScenarioRequest,
+  type UserSettings,
+} from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
-import { createDemoData, demoDevice, type DemoData } from "@/services/demo-home";
+import { nextRun } from "@/lib/scenario-time";
+import { createDemoData, createDemoScenarios, demoDevice, type DemoData } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
@@ -43,6 +57,46 @@ export function createDemoGateway(userId: string): HomeGateway {
     return property;
   }
   const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+
+  // Scenarios follow the same rules as the API. Scheduled ones show their next run but do not run
+  // in the demo: scenarios run on a home's hub, and the demo has none.
+  function scenariosOf(propertyId: string): Scenario[] {
+    home(propertyId);
+    data.scenarios ??= createDemoScenarios();
+    return (data.scenarios[propertyId] ??= []);
+  }
+  function withNextRun(propertyId: string, scenario: Scenario): Scenario {
+    const at = nextRun(scenario, home(propertyId).timeZone ?? defaultTimeZone);
+    return clone({ ...scenario, nextRunAt: at ? at.toISOString() : null });
+  }
+  function scenarioFrom(propertyId: string, input: ScenarioRequest, id: string, lastRun: Scenario["lastRun"]): Scenario {
+    const name = input.name.trim();
+    if (!name || name.length > 60 || !input.actions.length) throw new GatewayError("invalid_request");
+    if (scenariosOf(propertyId).some((item) => item.id !== id && item.name.trim().toLowerCase() === name.toLowerCase())) throw new GatewayError("conflict");
+    for (const action of input.actions) {
+      const device = (data.devices[propertyId] ?? []).find((item) => item.id === action.deviceId);
+      if (!device) throw new GatewayError("not_found");
+      const state = device.capabilities.find((entry) => entry.capability === action.capability);
+      if (!state?.writable || capabilityValueError(capabilities[action.capability], action.targetValue) !== null) throw new GatewayError("invalid_request");
+    }
+    return {
+      id,
+      name,
+      kind: input.kind,
+      enabled: input.enabled ?? true,
+      weekdays: input.kind === "periodic" ? ([...input.weekdays].sort((a, b) => a - b) as Scenario["weekdays"]) : null,
+      time: input.kind === "themed" ? null : input.time,
+      date: input.kind === "one_time" ? input.date : null,
+      actions: input.actions.map((action) => ({ ...action })),
+      nextRunAt: null,
+      lastRun,
+    };
+  }
+  function findScenario(propertyId: string, scenarioId: string): Scenario {
+    const scenario = scenariosOf(propertyId).find((item) => item.id === scenarioId);
+    if (!scenario) throw new GatewayError("not_found");
+    return scenario;
+  }
 
   async function runCommand(command: Command & { propertyId: string }, deviceType: string): Promise<void> {
     const step = (status: CommandStatus, extra: Partial<Command> = {}) => Object.assign(command, { status, ...extra });
@@ -87,9 +141,10 @@ export function createDemoGateway(userId: string): HomeGateway {
     },
     async deleteProperty(propertyId) {
       home(propertyId);
-      data = { properties: data.properties.filter((item) => item.id !== propertyId), rooms: { ...data.rooms }, devices: { ...data.devices } };
+      data = { properties: data.properties.filter((item) => item.id !== propertyId), rooms: { ...data.rooms }, devices: { ...data.devices }, scenarios: { ...data.scenarios } };
       delete data.rooms[propertyId];
       delete data.devices[propertyId];
+      if (data.scenarios) delete data.scenarios[propertyId];
       save();
     },
 
@@ -171,6 +226,50 @@ export function createDemoGateway(userId: string): HomeGateway {
       return clone(command);
     },
 
+    async listScenarios(propertyId) {
+      return scenariosOf(propertyId).map((scenario) => withNextRun(propertyId, scenario));
+    },
+    async createScenario(propertyId, input) {
+      const scenario = scenarioFrom(propertyId, input, newId("scenario"), null);
+      scenariosOf(propertyId).push(scenario);
+      save();
+      return withNextRun(propertyId, scenario);
+    },
+    async updateScenario(propertyId, scenarioId, input) {
+      const scenarios = scenariosOf(propertyId);
+      const index = scenarios.findIndex((item) => item.id === scenarioId);
+      if (index < 0) throw new GatewayError("not_found");
+      scenarios[index] = scenarioFrom(propertyId, input, scenarioId, scenarios[index].lastRun);
+      save();
+      return withNextRun(propertyId, scenarios[index]);
+    },
+    async setScenarioEnabled(propertyId, scenarioId, enabled) {
+      const scenario = findScenario(propertyId, scenarioId);
+      scenario.enabled = enabled;
+      save();
+      return withNextRun(propertyId, scenario);
+    },
+    async deleteScenario(propertyId, scenarioId) {
+      findScenario(propertyId, scenarioId);
+      data.scenarios![propertyId] = scenariosOf(propertyId).filter((item) => item.id !== scenarioId);
+      save();
+    },
+    async runScenario(propertyId, scenarioId) {
+      const scenario = findScenario(propertyId, scenarioId);
+      if (scenario.kind !== "themed") throw new GatewayError("conflict");
+      const commandIds: string[] = [];
+      for (const action of scenario.actions) {
+        try {
+          commandIds.push((await this.sendCommand(propertyId, { ...action, idempotencyKey: crypto.randomUUID() })).id);
+        } catch {
+          // Like the hub: an action that cannot be carried out does not stop the others.
+        }
+      }
+      scenario.lastRun = { id: newId("run"), trigger: "manual", status: "started", scheduledFor: null, createdAt: new Date().toISOString() };
+      save();
+      return { run: clone(scenario.lastRun), commandIds };
+    },
+
     // The demo has no account: its preferences stay in this browser.
     async getSettings() {
       try {
@@ -200,6 +299,8 @@ export function createDemoGateway(userId: string): HomeGateway {
     },
     async removeDemoDevice(propertyId, deviceId) {
       data.devices[propertyId] = (data.devices[propertyId] ?? []).filter((device) => device.id !== deviceId);
+      // Like the database: actions on a removed device go with it.
+      for (const scenario of scenariosOf(propertyId)) scenario.actions = scenario.actions.filter((action) => action.deviceId !== deviceId);
       save();
     },
   };

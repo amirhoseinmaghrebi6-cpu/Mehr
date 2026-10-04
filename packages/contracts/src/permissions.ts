@@ -18,15 +18,19 @@ export const propertyActions = [
   "room.edit",
   /** Rename a device or move it to another room. Pin assignments are never editable. */
   "device.edit",
+  /** Create, change, switch off and delete scenarios. */
+  "scenario.edit",
+  /** Run a themed scenario by a tap. */
+  "scenario.run",
   /** Delete the home with everything in it. */
   "property.delete",
 ] as const;
 export type PropertyAction = (typeof propertyActions)[number];
 
 export const rolePermissions: Readonly<Record<PropertyRole, readonly PropertyAction[]>> = {
-  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "property.delete"],
-  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit"],
-  member: ["property.view", "device.control"],
+  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "property.delete"],
+  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run"],
+  member: ["property.view", "device.control", "scenario.run"],
 };
 
 export function isPropertyRole(value: unknown): value is PropertyRole {

@@ -16,11 +16,17 @@
  *
  * Wall-switch presses and sensor changes, which reach the cloud as reports without a command,
  * are simulated with reportDeviceState (POST /internal/dev/report, dev only).
+ *
+ * It is also the scenario runner of those homes (scenarios/run.ts), as the real hub will be: it
+ * checks every few seconds for scheduled scenarios that are due. Like a real ESP32, each device
+ * carries out its commands one after another in order (a scenario that switches a camera on and
+ * then starts recording works).
  */
 import { capabilityValueError, type CapabilityValue } from "@m2smart/contracts";
 import type { Pool } from "pg";
 import { withSystemTx, type TxClient } from "../db/tx";
 import { definitionFromRow } from "../http/devices";
+import { runDueScenarios } from "../scenarios/run";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
@@ -63,13 +69,15 @@ export async function claimPendingCommands(pool: Pool, boardPrefix = SIMULATED_B
            join public.controllers as board on board.id = device.controller_id
            where command.status = 'pending' and command.expires_at > now()
              and starts_with(board.hardware_uid, $2)
-           order by command.created_at
+           order by command.created_at, command.idempotency_key
            limit $1
            for update of command skip locked
          )
-         returning id, property_id, device_id, capability, target_value
+         returning id, property_id, device_id, capability, target_value, created_at, idempotency_key
        )
-       select claimed.*, device.device_type from claimed join public.devices as device on device.id = claimed.device_id`,
+       select claimed.id, claimed.property_id, claimed.device_id, claimed.capability, claimed.target_value, device.device_type
+       from claimed join public.devices as device on device.id = claimed.device_id
+       order by claimed.created_at, claimed.idempotency_key`,
       [limit, boardPrefix],
     );
     return rows;
@@ -146,7 +154,15 @@ export type HubSimulator = { stop: () => void };
 export function startHubSimulator(
   pool: Pool,
   log: Log,
-  options: { pollMs?: number; delays?: Record<string, number>; defaultDelayMs?: number; networkDelayMs?: [number, number]; boardPrefix?: string } = {},
+  options: {
+    pollMs?: number;
+    delays?: Record<string, number>;
+    defaultDelayMs?: number;
+    networkDelayMs?: [number, number];
+    boardPrefix?: string;
+    /** How often due scenarios are checked; 0 switches the scenario runner off. */
+    scenarioPollMs?: number;
+  } = {},
 ): HubSimulator {
   const [networkMin, networkMax] = options.networkDelayMs ?? NETWORK_DELAY_MS;
   const networkDelay = () => networkMin + Math.random() * (networkMax - networkMin);
@@ -155,13 +171,17 @@ export function startHubSimulator(
   const delays = options.delays ?? CONFIRM_DELAY_MS;
   const defaultDelay = options.defaultDelayMs ?? DEFAULT_CONFIRM_DELAY_MS;
   const timers = new Set<NodeJS.Timeout>();
-  const later = (ms: number, run: () => void) => {
-    const timer = setTimeout(() => {
-      timers.delete(timer);
-      if (!stopped) run();
-    }, ms);
-    timers.add(timer);
-  };
+  const wait = (ms: number) =>
+    new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        if (stopped) reject(new Error("stopped"));
+        else resolve();
+      }, ms);
+      timers.add(timer);
+    });
+  /** Per device, the end of its queue of commands. */
+  const queues = new Map<string, Promise<void>>();
   let polling = false;
   let stopped = false;
 
@@ -171,11 +191,20 @@ export function startHubSimulator(
     try {
       for (const command of await claimPendingCommands(pool, boardPrefix)) {
         const fail = (error: Error) => log.error({ err: { message: error.message }, commandId: command.id }, "Dev hub simulator: command failed");
-        // Network to the ESP32, which starts the hardware ...
-        later(networkDelay(), () => {
-          acknowledgeCommand(pool, command.id).catch(fail);
+        const carryOut = async () => {
+          // Network to the ESP32, which starts the hardware ...
+          await wait(networkDelay());
+          await acknowledgeCommand(pool, command.id);
           // ... the hardware's own time, then the report travels back.
-          later((delays[command.device_type ?? ""] ?? defaultDelay) + networkDelay(), () => void confirmCommand(pool, command).catch(fail));
+          await wait((delays[command.device_type ?? ""] ?? defaultDelay) + networkDelay());
+          await confirmCommand(pool, command);
+        };
+        const queued = (queues.get(command.device_id) ?? Promise.resolve()).then(carryOut).catch((error: Error) => {
+          if (!stopped) fail(error);
+        });
+        queues.set(command.device_id, queued);
+        void queued.then(() => {
+          if (queues.get(command.device_id) === queued) queues.delete(command.device_id);
         });
       }
     } catch (error) {
@@ -196,12 +225,31 @@ export function startHubSimulator(
 
   const interval = setInterval(() => void poll(), pollMs);
   interval.unref();
-  log.info({ pollMs }, "Dev hub simulator started: commands are confirmed by simulated ESP32 boards");
+
+  const scenarioPollMs = options.scenarioPollMs ?? 5_000;
+  let checkingScenarios = false;
+  const checkScenarios = async () => {
+    if (checkingScenarios || stopped) return;
+    checkingScenarios = true;
+    try {
+      for (const outcome of await runDueScenarios(pool, { boardPrefix })) {
+        log.info({ scenarioId: outcome.scenarioId, scheduledFor: outcome.scheduledFor.toISOString(), status: outcome.status, commands: outcome.commandIds.length }, "Dev hub simulator: scenario");
+      }
+    } catch (error) {
+      log.error({ err: { message: (error as Error).message } }, "Dev hub simulator: scenario check failed");
+    } finally {
+      checkingScenarios = false;
+    }
+  };
+  const scenarioInterval = scenarioPollMs > 0 ? setInterval(() => void checkScenarios(), scenarioPollMs) : null;
+  scenarioInterval?.unref();
+  log.info({ pollMs, scenarioPollMs }, "Dev hub simulator started: commands are confirmed by simulated ESP32 boards, scenarios run on schedule");
 
   return {
     stop() {
       stopped = true;
       clearInterval(interval);
+      if (scenarioInterval) clearInterval(scenarioInterval);
       for (const timer of timers) clearTimeout(timer);
       timers.clear();
     },

@@ -12,8 +12,6 @@ import {
   CircleCheck,
   Clock3,
   CloudSun,
-  DoorOpen,
-  Film,
   Hourglass,
   House,
   Leaf,
@@ -29,24 +27,24 @@ import {
   Thermometer,
   Trash2,
   TriangleAlert,
-  Utensils,
   Wifi,
   Zap,
 } from "lucide-react";
-import { calendars, defaultTimeZone, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room } from "@m2smart/contracts";
+import { calendars, defaultTimeZone, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
+import { ScenarioList, ScenarioQuickList } from "@/features/scenarios/scenarios";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
 import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
+import type { HomeSnapshot } from "@/services/mock-home-service";
 
 /** A home's time zone (homes saved by older demo sessions have none: Tehran). */
 export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
-import type { HomeSnapshot } from "@/services/mock-home-service";
 
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "automations" | "energy" | "security" | "cameras" | "notifications" | "settings";
 
 /** Sections that only have sample data so far; real users see "coming soon" there. */
-const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["scenes", "automations", "energy", "security", "cameras"]);
+const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["automations", "energy", "security", "cameras"]);
 
 type Props = {
   section: DashboardSection;
@@ -59,13 +57,19 @@ type Props = {
   nameOf: (name: string) => string;
   valueOf: (device: Device, capability: CapabilityName) => CapabilityValue | null;
   activityOf: (device: Device) => "sending" | "working" | null;
-  /** Sample scenes, routines and energy, for the demo only. */
+  /** Sample routines and energy, for the demo only. */
   demo: HomeSnapshot | null;
-  activeScene: string | null;
+  /** The home's scenarios (null while loading). */
+  scenarios: Scenario[] | null;
+  canEditScenarios: boolean;
+  /** The scenario whose run is being started. */
+  runningScenario: string | null;
   query: string;
   onOpenDevice: (device: Device) => void;
   onQuickAction: (device: Device) => void;
-  onActivateScene: (id: string) => void;
+  onRunScenario: (scenario: Scenario) => void;
+  onEditScenario: (scenario: Scenario | "new") => void;
+  onToggleScenario: (scenario: Scenario, enabled: boolean) => void;
   onNavigate: (section: DashboardSection) => void;
   onClearSearch: () => void;
   onAddRoom: () => void;
@@ -73,8 +77,6 @@ type Props = {
   onAddDevice: () => void;
   onRemoveDevice?: (device: Device) => void;
 };
-
-const sceneIcons = { sunrise: Sunrise, film: Film, utensils: Utensils, door: DoorOpen } as const;
 
 function greeting(m: Messages): string {
   const hour = new Date().getHours();
@@ -116,6 +118,7 @@ export function DashboardView(props: Props) {
         <div className="heading-tools">
           {section === "rooms" && props.canEditRooms && <button type="button" className="workspace-quick-add" onClick={props.onAddRoom}><Plus size={15} />{m.dashboard.addSpace}</button>}
           {section === "devices" && <button type="button" className="workspace-quick-add" onClick={props.onAddDevice}><Plus size={15} />{m.dashboard.addDevice}</button>}
+          {section === "scenes" && props.canEditScenarios && Boolean(props.scenarios?.length) && <button type="button" className="workspace-quick-add" onClick={() => props.onEditScenario("new")}><Plus size={15} />{m.scenarios.newScenario}</button>}
         </div>
       </header>
 
@@ -135,7 +138,7 @@ export function DashboardView(props: Props) {
 }
 
 function Overview(props: Props) {
-  const { property, displayName, devices, rooms, demo, activeScene, nameOf, onNavigate, onActivateScene } = props;
+  const { property, displayName, devices, rooms, scenarios, runningScenario, nameOf, onNavigate, onRunScenario } = props;
   const { locale, m, rtl, calendar, temperatureUnit } = useI18n();
   const d = m.dashboard;
   const arrow = rtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />;
@@ -189,31 +192,7 @@ function Overview(props: Props) {
       </section>
 
       <div className="overview-lower-grid">
-        {demo ? (
-          <section className="surface-panel scenes-panel">
-            <SectionHeading title={d.scenesTitle} detail={d.scenesSubtitle} action={d.viewAll} onAction={() => onNavigate("scenes")} arrow={arrow} />
-            <div className="scene-list">
-              {demo.scenes.map((scene) => {
-                const Icon = sceneIcons[scene.icon as keyof typeof sceneIcons];
-                const selected = activeScene === scene.id;
-                const [name, detail] = m.demo.scenes[scene.id] ?? [scene.name, scene.detail];
-                return (
-                  <button className={`scene-row${selected ? " scene-selected" : ""}`} key={scene.id} type="button" onClick={() => onActivateScene(scene.id)} aria-pressed={selected}>
-                    <span className={`scene-icon scene-icon-${scene.id}`}><Icon size={17} strokeWidth={1.8} /></span>
-                    <span className="scene-copy"><strong>{name}</strong><small>{detail}</small></span>
-                    <span className="scene-trigger">{selected ? <CircleCheck size={19} /> : <ChevronRight size={17} />}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : (
-          <section className="surface-panel scenes-panel coming-soon-panel">
-            <span className="quiet-icon"><Sunrise size={22} strokeWidth={1.6} /></span>
-            <h3>{d.scenesSoonTitle}</h3>
-            <p>{d.scenesSoonText}</p>
-          </section>
-        )}
+        <ScenarioQuickList scenarios={scenarios} running={runningScenario} nameOf={nameOf} onRun={onRunScenario} onOpen={() => onNavigate("scenes")} title={d.scenesTitle} detail={d.scenesSubtitle} action={d.viewAll} arrow={arrow} />
 
         <section className="surface-panel devices-panel">
           <SectionHeading title={d.devicesTitle} detail={d.devicesSubtitle} action={d.allDevices} onAction={() => onNavigate("devices")} arrow={arrow} />
@@ -312,7 +291,7 @@ function DeviceCollection(props: Props & { roomName: (device: Device) => string;
 }
 
 function SectionContent(props: Props & { roomName: (device: Device) => string }) {
-  const { section, rooms, demo, activeScene, onActivateScene, onNavigate } = props;
+  const { section, rooms, demo, onNavigate } = props;
   const { m } = useI18n();
 
   if (section === "rooms") {
@@ -325,16 +304,23 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
   if (section === "settings") return <SettingsSection demo={Boolean(demo)} property={props.property} />;
-  if (!demo) return <ComingSoon section={section} />;
-
   if (section === "scenes") {
-    return <section className="collection-section"><div className="scene-card-grid">{demo.scenes.map((scene) => {
-      const Icon = sceneIcons[scene.icon as keyof typeof sceneIcons];
-      const selected = activeScene === scene.id;
-      const [name, detail] = m.demo.scenes[scene.id] ?? [scene.name, scene.detail];
-      return <button className={`large-scene-card${selected ? " scene-selected" : ""}`} type="button" onClick={() => onActivateScene(scene.id)} key={scene.id} aria-pressed={selected}><span className={`large-scene-icon scene-icon-${scene.id}`}><Icon size={22} /></span><strong>{name}</strong><span>{detail}</span><span className="large-scene-action">{selected ? <CircleCheck size={20} /> : <ChevronRight size={19} />}</span></button>;
-    })}</div></section>;
+    return (
+      <ScenarioList
+        property={props.property}
+        timeZone={homeTimeZone(props.property)}
+        scenarios={props.scenarios}
+        canEdit={props.canEditScenarios}
+        demo={Boolean(demo)}
+        running={props.runningScenario}
+        nameOf={props.nameOf}
+        onRun={props.onRunScenario}
+        onEdit={props.onEditScenario}
+        onToggle={props.onToggleScenario}
+      />
+    );
   }
+  if (!demo) return <ComingSoon section={section} />;
   if (section === "automations") return <AutomationSection snapshot={demo} />;
   if (section === "energy") return <EnergySection snapshot={demo} />;
   if (section === "security") return <SecuritySection onNavigate={onNavigate} />;

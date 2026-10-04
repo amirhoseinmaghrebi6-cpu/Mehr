@@ -32,8 +32,9 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
+import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type Scenario, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
 import { DashboardView, homeTimeZone, type DashboardSection } from "@/features/dashboard/dashboard-view";
+import { ScenarioEditorDialog } from "@/features/scenarios/scenarios";
 import { DeviceSheet } from "@/components/device-sheet";
 import { useI18n } from "@/components/i18n-provider";
 import { LanguageMenu } from "@/components/language-menu";
@@ -46,7 +47,9 @@ import { createApiGateway } from "@/services/api-gateway";
 import { createDemoGateway } from "@/services/demo-gateway";
 import { demoName } from "@/services/demo-home";
 import { getMockHomeSnapshot } from "@/services/mock-home-service";
+import { GatewayError } from "@/services/home-gateway";
 import { useHomeData, type CommandOutcome } from "@/services/use-home-data";
+import { useScenarios } from "@/services/use-scenarios";
 
 type Theme = "light" | "dark";
 
@@ -94,7 +97,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [addDeviceOpen, setAddDeviceOpen] = useState(false);
   const [pendingRemoveDevice, setPendingRemoveDevice] = useState<Device | null>(null);
-  const [activeScene, setActiveScene] = useState<string | null>(null);
+  const [scenarioEditor, setScenarioEditor] = useState<Scenario | "new" | null>(null);
+  const [runningScenario, setRunningScenario] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const nameOf = useCallback((name: string) => (demoMode ? demoName(name, locale) : name), [demoMode, locale]);
@@ -170,6 +174,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   const canEditRooms = property ? can(property.role, "room.edit") : false;
   const canEditDevices = property ? can(property.role, "device.edit") : false;
   const canControl = property ? can(property.role, "device.control") : false;
+  const canEditScenarios = property ? can(property.role, "scenario.edit") : false;
+  const scenarioData = useScenarios(gateway, propertyId);
 
   // Remember each dimmer's last brightness, so switching it back on restores it.
   const lastBrightness = useRef<Record<string, number>>({});
@@ -262,29 +268,41 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
 
   const changeProperty = (nextPropertyId: string) => {
     setSection("overview");
-    setActiveScene(null);
     router.push(`/homes/${nextPropertyId}`, { scroll: false });
   };
 
-  // Demo scenes run as ordinary commands, so they behave like real devices would.
-  const activateScene = (id: string) => {
-    if (activeScene === id) {
-      setActiveScene(null);
-      return;
+  // A themed scenario runs as ordinary commands (one per action), followed like any other.
+  const runScenario = async (scenario: Scenario) => {
+    if (!propertyId || runningScenario) return;
+    setRunningScenario(scenario.id);
+    try {
+      const { commandIds } = await gateway.runScenario(propertyId, scenario.id);
+      if (commandIds.length === scenario.actions.length) {
+        commandIds.forEach((commandId, index) => {
+          const action = scenario.actions[index];
+          const device = devices.find((item) => item.id === action.deviceId);
+          if (device) home.followCommand(device, action.capability, action.targetValue, commandId);
+        });
+      } else {
+        window.setTimeout(() => void home.refreshDevices(), 3_000);
+      }
+      showToast(m.scenarios.toasts.running(nameOf(scenario.name)));
+      void scenarioData.refresh();
+    } catch (error) {
+      showToast(gatewayMessage(error instanceof GatewayError ? error.code : "network", locale), "warn");
+    } finally {
+      window.setTimeout(() => setRunningScenario(null), 1_500);
     }
-    const targets: Array<[Device, CapabilityName, CapabilityValue]> = [];
-    for (const device of devices) {
-      if (id === "morning" && device.type === "dimmer") targets.push([device, "brightness", 80]);
-      if (id === "morning" && device.type === "curtain") targets.push([device, "curtain", "open"]);
-      if (id === "movie" && device.type === "dimmer") targets.push([device, "brightness", 15]);
-      if (id === "movie" && device.type === "curtain") targets.push([device, "curtain", "closed"]);
-      if (id === "dinner" && device.type === "dimmer") targets.push([device, "brightness", 60]);
-      if (id === "away" && (device.type === "switch" || device.type === "socket")) targets.push([device, "power", false]);
-      if (id === "away" && device.type === "dimmer") targets.push([device, "brightness", 0]);
+  };
+
+  const toggleScenario = async (scenario: Scenario, enabled: boolean) => {
+    if (!propertyId) return;
+    try {
+      scenarioData.upsert(await gateway.setScenarioEnabled(propertyId, scenario.id, enabled));
+      showToast(enabled ? m.scenarios.toasts.enabled(nameOf(scenario.name)) : m.scenarios.toasts.disabled(nameOf(scenario.name)));
+    } catch (error) {
+      showToast(gatewayMessage(error instanceof GatewayError ? error.code : "network", locale), "warn");
     }
-    for (const [device, capability, target] of targets) void home.sendCommand(device, capability, target);
-    setActiveScene(id);
-    showToast(m.shell.toasts.sceneRunning);
   };
 
   const toggleTheme = () => setTheme((current) => (current === "light" ? "dark" : "light"));
@@ -363,13 +381,17 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
               canEditRooms={canEditRooms}
               nameOf={nameOf}
               demo={demoSnapshot}
-              activeScene={activeScene}
+              scenarios={scenarioData.scenarios}
+              canEditScenarios={canEditScenarios}
+              runningScenario={runningScenario}
               query={search}
               valueOf={home.valueOf}
               activityOf={home.activityOf}
               onOpenDevice={(device) => setActiveDeviceId(device.id)}
               onQuickAction={quickAction}
-              onActivateScene={activateScene}
+              onRunScenario={(scenario) => void runScenario(scenario)}
+              onEditScenario={setScenarioEditor}
+              onToggleScenario={(scenario, enabled) => void toggleScenario(scenario, enabled)}
               onNavigate={navigate}
               onClearSearch={() => setSearch("")}
               onAddRoom={() => setRoomEditor("new")}
@@ -498,6 +520,28 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         }}
       />}
 
+      {scenarioEditor && property && <ScenarioEditorDialog
+        scenario={scenarioEditor === "new" ? null : scenarioEditor}
+        property={property}
+        timeZone={homeTimeZone(property)}
+        devices={devices}
+        nameOf={nameOf}
+        onClose={() => setScenarioEditor(null)}
+        onSave={async (input) => {
+          const saved = scenarioEditor === "new" ? await gateway.createScenario(property.id, input) : await gateway.updateScenario(property.id, scenarioEditor.id, input);
+          scenarioData.upsert(saved);
+          setScenarioEditor(null);
+          showToast(m.scenarios.toasts.saved);
+        }}
+        onDelete={async () => {
+          if (scenarioEditor === "new") return;
+          await gateway.deleteScenario(property.id, scenarioEditor.id);
+          scenarioData.remove(scenarioEditor.id);
+          setScenarioEditor(null);
+          showToast(m.scenarios.toasts.removed);
+        }}
+      />}
+
       {addDeviceOpen && propertyId && <AddDeviceDialog
         rooms={rooms}
         nameOf={nameOf}
@@ -517,7 +561,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
           <span className="panel-overline">{m.shell.removeDevice.overline}</span>
           <h2 id="remove-device-title">{m.shell.removeDevice.title(nameOf(pendingRemoveDevice.name))}</h2>
           <p>{typeLabel(pendingRemoveDevice.type, locale)}</p>
-          <div className="dialog-actions"><button type="button" className="button-subtle" onClick={() => setPendingRemoveDevice(null)}>{m.common.cancel}</button><button type="button" className="button-danger" onClick={() => { const device = pendingRemoveDevice; setPendingRemoveDevice(null); void gateway.removeDemoDevice?.(propertyId, device.id).then(() => home.setDevices((current) => current.filter((item) => item.id !== device.id))); }}><Lightbulb size={15} />{m.shell.removeDevice.action}</button></div>
+          <div className="dialog-actions"><button type="button" className="button-subtle" onClick={() => setPendingRemoveDevice(null)}>{m.common.cancel}</button><button type="button" className="button-danger" onClick={() => { const device = pendingRemoveDevice; setPendingRemoveDevice(null); void gateway.removeDemoDevice?.(propertyId, device.id).then(() => { home.setDevices((current) => current.filter((item) => item.id !== device.id)); void scenarioData.refresh(); }); }}><Lightbulb size={15} />{m.shell.removeDevice.action}</button></div>
         </section>
       </div>}
 

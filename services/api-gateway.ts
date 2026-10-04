@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ApiErrorResponse, Command, CommandStatus, Device, Property, Room, UserSettings } from "@m2smart/contracts";
+import type { ApiErrorResponse, Command, CommandStatus, Device, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -23,7 +23,7 @@ const errorCodes: Record<ApiErrorResponse["error"], GatewayErrorCode> = {
   internal_error: "unavailable",
 };
 
-async function request<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
+async function request<T>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response: Response;
@@ -78,6 +78,14 @@ export function createApiGateway(): HomeGateway {
       }
     },
     getCommand: (id, commandId) => request<Command>("GET", `/properties/${id}/commands/${commandId}`),
+
+    listScenarios: async (id) => (await request<{ scenarios: Scenario[] }>("GET", `/properties/${id}/scenarios`)).scenarios,
+    createScenario: (id, input) => request<Scenario>("POST", `/properties/${id}/scenarios`, input),
+    updateScenario: (id, scenarioId, input) => request<Scenario>("PUT", `/properties/${id}/scenarios/${scenarioId}`, input),
+    setScenarioEnabled: (id, scenarioId, enabled) => request<Scenario>("PATCH", `/properties/${id}/scenarios/${scenarioId}`, { enabled }),
+    deleteScenario: (id, scenarioId) => request<void>("DELETE", `/properties/${id}/scenarios/${scenarioId}`),
+    // Not retried: a lost reply could otherwise run the scenario twice.
+    runScenario: (id, scenarioId) => request<ScenarioRunResponse>("POST", `/properties/${id}/scenarios/${scenarioId}/run`),
 
     getSettings: () => request<UserSettings>("GET", "/me/settings"),
     updateSettings: (input) => request<UserSettings>("PATCH", "/me/settings", input),
