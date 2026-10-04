@@ -350,7 +350,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .quiet-icon { display: grid; width: 49px; height: 49px; place-items: center; border: 1px solid var(--positive-soft); border-radius: 50%; background: var(--positive-soft); color: var(--positive); }
 .quiet-panel h2 { margin-top: 16px; }
 .quiet-meta { display: flex; align-items: center; gap: 6px; margin-top: 16px; color: var(--muted); font-size: 9px; }
-.settings-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(220px, .65fr); align-items: start; gap: 14px; }
+.settings-layout { display: grid; max-width: 860px; }
 .settings-list { padding: 4px 17px; }
 .settings-row { display: flex; width: 100%; min-height: 66px; align-items: center; gap: 12px; border: 0; border-top: 1px solid var(--line); background: transparent; cursor: pointer; text-align: start; }
 .settings-row:first-child { border-top: 0; }
@@ -360,11 +360,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .settings-copy strong { font-size: 10px; font-weight: 600; }
 .settings-copy small { color: var(--muted); font-size: 9px; }
 .settings-row > svg:last-child { color: var(--muted); }
-.settings-aside { display: flex; min-height: 190px; flex-direction: column; align-items: flex-start; padding: 20px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
-.small-mark { width: 34px; height: 34px; margin-bottom: auto; }
-.settings-aside .panel-overline { margin-top: 19px; }
-.settings-aside > strong { margin-top: 6px; font-family: var(--font-display); font-size: 15px; font-weight: 600; }
-.settings-aside > small { margin-top: 5px; color: var(--muted); font-size: 9px; }
 
 .mobile-nav, .mobile-more-menu { display: none; }
 .modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(14 20 15 / 43%); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
@@ -609,7 +604,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .welcome-status strong { font-size: 8px; }
   .welcome-status small { font-size: 7px; }
   .welcome-coordinates { inset-inline-end: 10px; top: 10px; font-size: 7px; }
-  .metric-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; padding: 12px 0; }
+  .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 10px; padding: 12px 0; }
   .metric-item { min-height: 62px; flex-direction: column; align-items: flex-start; gap: 6px; padding-inline: 11px; }
   .metric-item + .metric-item { border-inline-start: 1px solid var(--line); }
   .metric-symbol { width: 25px; height: 25px; flex-basis: 25px; border-radius: 6px; }
@@ -669,7 +664,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .camera-status-card > span:last-child { grid-column: 2; margin-top: 5px; }
   .quiet-panel { min-height: 245px; padding: 48px 18px; }
   .quiet-panel h2 { font-size: 16px; }
-  .settings-aside { min-height: 158px; }
   .search-empty { margin-top: 30px; }
   .empty-state { padding: 50px 18px; }
   .toast-message { inset-inline: 14px; justify-content: flex-start; bottom: calc(77px + env(safe-area-inset-bottom)); max-width: none; }

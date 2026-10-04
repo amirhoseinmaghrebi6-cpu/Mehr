@@ -163,8 +163,6 @@ export const ar: Messages = {
     allCaughtUp: "أنت على اطّلاع بكل شيء",
     comingSoonTitle: "قريبًا",
     comingSoonText: "يصل هذا القسم في إصدار قادم، مبنيًا على بيانات منزلك الحقيقية. يعرض حساب التجربة لمحة عنه.",
-    settingsAside: "منزل يشبهك أكثر.",
-    version: "الإصدار ١٫٠ · محدَّث",
   },
 
   demo: {

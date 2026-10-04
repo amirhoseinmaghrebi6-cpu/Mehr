@@ -163,8 +163,6 @@ export const fa: Messages = {
     allCaughtUp: "همه‌چیز به‌روز است",
     comingSoonTitle: "به‌زودی",
     comingSoonText: "این بخش در نسخه‌های بعدی با اطلاعات واقعی خانه‌ی شما فعال می‌شود. حساب دمو نمونه‌ای از آن را نشان می‌دهد.",
-    settingsAside: "خانه‌ای برای زندگی.",
-    version: "نسخه‌ی ۱٫۰ · به‌روز",
   },
 
   demo: {

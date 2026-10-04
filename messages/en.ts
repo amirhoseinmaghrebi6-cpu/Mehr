@@ -165,8 +165,6 @@ export const en = {
     allCaughtUp: "You’re all caught up",
     comingSoonTitle: "Coming soon",
     comingSoonText: "This part arrives in a coming release, built on your home’s real data. The demo account shows a preview.",
-    settingsAside: "A little more at home.",
-    version: "Version 1.0 · Up to date",
   },
 
   /** Sample content shown only in the demo account. */

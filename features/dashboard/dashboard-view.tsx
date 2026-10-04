@@ -395,7 +395,6 @@ function SettingsSection({ demo, property }: { demo: boolean; property: Property
         <p className="form-note">{t.timeNote}</p>
         <p className="form-note">{t.moreSoon}</p>
       </div>
-      <aside className="settings-aside"><span className="m2-mark small-mark">M2</span><span className="panel-overline">M2SMART HOME</span><strong>{m.dashboard.settingsAside}</strong><small>{m.dashboard.version}</small></aside>
     </section>
   );
 }
