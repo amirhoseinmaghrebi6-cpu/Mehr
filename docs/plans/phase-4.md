@@ -1,6 +1,6 @@
 # Phase 4 plan: boards connect straight to the cloud (no hub)
 
-Status: approved 2026-10-04. Steps 4A–4E are implemented; 4F (exit) is not yet.
+Status: approved 2026-10-04; implemented (4A–4F, closed 2026-10-04).
 
 **Goal:** a real ESP32 board can join a home, receive commands and report its state through our own servers in Iran, with no hub in the home. Scheduled scenarios run on the server. The firmware itself comes in Phases 6–7; this phase builds the server side and the contract the firmware will follow, tested with a simulated board that speaks the real protocol.
 
@@ -137,3 +137,34 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 4. **New dependencies, both bundled with our own code and never calling a foreign service:**
    - the `mqtt` npm package in the API (talks only to our own broker);
    - a small QR-reading library in the web app, to read the uploaded image.
+
+## Exit (2026-10-04)
+
+**Done:**
+- **4A:** the decisions, the board protocol (document and shared code), the registry of manufactured boards, pending pairings, validity windows and daily energy totals in the database.
+- **4B:** one broker account and one role per board, limited to that board's topics; online and offline status from the broker.
+- **4C:** commands and reports over MQTT; simulated boards that are real broker clients; daily energy totals; the cleanup job.
+- **4D:** scenarios run on the server, with a validity window per scenario; only the latest run is kept; one-time scenarios are deleted when over.
+- **4E:** pairing by the board's own QR code and factory reset that leaves nothing behind; the "Add a device" screens, also in the demo with three sample boards.
+
+**Differences from the plan:**
+- Mosquitto 2.0 cannot limit publishing by username pattern, so each board has its own role that names its topics. The effect is the same.
+- "Never run late" still allows 60 seconds, because the scheduler checks every 5 seconds and is always a little behind.
+- A command that expired before the board answered stays timed out, but the state the board reported is stored, because that is what the hardware really did.
+
+**Verified:**
+- **On a clean copy with an empty database:** migrations, SQL tests, seed, API and contract tests, typecheck, lint and builds.
+- **On the dev stack:** the browser flows:
+  - sign-in, homes, devices and deadlines, languages, settings, time zones;
+  - scenarios, with a real scheduled run by the server;
+  - pairing with an uploaded QR code, then a real command to the new board;
+  - pairing in the demo.
+- **With every foreign host unreachable:** all screens in the three languages load with no request abroad and no failed request.
+
+**Carried over:**
+- **Firmware (Phases 6–7):** the ESP32 side of `docs/board-protocol.md`, including the board's setup page and its QR code.
+- **Factory tooling:** writing real boards into the registry of manufactured boards (today only dev and test boards are written).
+- **Production broker:** TLS with our own certificate authority, and a per-address rate limit on the board routes at the reverse proxy.
+- **Removing a board from the app:** today a board leaves a home only by a factory reset or by pairing with another home.
+- **Many API processes:** use MQTT shared subscriptions so each message is handled once (today every process handles it; that is harmless but wasteful).
+- **Not started:** realtime push to open apps, the energy chart screen, the real SMS provider, member invitations.
