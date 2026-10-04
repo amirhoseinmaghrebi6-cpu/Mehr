@@ -4,14 +4,14 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Droplets, LoaderCircle, Pencil, Power, Video, X } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
+import { useI18n } from "@/components/i18n-provider";
+import { capabilityLabel, deviceTypeInfo, formatNumber, typeLabel, valueLabel } from "@/lib/device-ui";
 import type { Locale } from "@/lib/i18n";
-import { capabilityLabels, deviceTypeInfo, formatNumber, text, valueLabel } from "@/lib/device-ui";
 
 type Props = {
   device: Device;
   name: string;
   roomName: string;
-  locale: Locale;
   valueOf: (capability: CapabilityName) => CapabilityValue | null;
   activity: "sending" | "working" | null;
   /** Seconds the hardware may take (a door or a shutter), for the "in progress" note. */
@@ -22,8 +22,8 @@ type Props = {
   onClose: () => void;
 };
 
-export function DeviceSheet({ device, name, roomName, locale, valueOf, activity, slowHardware, canEdit, onCommand, onEdit, onClose }: Props) {
-  const isRtl = locale === "fa";
+export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHardware, canEdit, onCommand, onEdit, onClose }: Props) {
+  const { locale, m, rtl } = useI18n();
   const info = deviceTypeInfo[device.type];
   const Icon = info.icon;
   const writable = device.capabilities.filter((state) => state.writable);
@@ -36,18 +36,18 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
         role="dialog"
         aria-modal="true"
         aria-labelledby="device-sheet-title"
-        dir={isRtl ? "rtl" : "ltr"}
+        dir={rtl ? "rtl" : "ltr"}
         initial={{ opacity: 0, y: 15, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.99 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="sheet-grab-handle" />
-        <button type="button" className="dialog-close" onClick={onClose} aria-label={isRtl ? "بستن پنل" : "Close controls"} autoFocus><X size={18} /></button>
+        <button type="button" className="dialog-close" onClick={onClose} aria-label={m.sheet.closeControls} autoFocus><X size={18} /></button>
         <div className="device-sheet-heading">
           <span className={`device-sheet-icon device-icon-${info.tone}`}><Icon size={20} strokeWidth={1.7} /></span>
-          <span><span className="panel-overline">{roomName || text(info, locale)}</span><h2 id="device-sheet-title">{name}</h2></span>
-          <span className={`sheet-connection${device.online ? "" : " is-disconnected"}`}><span />{device.online ? (isRtl ? "متصل" : "Online") : (isRtl ? "آفلاین" : "Offline")}</span>
+          <span><span className="panel-overline">{roomName || typeLabel(device.type, locale)}</span><h2 id="device-sheet-title">{name}</h2></span>
+          <span className={`sheet-connection${device.online ? "" : " is-disconnected"}`}><span />{device.online ? m.common.online : m.common.offline}</span>
         </div>
 
         {writable.map((state) => {
@@ -60,17 +60,17 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
               value={valueOf(state.capability)}
               locale={locale}
               disabled={!device.online || needsPower}
-              note={needsPower ? (isRtl ? "برای ضبط، اول دوربین را روشن کنید." : "Turn the camera on to record.") : undefined}
+              note={needsPower ? m.sheet.cameraOffNote : undefined}
               onChange={(value) => onCommand(state.capability, value)}
             />
           );
         })}
 
         {readOnly.length > 0 && (
-          <section className="capability-readings" aria-label={isRtl ? "گزارش‌های دستگاه" : "Readings"}>
+          <section className="capability-readings" aria-label={m.sheet.readings}>
             {readOnly.map((state) => (
               <div className="capability-reading" key={state.capability}>
-                <span>{text(capabilityLabels[state.capability], locale)}</span>
+                <span>{capabilityLabel(state.capability, locale)}</span>
                 <strong>{valueLabel(state.capability, valueOf(state.capability), locale)}</strong>
               </div>
             ))}
@@ -80,18 +80,14 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
         {activity && (
           <p className="command-activity" role="status">
             <LoaderCircle size={14} className="device-busy-icon" />
-            {activity === "sending"
-              ? isRtl ? "فرمان در راه خانه است…" : "Sending the command to your home…"
-              : slowHardware
-                ? isRtl ? "دستگاه در حال انجام فرمان است؛ این کار ممکن است چند دقیقه طول بکشد. به‌محض گزارش دستگاه، تأیید می‌شود." : "The device is on it. This can take a few minutes; it is confirmed as soon as the device reports."
-                : isRtl ? "دستگاه فرمان را گرفت و در حال انجام است…" : "The device has it and is carrying it out…"}
+            {activity === "sending" ? m.sheet.sending : slowHardware ? m.sheet.workingSlow : m.sheet.working}
           </p>
         )}
 
         <div className="device-sheet-footer">
           <span className="status-pulse" />
-          {device.online ? (isRtl ? "اتصال امن خانه فعال است" : "Secure home connection") : isRtl ? "اتصال خانه برقرار نیست" : "Home connection unavailable"}
-          {canEdit && <button type="button" className="text-action device-edit-link" onClick={onEdit}><Pencil size={13} />{isRtl ? "نام و فضا" : "Name & space"}</button>}
+          {device.online ? m.sheet.secureConnection : m.sheet.connectionUnavailable}
+          {canEdit && <button type="button" className="text-action device-edit-link" onClick={onEdit}><Pencil size={13} />{m.sheet.nameAndSpace}</button>}
         </div>
       </motion.section>
     </motion.div>
@@ -100,7 +96,7 @@ export function DeviceSheet({ device, name, roomName, locale, valueOf, activity,
 
 function CapabilityControl({ capability, value, locale, disabled, note, onChange }: { capability: CapabilityName; value: CapabilityValue | null; locale: Locale; disabled: boolean; note?: string; onChange: (value: CapabilityValue) => void }) {
   const definition = capabilities[capability];
-  const label = text(capabilityLabels[capability], locale);
+  const label = capabilityLabel(capability, locale);
 
   if (definition.valueType === "boolean") {
     const on = value === true;
@@ -129,21 +125,23 @@ function CapabilityControl({ capability, value, locale, disabled, note, onChange
     );
   }
 
-  return <RangeControl capability={capability} label={label} value={typeof value === "number" ? value : 0} min={"min" in definition ? definition.min ?? 0 : 0} max={"max" in definition ? definition.max ?? 100 : 100} locale={locale} disabled={disabled} onCommit={onChange} />;
+  return <RangeControl capability={capability} label={label} value={typeof value === "number" ? value : 0} min={"min" in definition ? definition.min ?? 0 : 0} max={"max" in definition ? definition.max ?? 100 : 100} disabled={disabled} onCommit={onChange} />;
 }
 
-function RangeControl({ capability, label, value, min, max, locale, disabled, onCommit }: { capability: CapabilityName; label: string; value: number; min: number; max: number; locale: Locale; disabled: boolean; onCommit: (value: number) => void }) {
+function RangeControl({ capability, label, value, min, max, disabled, onCommit }: { capability: CapabilityName; label: string; value: number; min: number; max: number; disabled: boolean; onCommit: (value: number) => void }) {
+  const { locale, m } = useI18n();
   const [draft, setDraft] = useState<number | null>(null);
   const shown = draft ?? value;
   const commit = () => {
     if (draft !== null && draft !== value) onCommit(draft);
     setDraft(null);
   };
+  const percent = capability === "brightness";
   return (
     <section className="range-control">
-      <div className="range-heading"><span className="panel-overline">{label}</span><strong>{formatNumber(shown, locale)}<small>{capability === "brightness" ? "%" : ""}</small></strong></div>
+      <div className="range-heading"><span className="panel-overline">{label}</span><strong>{formatNumber(shown, locale)}<small>{percent ? m.devices.units.percent : ""}</small></strong></div>
       <input aria-label={label} type="range" dir="ltr" min={min} max={max} step={1} value={shown} disabled={disabled} onChange={(event) => setDraft(Number(event.target.value))} onPointerUp={commit} onKeyUp={commit} onBlur={commit} />
-      <div className="range-end-labels"><span>{capability === "brightness" ? (locale === "fa" ? "خاموش" : "Off") : formatNumber(min, locale)}</span><span>{capability === "brightness" ? (locale === "fa" ? "حداکثر" : "Full") : formatNumber(max, locale)}</span></div>
+      <div className="range-end-labels"><span>{percent ? m.sheet.rangeOff : formatNumber(min, locale)}</span><span>{percent ? m.sheet.rangeFull : formatNumber(max, locale)}</span></div>
     </section>
   );
 }

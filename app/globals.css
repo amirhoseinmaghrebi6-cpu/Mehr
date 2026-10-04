@@ -940,3 +940,13 @@ a.auth-submit { text-decoration: none; }
 .button-danger-subtle { display: inline-flex; min-height: 37px; align-items: center; gap: 6px; margin-inline-end: auto; padding: 0 11px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--danger); cursor: pointer; font-size: 10px; font-weight: 600; }
 .button-danger-subtle:hover { border-color: var(--danger); }
 .button-primary:disabled, .button-danger:disabled { opacity: .6; cursor: progress; }
+
+/* Language menu (Persian, English, Arabic). */
+.language-menu { position: relative; }
+.language-menu-list { position: absolute; z-index: 40; inset-inline-end: 0; top: calc(100% + 6px); display: grid; min-width: 150px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-float); }
+.language-menu-list > button { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); cursor: pointer; font-size: 11px; text-align: start; }
+.language-menu-list > button:hover, .language-menu-list > button[aria-checked="true"] { background: var(--surface-soft); }
+.language-menu-list > button > svg { color: var(--accent); }
+.mobile-more-language { padding: 4px 0; }
+.mobile-language-button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 10px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; font-size: 11px; }
+.mobile-more-language .language-menu-list { inset-inline-start: 0; inset-inline-end: auto; top: auto; bottom: calc(100% + 6px); }

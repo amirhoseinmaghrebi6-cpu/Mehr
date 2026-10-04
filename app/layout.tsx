@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
+import { I18nProvider } from "@/components/i18n-provider";
+import { defaultLocale, isLocale, isRtl, LOCALE_COOKIE } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,10 +18,16 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // The language comes from a cookie, so the first render already has the right language and
+  // direction.
+  const stored = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const locale = isLocale(stored) ? stored : defaultLocale;
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} suppressHydrationWarning>
+      <body>
+        <I18nProvider initialLocale={locale}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

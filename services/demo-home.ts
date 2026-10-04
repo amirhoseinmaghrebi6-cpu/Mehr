@@ -3,7 +3,7 @@
  * the database: this data lives in the demo visitor's browser (services/demo-gateway.ts).
  */
 import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type Property, type Room } from "@m2smart/contracts";
-import type { Locale } from "@/lib/i18n";
+import { messages, type Locale } from "@/lib/i18n";
 
 export type DemoData = {
   properties: Property[];
@@ -82,42 +82,7 @@ export function createDemoData(): DemoData {
   };
 }
 
-const persianNames: Record<string, string> = {
-  "Tehran Villa": "ویلای تهران",
-  "Caspian House": "خانه‌ی کاسپین",
-  "Niavaran, Tehran": "نیاوران، تهران",
-  "Ramsar, Mazandaran": "رامسر، مازندران",
-  "Living room": "پذیرایی",
-  Kitchen: "آشپزخانه",
-  "Primary suite": "اتاق خواب اصلی",
-  "Garden terrace": "تراس باغ",
-  Bedroom: "اتاق خواب",
-  "Pendant lights": "چراغ‌های آویز",
-  "Sheer curtains": "پرده‌های حریر",
-  "Home alarm": "دزدگیر خانه",
-  "Air quality": "کیفیت هوا",
-  "Humidity & temperature": "رطوبت و دما",
-  "Kitchen lights": "چراغ‌های آشپزخانه",
-  "Coffee machine": "قهوه‌ساز",
-  "Under-sink leak sensor": "سنسور نشت زیر سینک",
-  "Kitchen smoke sensor": "سنسور دود آشپزخانه",
-  "Evaporative cooler": "کولر آبی",
-  "Bedroom window": "پنجره‌ی اتاق خواب",
-  "Path lighting": "چراغ‌های مسیر",
-  "Parking door": "درب پارکینگ",
-  "Reading lamp": "چراغ مطالعه",
-  "Ceiling fan": "پنکه‌ی سقفی",
-  "Balcony door": "درب بالکن",
-  "Garden pump": "پمپ باغ",
-  "Entrance camera": "دوربین ورودی",
-  "Hallway motion": "سنسور حرکت راهرو",
-  "Bedroom presence": "سنسور حضور اتاق خواب",
-  "Heater CO sensor": "سنسور CO بخاری",
-  "Daylight sensor": "سنسور نور روز",
-  "Main energy meter": "کنتور اصلی",
-};
-
-/** Persian names of the demo's sample homes, rooms and devices; other names are shown as typed. */
+/** The demo's sample homes, rooms and devices in the visitor's language; other names are shown as typed. */
 export function demoName(name: string, locale: Locale): string {
-  return locale === "fa" ? (persianNames[name] ?? name) : name;
+  return messages[locale].demo.names[name] ?? name;
 }

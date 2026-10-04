@@ -39,7 +39,11 @@ The desktop layout uses a fixed-width contextual rail and fluid, capped content.
 
 ## Localization and preferences
 
-English and Persian messages currently exercise LTR/RTL switching. Add Arabic through the same typed message catalog. Production localization should move catalogs to message files and add localized date, number, calendar, timezone, and unit formatters. Store user preferences on the account through the API; local storage is only a prototype fallback. Jalali date conversion, calendar scheduling, density controls, and accent presets remain follow-up work.
+The whole app is in Persian, English and Arabic.
+- **Message files:** all text lives in `messages/en.ts` (the reference), `messages/fa.ts` and `messages/ar.ts`. The English file's shape is the type of the others, so a missing key fails the type check.
+- **Direction and digits:** Persian and Arabic are right to left. Numbers use each language's digits through `Intl.NumberFormat` (۰۱۲, ٠١٢, 012).
+- **Where the language is kept:** in a cookie (`m2smart-locale`), so the server renders the first byte in the right language and direction. `components/i18n-provider.tsx` gives components the messages, and `components/language-menu.tsx` switches language on the sign-in screens and in the app.
+- **Still to come (Phase 3.5, steps D and E):** moving the preferences (language, Solar Hijri or Gregorian calendar, °C or °F) onto the account, home time zones, and Solar Hijri dates.
 
 ## Delivery sequence
 

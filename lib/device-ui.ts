@@ -1,7 +1,8 @@
 /**
  * How each device type of the catalog (packages/contracts/src/catalog.ts) looks and behaves in the
- * app: icon, names in English and Persian, the one-tap action on its card, and a short status line.
- * Values here are what the ESP32 reported, or the target of a command still on its way.
+ * app: icon, the one-tap action on its card, and a short status line. Names and wording come from
+ * the message files (messages/*.ts). Values here are what the ESP32 reported, or the target of a
+ * command still on its way.
  */
 import {
   AlarmSmoke,
@@ -26,106 +27,59 @@ import {
 } from "lucide-react";
 import type { CapabilityName, CapabilityState, CapabilityValue, Device, DeviceType, PhotoPreset } from "@m2smart/contracts";
 import { EvaporativeCooler, WaterPump } from "@/components/icons";
-import type { Locale } from "@/lib/i18n";
+import { formatNumber, messages, type Locale } from "@/lib/i18n";
 
-type Text = { en: string; fa: string };
+export { formatNumber } from "@/lib/i18n";
 
 /** Each icon shows what the device does (product owner's rule): reviewed together, keep it that way. */
-export const deviceTypeInfo: Record<DeviceType, Text & { icon: LucideIcon; tone: string }> = {
-  switch: { en: "Switch", fa: "کلید", icon: ToggleRight, tone: "plug" },
-  dimmer: { en: "Dimmer", fa: "دیمر", icon: Lightbulb, tone: "light" },
-  socket: { en: "Smart socket", fa: "پریز هوشمند", icon: PlugZap, tone: "plug" },
-  cooler: { en: "Evaporative cooler", fa: "کولر آبی", icon: EvaporativeCooler, tone: "climate" },
-  fan: { en: "Fan", fa: "فن", icon: Fan, tone: "climate" },
-  pump: { en: "Water pump", fa: "پمپ آب", icon: WaterPump, tone: "climate" },
-  curtain: { en: "Curtain / shutter", fa: "پرده / کرکره", icon: Blinds, tone: "curtain" },
-  garage_door: { en: "Parking door", fa: "درب پارکینگ", icon: Warehouse, tone: "lock" },
-  alarm: { en: "Alarm", fa: "دزدگیر", icon: Siren, tone: "lock" },
-  camera: { en: "Security camera", fa: "دوربین امنیتی", icon: Cctv, tone: "lock" },
-  motion_sensor: { en: "Motion sensor", fa: "سنسور حرکت", icon: Footprints, tone: "air" },
-  presence_sensor: { en: "Presence sensor", fa: "سنسور حضور", icon: PersonStanding, tone: "air" },
-  contact_sensor: { en: "Door / window sensor", fa: "سنسور در / پنجره", icon: DoorOpen, tone: "air" },
-  leak_sensor: { en: "Water leak sensor", fa: "سنسور نشت آب", icon: Droplets, tone: "air" },
-  smoke_sensor: { en: "Smoke sensor", fa: "سنسور دود", icon: AlarmSmoke, tone: "air" },
-  co_sensor: { en: "CO sensor", fa: "سنسور CO", icon: CloudFog, tone: "air" },
-  air_quality_sensor: { en: "Air quality sensor", fa: "سنسور کیفیت هوا", icon: Wind, tone: "air" },
-  humidity_sensor: { en: "Humidity sensor", fa: "سنسور رطوبت", icon: Droplet, tone: "climate" },
-  light_sensor: { en: "Light sensor", fa: "سنسور نور", icon: Sun, tone: "light" },
-  energy_meter: { en: "Energy meter", fa: "کنتور انرژی", icon: Gauge, tone: "plug" },
+export const deviceTypeInfo: Record<DeviceType, { icon: LucideIcon; tone: string }> = {
+  switch: { icon: ToggleRight, tone: "plug" },
+  dimmer: { icon: Lightbulb, tone: "light" },
+  socket: { icon: PlugZap, tone: "plug" },
+  cooler: { icon: EvaporativeCooler, tone: "climate" },
+  fan: { icon: Fan, tone: "climate" },
+  pump: { icon: WaterPump, tone: "climate" },
+  curtain: { icon: Blinds, tone: "curtain" },
+  garage_door: { icon: Warehouse, tone: "lock" },
+  alarm: { icon: Siren, tone: "lock" },
+  camera: { icon: Cctv, tone: "lock" },
+  motion_sensor: { icon: Footprints, tone: "air" },
+  presence_sensor: { icon: PersonStanding, tone: "air" },
+  contact_sensor: { icon: DoorOpen, tone: "air" },
+  leak_sensor: { icon: Droplets, tone: "air" },
+  smoke_sensor: { icon: AlarmSmoke, tone: "air" },
+  co_sensor: { icon: CloudFog, tone: "air" },
+  air_quality_sensor: { icon: Wind, tone: "air" },
+  humidity_sensor: { icon: Droplet, tone: "climate" },
+  light_sensor: { icon: Sun, tone: "light" },
+  energy_meter: { icon: Gauge, tone: "plug" },
 };
 
-export const capabilityLabels: Record<CapabilityName, Text> = {
-  power: { en: "Power", fa: "روشن / خاموش" },
-  brightness: { en: "Brightness", fa: "شدت نور" },
-  pump: { en: "Water pump", fa: "پمپ آب" },
-  speed: { en: "Speed", fa: "دور موتور" },
-  curtain: { en: "Curtain", fa: "پرده" },
-  door: { en: "Door", fa: "درب" },
-  alarm_mode: { en: "Alarm mode", fa: "حالت دزدگیر" },
-  recording: { en: "Recording", fa: "ضبط" },
-  triggered: { en: "Alarm triggered", fa: "آژیر فعال" },
-  motion: { en: "Motion", fa: "حرکت" },
-  presence: { en: "Presence", fa: "حضور" },
-  contact: { en: "Door / window", fa: "در / پنجره" },
-  leak: { en: "Water leak", fa: "نشت آب" },
-  smoke: { en: "Smoke", fa: "دود" },
-  co_ppm: { en: "Carbon monoxide", fa: "مونوکسید کربن" },
-  co2_ppm: { en: "CO₂", fa: "دی‌اکسید کربن" },
-  voc_index: { en: "VOC index", fa: "شاخص VOC" },
-  humidity: { en: "Humidity", fa: "رطوبت" },
-  temperature: { en: "Temperature", fa: "دما" },
-  illuminance_lux: { en: "Light level", fa: "شدت روشنایی محیط" },
-  power_w: { en: "Power now", fa: "توان لحظه‌ای" },
-  energy_kwh: { en: "Energy used", fa: "انرژی مصرفی" },
-};
-
-const enumLabels: Record<string, Text> = {
-  off: { en: "Off", fa: "خاموش" },
-  low: { en: "Low", fa: "کند" },
-  high: { en: "High", fa: "تند" },
-  open: { en: "Open", fa: "باز" },
-  closed: { en: "Closed", fa: "بسته" },
-  disarmed: { en: "Disarmed", fa: "غیرفعال" },
-  armed_home: { en: "Armed (home)", fa: "فعال (در خانه)" },
-  armed_away: { en: "Armed (away)", fa: "فعال (بیرون)" },
-};
-
-const units: Partial<Record<CapabilityName, Text>> = {
-  brightness: { en: "%", fa: "٪" },
-  humidity: { en: "%", fa: "٪" },
-  temperature: { en: "°C", fa: "°" },
-  co_ppm: { en: " ppm", fa: " ppm" },
-  co2_ppm: { en: " ppm", fa: " ppm" },
-  illuminance_lux: { en: " lx", fa: " لوکس" },
-  power_w: { en: " W", fa: " وات" },
-  energy_kwh: { en: " kWh", fa: " کیلووات‌ساعت" },
-};
-
-export const text = (value: Text, locale: Locale) => value[locale];
-
-export function formatNumber(value: number, locale: Locale, fractionDigits = 0): string {
-  return new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en-US", { maximumFractionDigits: fractionDigits }).format(value);
-}
+export const typeLabel = (type: DeviceType, locale: Locale) => messages[locale].devices.types[type];
+export const capabilityLabel = (capability: CapabilityName, locale: Locale) => messages[locale].devices.capabilities[capability];
 
 /** A capability value as people read it, e.g. "Open", "68%", "On", "620 ppm". */
 export function valueLabel(capability: CapabilityName, value: CapabilityValue | null, locale: Locale): string {
-  if (value === null) return locale === "fa" ? "در انتظار گزارش" : "Waiting for report";
-  if (typeof value === "string") return enumLabels[value] ? text(enumLabels[value], locale) : value;
+  const m = messages[locale].devices;
+  if (value === null) return m.waitingForReport;
+  if (typeof value === "string") return m.enumValues[value] ?? value;
   if (typeof value === "boolean") {
-    const alert: Partial<Record<CapabilityName, [Text, Text]>> = {
-      motion: [{ en: "Motion", fa: "حرکت دیده شد" }, { en: "Clear", fa: "بدون حرکت" }],
-      presence: [{ en: "Someone is here", fa: "حضور دارد" }, { en: "Nobody", fa: "کسی نیست" }],
-      leak: [{ en: "Leak!", fa: "نشت آب!" }, { en: "Dry", fa: "خشک" }],
-      smoke: [{ en: "Smoke!", fa: "دود!" }, { en: "Clear", fa: "عادی" }],
-      triggered: [{ en: "Triggered!", fa: "آژیر فعال!" }, { en: "Quiet", fa: "آرام" }],
-      recording: [{ en: "Recording", fa: "در حال ضبط" }, { en: "Not recording", fa: "بدون ضبط" }],
-    };
-    const pair = alert[capability];
-    if (pair) return text(value ? pair[0] : pair[1], locale);
-    return value ? (locale === "fa" ? "روشن" : "On") : (locale === "fa" ? "خاموش" : "Off");
+    const pair = m.booleanValues[capability];
+    if (pair) return value ? pair[0] : pair[1];
+    return value ? m.on : m.off;
   }
+  const units: Partial<Record<CapabilityName, string>> = {
+    brightness: m.units.percent,
+    humidity: m.units.percent,
+    temperature: m.units.celsius,
+    co_ppm: m.units.ppm,
+    co2_ppm: m.units.ppm,
+    illuminance_lux: m.units.lux,
+    power_w: m.units.watt,
+    energy_kwh: m.units.kwh,
+  };
   const digits = capability === "energy_kwh" || capability === "temperature" ? 1 : 0;
-  return `${formatNumber(value, locale, digits)}${units[capability] ? text(units[capability]!, locale) : ""}`;
+  return `${formatNumber(value, locale, digits)}${units[capability] ?? ""}`;
 }
 
 export function stateOf(device: Device, capability: CapabilityName): CapabilityState | undefined {
@@ -205,24 +159,19 @@ export function isAlert(device: Device): boolean {
 
 /** One line under the device name: its most telling values. */
 export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale): string {
-  if (!device.online) return locale === "fa" ? "آفلاین" : "Offline";
+  if (!device.online) return messages[locale].devices.offline;
   // With several values, plain "On"/"Off" would be ambiguous ("Off · Off"), so those get their name.
   const several = device.capabilities.length > 1;
   const plain = (capability: CapabilityName) => capability === "power" || capability === "pump" || capability === "speed";
   const shown = device.capabilities.slice(0, 2).map((entry) => {
     const value = valueLabel(entry.capability, valueOf(entry.capability), locale);
-    return several && plain(entry.capability) ? `${text(capabilityLabels[entry.capability], locale)}: ${value}` : value;
+    return several && plain(entry.capability) ? `${capabilityLabel(entry.capability, locale)}: ${value}` : value;
   });
-  return shown.join(" · ") || text(deviceTypeInfo[device.type], locale);
+  return shown.join(" · ") || typeLabel(device.type, locale);
 }
 
 /** Built-in photos (public/images) for homes and rooms. */
-export const photoOptions: Array<{ preset: PhotoPreset } & Text> = [
-  { preset: "living", en: "Living room", fa: "پذیرایی" },
-  { preset: "exterior", en: "Exterior", fa: "نمای بیرون" },
-  { preset: "kitchen", en: "Kitchen", fa: "آشپزخانه" },
-  { preset: "bedroom", en: "Bedroom", fa: "اتاق خواب" },
-];
+export const photoPresetList: PhotoPreset[] = ["living", "exterior", "kitchen", "bedroom"];
 
 export function photoUrl(preset: PhotoPreset, size: "large" | "small" = "small"): string {
   if (size === "large" && (preset === "living" || preset === "exterior")) return `/images/${preset}-1920.webp`;

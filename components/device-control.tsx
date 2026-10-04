@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ChevronRight, LoaderCircle, Power, TriangleAlert } from "lucide-react";
 import type { Device } from "@m2smart/contracts";
-import type { Locale } from "@/lib/i18n";
+import { useI18n } from "@/components/i18n-provider";
 import { deviceTypeInfo } from "@/lib/device-ui";
 
 type Props = {
@@ -16,17 +16,16 @@ type Props = {
   alert: boolean;
   /** A command on its way: "sending" to the hub, or "working" while the hardware carries it out. */
   activity: "sending" | "working" | null;
-  locale: Locale;
   onOpen: (device: Device) => void;
   /** The one-tap action; absent for devices that only report (sensors). */
   onQuickAction?: (device: Device) => void;
 };
 
-export function DeviceControl({ device, name, summary, roomName, active, alert, activity, locale, onOpen, onQuickAction }: Props) {
+export function DeviceControl({ device, name, summary, roomName, active, alert, activity, onOpen, onQuickAction }: Props) {
+  const { m } = useI18n();
   const info = deviceTypeInfo[device.type];
   const Icon = info.icon;
-  const isRtl = locale === "fa";
-  const activityText = activity === "working" ? (isRtl ? "در حال انجام…" : "In progress…") : activity === "sending" ? (isRtl ? "در حال ارسال…" : "Sending…") : "";
+  const activityText = activity === "working" ? m.devices.inProgress : activity === "sending" ? m.devices.sending : "";
   const detail = [roomName, activityText || summary].filter(Boolean).join(" · ");
 
   return (
@@ -37,7 +36,7 @@ export function DeviceControl({ device, name, summary, roomName, active, alert, 
           <span className="device-name">{name}</span>
           <span className="device-detail">{detail}</span>
         </span>
-        {activity ? <LoaderCircle className="device-busy-icon" size={14} aria-hidden="true" /> : device.online && <span className="device-online-dot" aria-label={isRtl ? "متصل" : "Online"} />}
+        {activity ? <LoaderCircle className="device-busy-icon" size={14} aria-hidden="true" /> : device.online && <span className="device-online-dot" aria-label={m.common.online} />}
         {!onQuickAction && <ChevronRight className="device-chevron" size={16} aria-hidden="true" />}
       </button>
       {onQuickAction && (
@@ -46,7 +45,7 @@ export function DeviceControl({ device, name, summary, roomName, active, alert, 
           className={`device-power${active ? " selected" : ""}`}
           onClick={() => onQuickAction(device)}
           aria-pressed={active}
-          aria-label={`${isRtl ? (active ? "خاموش / بستن" : "روشن / باز کردن") : active ? "Turn off or close" : "Turn on or open"} ${name}`}
+          aria-label={active ? m.devices.quickOff(name) : m.devices.quickOn(name)}
           disabled={!device.online || activity === "sending"}
         >
           <Power size={16} strokeWidth={1.8} aria-hidden="true" />
