@@ -94,6 +94,7 @@ export function createDemoScenarios(): Record<string, Scenario[]> {
     weekdays: null,
     time: null,
     date: null,
+    lateWindowSeconds: null,
     actions: actions.map(([deviceId, capability, targetValue]) => ({ deviceId, capability, targetValue })),
     nextRunAt: null,
     lastRun: null,
@@ -104,8 +105,8 @@ export function createDemoScenarios(): Record<string, Scenario[]> {
       scenario("scenario-morning", "Good morning", [["pendant", "brightness", 80], ["curtains", "curtain", "open"]]),
       scenario("scenario-movie", "Movie night", [["pendant", "brightness", 15], ["curtains", "curtain", "closed"]]),
       scenario("scenario-away", "Away", [["pendant", "brightness", 0], ["kitchen-lights", "power", false], ["coffee", "power", false], ["path-lights", "power", false]]),
-      scenario("scenario-evening", "Evening path lights", [["path-lights", "power", true]], { kind: "periodic", weekdays: [0, 1, 2, 3, 4, 5, 6], time: "19:00" }),
-      scenario("scenario-garden", "Water the garden", [["garden-pump", "power", true]], { kind: "periodic", weekdays: [2, 6], time: "06:30" }),
+      scenario("scenario-evening", "Evening path lights", [["path-lights", "power", true]], { kind: "periodic", weekdays: [0, 1, 2, 3, 4, 5, 6], time: "19:00", lateWindowSeconds: 3600 }),
+      scenario("scenario-garden", "Water the garden", [["garden-pump", "power", true]], { kind: "periodic", weekdays: [2, 6], time: "06:30", lateWindowSeconds: 0 }),
     ],
     caspian: [scenario("scenario-night", "Good night", [["c-lamp", "brightness", 0], ["c-fan", "speed", "off"]])],
   };

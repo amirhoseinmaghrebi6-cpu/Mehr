@@ -2,8 +2,8 @@
  * Scenarios against the dev database: two homes with separate users. A scenario of one home is
  * never visible to, runnable from or able to control devices of the other; owners and admins
  * edit, members only run themed scenarios; times follow the home's time zone; each scheduled
- * occurrence runs once, and a late one is skipped (periodic) or still run within 10 minutes
- * (one-time).
+ * occurrence runs once, on the server; a late one still runs within the scenario's validity window
+ * and is missed after it; only the latest run is kept and a finished one-time scenario is deleted.
  */
 import type { Command, Device, DeviceListResponse, Property, Scenario, ScenarioListResponse, ScenarioRunResponse } from "@m2smart/contracts";
 import type { Pool } from "pg";
@@ -15,7 +15,9 @@ import { connectBroker } from "../src/broker/broker";
 import { startCommandBridge } from "../src/broker/command-bridge";
 import { loadConfig } from "../src/config";
 import { startBoardSimulator } from "../src/dev/board-simulator";
+import { expireCommands } from "../src/commands/expiry";
 import { loadBackendEnv } from "../src/env";
+import { cleanUp } from "../src/maintenance/cleanup";
 import { runDueScenarios } from "../src/scenarios/run";
 import { buildServer } from "../src/server";
 import { adminQuery, createApiPool, deleteUsers } from "./fixtures";
@@ -224,14 +226,14 @@ describe("scenarios", () => {
       expect((await call("ownerA", "POST", `${base(homeA)}/${evening.id}/run`)).status).toBe(409);
     });
 
-    it("carries out a scenario on the simulated hub in order: camera on, then recording", async () => {
+    it("carries out a scenario on a simulated board in order: camera on, then recording", async () => {
       const created = (await call("ownerA", "POST", base(homeA), { kind: "themed", name: "Watch", actions: [on(cameraA), on(cameraA, true, "recording")] })).body as Scenario;
       loadBackendEnv();
       const brokerConfig = loadConfig().broker!;
       const broker = await connectBroker(brokerConfig, silentLog);
       followBoardStatus(broker, pool, silentLog);
       const stopBridge = startCommandBridge(pool, broker, silentLog, { pollMs: 25 });
-      const simulator = startBoardSimulator(pool, broker, brokerConfig.url, silentLog, { boardPrefix: "TEST-SCN-A-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 30], rescanMs: 200, scenarioPollMs: 0 });
+      const simulator = startBoardSimulator(pool, broker, brokerConfig.url, silentLog, { boardPrefix: "TEST-SCN-A-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 30], rescanMs: 200 });
       try {
         const { commandIds } = (await call("ownerA", "POST", `${base(homeA)}/${created.id}/run`)).body as ScenarioRunResponse;
         let statuses: string[] = [];
@@ -251,57 +253,106 @@ describe("scenarios", () => {
     });
   });
 
-  describe("the scheduler (the hub, simulated)", () => {
-    const due = (now: string, prefix = "TEST-SCN-A-") => runDueScenarios(pool, { now: new Date(now), boardPrefix: prefix });
+  describe("validity windows and one-time scenarios (API)", () => {
+    it("stores the chosen window; themed scenarios have none", async () => {
+      const created = (await call("ownerA", "POST", base(homeA), { kind: "periodic", name: "Window", weekdays: [1], time: "07:00", lateWindowSeconds: 3600, actions: [on(lamp1A)] })).body as Scenario;
+      expect(created.lateWindowSeconds).toBe(3600);
+      const scenarios = await list("memberA", homeA);
+      expect(scenarios.find((scenario) => scenario.name === "Evening")!.lateWindowSeconds).toBe(600);
+      expect(scenarios.find((scenario) => scenario.name === "Morning")!.lateWindowSeconds).toBeNull();
+      expect((await call("ownerA", "POST", base(homeA), { kind: "periodic", name: "Bad window", weekdays: [1], time: "07:00", lateWindowSeconds: 7200, actions: [on(lamp1A)] })).status).toBe(400);
+      await call("ownerA", "DELETE", `${base(homeA)}/${created.id}`);
+    });
+
+    it("refuses a one-time scenario that is already past in the home's time", async () => {
+      expect((await call("ownerA", "POST", base(homeA), { kind: "one_time", name: "Past", date: "2020-01-01", time: "08:00", actions: [on(lamp1A)] })).status).toBe(400);
+    });
+  });
+
+  describe("the scheduler (on the server)", () => {
+    const due = (now: string, homes = [homeA.id]) => runDueScenarios(pool, { now: new Date(now), propertyIds: homes });
+    const of = (outcomes: Awaited<ReturnType<typeof due>>, scenario: Scenario) => outcomes.filter((outcome) => outcome.scenarioId === scenario.id);
     let daily: Scenario;
+    let strict: Scenario;
     let once: Scenario;
     let lateOnce: Scenario;
 
     beforeAll(async () => {
       daily = (await call("ownerA", "POST", base(homeA), { kind: "periodic", name: "Daily", weekdays: [0, 1, 2, 3, 4, 5, 6], time: "10:00", actions: [on(lamp2A)] })).body;
+      strict = (await call("ownerA", "POST", base(homeA), { kind: "periodic", name: "Strict", weekdays: [0, 1, 2, 3, 4, 5, 6], time: "10:00", lateWindowSeconds: 0, actions: [on(lamp2A, false)] })).body;
       once = (await call("ownerA", "POST", base(homeA), { kind: "one_time", name: "Once", date: "2031-05-10", time: "09:00", actions: [on(lamp1A)] })).body;
       lateOnce = (await call("ownerA", "POST", base(homeA), { kind: "one_time", name: "Late once", date: "2031-05-11", time: "09:00", actions: [on(lamp1A)] })).body;
       // Pretend they were made long ago, so past occurrences count (normally only later ones do).
       await adminQuery("update public.scenarios set schedule_from = '2029-01-01' where property_id = $1", [homeA.id]);
       // Only the occurrences under test: switch the others off.
-      await adminQuery("update public.scenarios set enabled = false where property_id = $1 and not (id = any($2::uuid[]))", [homeA.id, [daily.id, once.id, lateOnce.id]]);
+      await adminQuery("update public.scenarios set enabled = false where property_id = $1 and not (id = any($2::uuid[]))", [homeA.id, [daily.id, strict.id, once.id, lateOnce.id]]);
     });
 
     it("runs a periodic occurrence once, at 10:00 home time", async () => {
-      // 10:01 in Tehran = 06:31 UTC.
-      const first = await due("2030-01-07T06:31:00Z");
-      expect(first.filter((outcome) => outcome.scenarioId === daily.id)).toEqual([
-        { scenarioId: daily.id, scheduledFor: new Date("2030-01-07T06:30:00Z"), status: "started", commandIds: [expect.any(String)] },
-      ]);
-      // A restarted runner does not run it again.
-      expect((await due("2030-01-07T06:31:30Z")).filter((outcome) => outcome.scenarioId === daily.id)).toEqual([]);
+      // 10:00:30 in Tehran = 06:30:30 UTC.
+      const first = await due("2030-01-07T06:30:30Z");
+      expect(of(first, daily)).toEqual([{ scenarioId: daily.id, scheduledFor: new Date("2030-01-07T06:30:00Z"), status: "started", commandIds: [expect.any(String)] }]);
+      expect(of(first, strict)).toMatchObject([{ status: "started" }]);
+      // A restarted server, or a second API process, does not run it again.
+      expect(await due("2030-01-07T06:30:45Z")).toEqual([]);
     });
 
-    it("skips a periodic occurrence that is more than 2 minutes late, and records it as missed", async () => {
-      const late = await due("2030-01-08T06:40:00Z");
-      expect(late.filter((outcome) => outcome.scenarioId === daily.id)).toEqual([
-        { scenarioId: daily.id, scheduledFor: new Date("2030-01-08T06:30:00Z"), status: "missed", commandIds: [] },
-      ]);
-      const runs = await adminQuery<{ status: string }>("select status from public.scenario_runs where scenario_id = $1 order by scheduled_for", [daily.id]);
-      expect(runs.map((row) => row.status)).toEqual(["started", "missed"]);
+    it("still runs a late occurrence within its validity window, and records it as missed after it", async () => {
+      // 9 minutes late (the server was down): the 10-minute scenario runs, the "never late" one is missed.
+      const late = await due("2030-01-08T06:39:00Z");
+      expect(of(late, daily)).toMatchObject([{ scheduledFor: new Date("2030-01-08T06:30:00Z"), status: "started" }]);
+      expect(of(late, strict)).toEqual([{ scenarioId: strict.id, scheduledFor: new Date("2030-01-08T06:30:00Z"), status: "missed", commandIds: [] }]);
+      // Its command stays valid until the end of the window (+ 30 s for the network), for a board
+      // that comes back online by then; never longer.
+      const [command] = await adminQuery<{ expires_at: Date }>("select expires_at from public.device_commands where id = $1", [of(late, daily)[0].commandIds[0]]);
+      expect(command.expires_at).toEqual(new Date("2030-01-08T06:40:30Z"));
+
+      // 11 minutes late: missed.
+      expect(of(await due("2030-01-09T06:41:00Z"), daily)).toEqual([{ scenarioId: daily.id, scheduledFor: new Date("2030-01-09T06:30:00Z"), status: "missed", commandIds: [] }]);
     });
 
-    it("gives a one-time scenario 10 minutes", async () => {
-      // 09:09 in Tehran on 10 May = 05:39 UTC: still runs. The 11 May one is a day late: missed.
-      const outcomes = await due("2031-05-10T05:39:00Z");
-      expect(outcomes.find((outcome) => outcome.scenarioId === once.id)?.status).toBe("started");
-      const next = await due("2031-05-11T05:41:00Z");
-      expect(next.find((outcome) => outcome.scenarioId === lateOnce.id)?.status).toBe("missed");
+    it("keeps only the latest run of a scenario", async () => {
+      const runs = await adminQuery<{ status: string; scheduled_for: Date }>("select status, scheduled_for from public.scenario_runs where scenario_id = $1", [daily.id]);
+      expect(runs).toEqual([{ status: "missed", scheduled_for: new Date("2030-01-09T06:30:00Z") }]);
+    });
+
+    it("gives a command sent by a tap its usual short deadline", async () => {
+      const morning = (await list("memberA", homeA)).find((scenario) => scenario.name === "Morning")!;
+      const { commandIds } = (await call("memberA", "POST", `${base(homeA)}/${morning.id}/run`)).body as ScenarioRunResponse;
+      const [command] = await adminQuery<{ seconds: string }>("select extract(epoch from expires_at - created_at) as seconds from public.device_commands where id = $1", [commandIds[0]]);
+      expect(Number(command.seconds)).toBe(30);
+    });
+
+    it("runs a one-time scenario within its window, and records a later one as missed", async () => {
+      // 09:09 in Tehran on 10 May = 05:39 UTC: still runs. The 11 May one is 11 minutes late: missed.
+      expect(of(await due("2031-05-10T05:39:00Z"), once)).toMatchObject([{ status: "started" }]);
+      expect(of(await due("2031-05-11T05:41:00Z"), lateOnce)).toMatchObject([{ status: "missed" }]);
       expect((await list("ownerA", homeA)).find((scenario) => scenario.id === once.id)).toMatchObject({ nextRunAt: null, lastRun: { trigger: "schedule", status: "started" } });
     });
 
-    it("never runs a switched-off scenario, and only for the homes it serves", async () => {
+    it("records a run as missed when no board carried anything out before its commands expired", async () => {
+      // The board stayed offline for the whole window.
+      await adminQuery("update public.device_commands set expires_at = now() - interval '1 second' where scenario_run_id in (select id from public.scenario_runs where scenario_id = $1)", [once.id]);
+      await expireCommands(pool);
+      expect((await list("ownerA", homeA)).find((scenario) => scenario.id === once.id)!.lastRun).toMatchObject({ trigger: "schedule", status: "missed" });
+    });
+
+    it("deletes a one-time scenario once it is over", async () => {
+      await adminQuery("update public.scenarios set local_date = '2020-01-01' where id = $1", [lateOnce.id]);
+      await cleanUp(pool);
+      const names = (await list("ownerA", homeA)).map((scenario) => scenario.name);
+      expect(names).not.toContain("Late once");
+      expect(names).toContain("Once"); // still ahead (2031)
+      expect(names).toContain("Daily");
+    });
+
+    it("never runs a switched-off scenario", async () => {
       await adminQuery("update public.scenarios set enabled = false where id = $1", [daily.id]);
       await adminQuery("update public.scenarios set schedule_from = '2029-01-01' where id = $1", [daily.id]);
       expect((await due("2030-01-09T06:31:00Z")).filter((outcome) => outcome.scenarioId === daily.id)).toEqual([]);
       await adminQuery("update public.scenarios set enabled = true, schedule_from = '2029-01-01' where id = $1", [daily.id]);
-      // Home B's runner never runs home A's scenarios.
-      expect(await due("2030-01-10T06:31:00Z", "TEST-SCN-B-")).toEqual([]);
+      // Limited to home B, nothing of home A runs.
+      expect(await due("2030-01-10T06:31:00Z", [homeB.id])).toEqual([]);
     });
 
     it("counts occurrences only from when a scenario was made, changed or switched back on", async () => {
@@ -312,7 +363,7 @@ describe("scenarios", () => {
       expect(rows[0].schedule_from.getTime()).toBeGreaterThanOrEqual(before - 1000);
       // So yesterday's 10:00 is not run (nor reported missed) now.
       const yesterday = new Date(Date.now() - 86_400_000).toISOString();
-      expect((await due(yesterday)).filter((outcome) => outcome.scenarioId === daily.id)).toEqual([]);
+      expect(of(await due(yesterday), daily)).toEqual([]);
     });
 
     it("drops an action when its device is removed", async () => {

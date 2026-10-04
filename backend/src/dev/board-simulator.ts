@@ -12,8 +12,6 @@
  *
  * Only simulated boards are played: those whose hardware id starts with "DEV-" (created by
  * pnpm db:seed and pnpm dev:board). Boards added while it runs are picked up within seconds.
- *
- * Until step 4D moves it to its own server job, it also runs due scenarios for those homes.
  */
 import { randomBytes } from "node:crypto";
 import { boardCommand, boardTopic, type BoardCommand, type CapabilityValue } from "@m2smart/contracts";
@@ -21,7 +19,6 @@ import mqtt, { type MqttClient } from "mqtt";
 import type { Pool } from "pg";
 import type { Broker } from "../broker/broker";
 import { withSystemTx } from "../db/tx";
-import { runDueScenarios } from "../scenarios/run";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
@@ -41,8 +38,6 @@ export type BoardSimulatorOptions = {
   networkDelayMs?: [number, number];
   /** How often new or removed simulated boards are looked for. */
   rescanMs?: number;
-  /** How often due scenarios are checked; 0 switches the scenario runner off. */
-  scenarioPollMs?: number;
 };
 
 export type BoardSimulator = { stop: () => Promise<void> };
@@ -166,30 +161,12 @@ export function startBoardSimulator(pool: Pool, broker: Broker, brokerUrl: strin
   const scanTimer = setInterval(() => void scan(), options.rescanMs ?? 3_000);
   scanTimer.unref();
 
-  const scenarioPollMs = options.scenarioPollMs ?? 5_000;
-  let checkingScenarios = false;
-  const checkScenarios = async () => {
-    if (checkingScenarios || stopped) return;
-    checkingScenarios = true;
-    try {
-      for (const outcome of await runDueScenarios(pool, { boardPrefix })) {
-        log.info({ scenarioId: outcome.scenarioId, scheduledFor: outcome.scheduledFor.toISOString(), status: outcome.status, commands: outcome.commandIds.length }, "Board simulator: scenario");
-      }
-    } catch (error) {
-      failed("Board simulator: scenario check failed")(error as Error);
-    } finally {
-      checkingScenarios = false;
-    }
-  };
-  const scenarioTimer = scenarioPollMs > 0 ? setInterval(() => void checkScenarios(), scenarioPollMs) : null;
-  scenarioTimer?.unref();
-  log.info({ boardPrefix, scenarioPollMs }, "Board simulator started: simulated ESP32 boards connect to the broker");
+  log.info({ boardPrefix }, "Board simulator started: simulated ESP32 boards connect to the broker");
 
   return {
     async stop() {
       stopped = true;
       clearInterval(scanTimer);
-      if (scenarioTimer) clearInterval(scenarioTimer);
       for (const [boardId, board] of boards) {
         // A clean goodbye does not trigger the last will, so say offline first.
         await board.client.publishAsync(boardTopic(boardId, "status"), JSON.stringify({ online: false }), { qos: 1, retain: true }).catch(() => undefined);

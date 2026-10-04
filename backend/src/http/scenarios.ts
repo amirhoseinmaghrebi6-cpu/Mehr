@@ -9,7 +9,8 @@
  *
  * Times and dates are in the home's time zone. Every action must be a writable capability of a
  * board device of the same home, with a value that fits it (checked here, and again by the
- * database). Scheduled runs happen on the hub (scenarios/run.ts).
+ * database). Scheduled runs happen on the server (scenarios/run.ts). A one-time scenario must be
+ * in the future; it is deleted once it is over (maintenance/cleanup.ts).
  *
  * Access rules and error handling: see route-helpers.ts.
  */
@@ -21,6 +22,7 @@ import {
   type CapabilityValue,
   type Scenario,
   type ScenarioKind,
+  type ScenarioLateWindow,
   type ScenarioListResponse,
   type ScenarioRunResponse,
   type Weekday,
@@ -42,6 +44,7 @@ type ScenarioRow = {
   weekdays: number[] | null;
   local_time: string | null;
   local_date: string | null;
+  late_window_seconds: number;
   next_run_at: Date | null;
   actions: Array<{ deviceId: string; capability: CapabilityName; targetValue: CapabilityValue }>;
   last_run: { id: string; trigger: "schedule" | "manual"; status: "started" | "missed"; scheduled_for: string | null; created_at: string } | null;
@@ -49,7 +52,7 @@ type ScenarioRow = {
 
 const SCENARIO_SELECT = `
   select scenario.id, scenario.name, scenario.kind, scenario.enabled, scenario.weekdays,
-    to_char(scenario.local_time, 'HH24:MI') as local_time, to_char(scenario.local_date, 'YYYY-MM-DD') as local_date,
+    to_char(scenario.local_time, 'HH24:MI') as local_time, to_char(scenario.local_date, 'YYYY-MM-DD') as local_date, scenario.late_window_seconds,
     public.scenario_next_occurrence(scenario.id, now()) as next_run_at,
     coalesce((
       select json_agg(json_build_object('deviceId', action.device_id, 'capability', action.capability, 'targetValue', action.target_value) order by action.position)
@@ -70,6 +73,7 @@ function toScenario(row: ScenarioRow): Scenario {
     weekdays: row.weekdays ? ([...row.weekdays].sort((a, b) => a - b) as Weekday[]) : null,
     time: row.local_time,
     date: row.local_date,
+    lateWindowSeconds: row.kind === "themed" ? null : (row.late_window_seconds as ScenarioLateWindow),
     actions: row.actions,
     nextRunAt: row.next_run_at ? row.next_run_at.toISOString() : null,
     lastRun: row.last_run
@@ -117,11 +121,21 @@ async function storeActions(tx: TxClient, propertyId: string, scenarioId: string
   );
 }
 
-/** The schedule columns of a request: weekdays, time and date by kind. */
-function schedule(body: ScenarioBody): [weekdays: number[] | null, time: string | null, date: string | null] {
-  if (body.kind === "periodic") return [body.weekdays, body.time, null];
-  if (body.kind === "one_time") return [null, body.time, body.date];
-  return [null, null, null];
+/** The schedule columns of a request: weekdays, time, date and validity window by kind. */
+function schedule(body: ScenarioBody): [weekdays: number[] | null, time: string | null, date: string | null, lateWindowSeconds: number] {
+  if (body.kind === "periodic") return [body.weekdays, body.time, null, body.lateWindowSeconds];
+  if (body.kind === "one_time") return [null, body.time, body.date, body.lateWindowSeconds];
+  return [null, null, null, 600];
+}
+
+/** A one-time scenario must still be ahead, in the home's time zone. */
+async function requireFuture(tx: TxClient, propertyId: string, body: ScenarioBody): Promise<void> {
+  if (body.kind !== "one_time") return;
+  const { rows } = await tx.query<{ ahead: boolean }>(
+    "select (($2::date + $3::time) at time zone time_zone) > now() as ahead from public.properties where id = $1",
+    [propertyId, body.date, body.time],
+  );
+  if (!rows[0]?.ahead) throw invalidRequest();
 }
 
 export function registerScenarioRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier): void {
@@ -142,9 +156,10 @@ export function registerScenarioRoutes(app: FastifyInstance, pool: Pool, verifie
       await requireAction(tx, propertyId, "scenario.edit");
       const body = parse(scenarioRequest, request.body);
       await checkActions(tx, propertyId, body.actions);
+      await requireFuture(tx, propertyId, body);
       const { rows } = await tx.query<{ id: string }>(
-        `insert into public.scenarios (property_id, name, kind, enabled, weekdays, local_time, local_date)
-         values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+        `insert into public.scenarios (property_id, name, kind, enabled, weekdays, local_time, local_date, late_window_seconds)
+         values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
         [propertyId, body.name, body.kind, body.enabled, ...schedule(body)],
       );
       await storeActions(tx, propertyId, rows[0].id, body.actions);
@@ -159,8 +174,9 @@ export function registerScenarioRoutes(app: FastifyInstance, pool: Pool, verifie
       const scenarioId = requireUuid(request.params.scenarioId);
       const body = parse(scenarioRequest, request.body);
       await checkActions(tx, propertyId, body.actions);
+      await requireFuture(tx, propertyId, body);
       const { rowCount } = await tx.query(
-        `update public.scenarios set name = $3, kind = $4, enabled = $5, weekdays = $6, local_time = $7, local_date = $8
+        `update public.scenarios set name = $3, kind = $4, enabled = $5, weekdays = $6, local_time = $7, local_date = $8, late_window_seconds = $9
          where id = $2 and property_id = $1`,
         [propertyId, scenarioId, body.name, body.kind, body.enabled, ...schedule(body)],
       );

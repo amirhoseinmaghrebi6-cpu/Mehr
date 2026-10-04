@@ -6,8 +6,8 @@
  *        pnpm dev:board                      (lists homes and models)
  *
  * The home gets its internal hub row (its cloud connection; there is no physical hub) if it has
- * none yet. The board's devices start with a neutral
- * reported state (off, closed, 0), as if the ESP32 had just reported. Refuses to run when
+ * none yet. The board's devices start with a neutral reported state (off, closed, 0); the board
+ * comes online when the dev board simulator (pnpm api:dev) connects it to the broker. Refuses to run when
  * NODE_ENV=production.
  */
 import { randomBytes } from "node:crypto";
@@ -78,8 +78,8 @@ async function addBoard(): Promise<void> {
        on conflict (device_id, capability) do nothing`,
       [controllerId],
     );
-    await client.query("update public.controllers set online = true, last_seen_at = now() where id = $1", [controllerId]);
-    await client.query("update public.devices set online = true, last_seen_at = now() where controller_id = $1", [controllerId]);
+    // The board is not marked online here: it comes online when the dev board simulator connects it
+    // to the broker (within seconds), exactly as a real board would.
 
     const devices = await client.query<{ name: string; device_type: string }>("select name, device_type from public.devices where controller_id = $1 order by channel_key", [controllerId]);
     await client.query("commit");

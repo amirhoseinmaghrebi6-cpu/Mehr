@@ -1,6 +1,6 @@
 # Phase 4 plan: boards connect straight to the cloud (no hub)
 
-Status: approved 2026-10-04. Steps 4A–4C are implemented; 4D–4F are not yet.
+Status: approved 2026-10-04. Steps 4A–4D are implemented; 4E and 4F are not yet.
 
 **Goal:** a real ESP32 board can join a home, receive commands and report its state through our own servers in Iran, with no hub in the home. Scheduled scenarios run on the server. The firmware itself comes in Phases 6–7; this phase builds the server side and the contract the firmware will follow, tested with a simulated board that speaks the real protocol.
 

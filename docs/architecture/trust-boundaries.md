@@ -49,7 +49,7 @@ There is no hub (decided 2026-10-04): boards connect straight to the broker. Wit
   - Every member of a home can read its scenarios. Only owners and admins can create or change them, and every member can run a themed one.
   - An action can target only a writable capability of a device in the same home; RLS, composite foreign keys and a trigger enforce this in the database.
   - A run creates ordinary commands under the same rules as above.
-  - Only the runner records scheduled runs and missed runs. The runner is the server (the dev simulator stands in until step 4D). Clients can record only their own manual runs.
+  - Only the runner records scheduled runs and missed runs. The runner is a job on the server. Clients can record only their own manual runs.
 - **Hardware catalog:** pin maps, capability templates and interlocks are backend-only. Users never read or change which GPIO does what.
 - **Backend-only work** runs under `withSystemTx` (`service_role`, bypasses RLS). Keep its use rare and easy to find.
 - **Kratos → API webhooks** (identity sync, refusing password registration):

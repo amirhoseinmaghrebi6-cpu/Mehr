@@ -25,6 +25,7 @@ import { registerHomeRoutes } from "./http/homes";
 import { registerMeRoute } from "./http/me";
 import { registerScenarioRoutes } from "./http/scenarios";
 import { registerSettingsRoutes } from "./http/settings";
+import { startScenarioRunner } from "./scenarios/run";
 import { startCleanup } from "./maintenance/cleanup";
 
 export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
@@ -115,6 +116,7 @@ async function main(): Promise<void> {
 
   const stopExpiry = startCommandExpiry(pool, app.log);
   const stopCleanup = startCleanup(pool, app.log);
+  const stopScenarios = startScenarioRunner(pool, app.log);
 
   // The boards' broker. If it is not reachable yet, the API still serves users and keeps trying.
   let broker: Broker | null = null;
@@ -145,6 +147,7 @@ async function main(): Promise<void> {
     app.log.info({ signal }, "Shutting down: finishing in-flight requests, then closing the database pool");
     stopExpiry();
     stopCleanup();
+    stopScenarios();
     stopBridge?.();
     if (brokerRetry) clearTimeout(brokerRetry);
     try {

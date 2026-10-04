@@ -380,7 +380,7 @@ describe("devices and commands", () => {
     const applied = async (created: Pick<Command, "id">) => until(async () => ["applied", "rejected", "failed", "timed_out"].includes(((await call("memberA", "GET", `/v1/properties/${homeA.id}/commands/${created.id}`)).body as Command).status));
     beforeAll(async () => {
       for (const board of testBoards.splice(0)) await board.end().catch(() => undefined);
-      simulator = startBoardSimulator(pool, broker, brokerUrl, silentLog, { boardPrefix: "TEST-API-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 0], rescanMs: 200, scenarioPollMs: 0 });
+      simulator = startBoardSimulator(pool, broker, brokerUrl, silentLog, { boardPrefix: "TEST-API-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 0], rescanMs: 200 });
       await until(async () => (await devicesOf("memberA", homeA)).every((device) => device.online));
     });
 

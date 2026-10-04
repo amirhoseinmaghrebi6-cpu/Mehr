@@ -49,8 +49,10 @@ The whole app is in Persian, English and Arabic.
   - Tables `scenarios`, `scenario_actions` and `scenario_runs`, with RLS and composite foreign keys. An action can only target a writable capability of a device of the same home, with a value that fits it; the database checks this too.
   - Owners and admins create, edit, switch off and delete; every member can run a themed scenario.
   - Each action becomes an ordinary command, linked to its run (`device_commands.scenario_run_id`), so it has the hardware's deadline and is applied only when the ESP32 reports.
-  - Scheduled scenarios run on the server (decided 2026-10-04; there is no hub). Until step 4D, the dev board simulator checks every 5 s, but only for homes that have simulated boards. Each occurrence runs at most once: it is unique per scenario and occurrence. Today a periodic run more than 2 minutes late is recorded as missed and a one-time run may start up to 10 minutes late; step 4D replaces this with a validity window per scenario (never, 10 minutes, 1 hour or 3 hours). Occurrences before a scenario was created, changed or switched back on never count.
-  - The demo keeps sample scenarios in the browser and runs themed ones. Scheduled ones show when they would run but do not run, because the demo has no server-side runner.
+  - Scheduled scenarios run on the server, for every home (there is no hub, and boards hold no schedules). A server job checks every 5 s; each occurrence runs at most once, because it is unique per scenario and occurrence. Occurrences before a scenario was created, changed or switched back on never count.
+  - Each scheduled scenario has a validity window chosen by the user: never late, 10 minutes (default), 1 hour or 3 hours. If the power or internet was out at its time, its commands wait and reach the board the moment it is back within the window; after the window the run is recorded as missed. Commands sent by a tap keep their short deadline.
+  - No history: only the latest run of a scenario is kept, and a one-time scenario is deleted once it is over.
+  - The demo keeps sample scenarios in the browser and runs themed ones. Scheduled ones show when they would run but do not run, because the demo never reaches the server.
 
 ## Delivery sequence
 

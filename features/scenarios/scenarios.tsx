@@ -9,6 +9,8 @@ import { useState, type FormEvent } from "react";
 import { CalendarClock, Check, ChevronRight, Pencil, Play, Plus, Repeat, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
 import {
   capabilities,
+  DEFAULT_SCENARIO_LATE_WINDOW,
+  scenarioLateWindows,
   type CapabilityDefinition,
   type CapabilityName,
   type CapabilityValue,
@@ -16,6 +18,7 @@ import {
   type Property,
   type Scenario,
   type ScenarioKind,
+  type ScenarioLateWindow,
   type ScenarioRequest,
   type Weekday,
 } from "@m2smart/contracts";
@@ -200,6 +203,7 @@ export function ScenarioEditorDialog({
   const [kind, setKind] = useState<ScenarioKind>(scenario?.kind ?? "themed");
   const [days, setDays] = useState<Weekday[]>(scenario?.weekdays ?? [today.weekday as Weekday]);
   const [time, setTime] = useState(scenario?.time ?? "08:00");
+  const [lateWindow, setLateWindow] = useState<ScenarioLateWindow>(scenario?.lateWindowSeconds ?? DEFAULT_SCENARIO_LATE_WINDOW);
   const [date, setDate] = useState(toCalendarDate(initialDate, calendar));
   const [actions, setActions] = useState<Action[]>(
     scenario?.actions.length ? scenario.actions : controllable[0] ? [{ deviceId: controllable[0].id, capability: writable(controllable[0])[0], targetValue: defaultValue(writable(controllable[0])[0]) }] : [],
@@ -256,11 +260,11 @@ export function ScenarioEditorDialog({
     let input: ScenarioRequest;
     if (kind === "periodic") {
       if (!days.length) return setError(t.pickDay);
-      input = { ...base, kind, weekdays: days, time };
+      input = { ...base, kind, weekdays: days, time, lateWindowSeconds: lateWindow };
     } else if (kind === "one_time") {
       const gregorian = fromCalendarDate(date, calendar);
       if (zonedToInstant(gregorian, time, timeZone) <= new Date()) return setError(t.pastDate);
-      input = { ...base, kind, date: gregorian, time };
+      input = { ...base, kind, date: gregorian, time, lateWindowSeconds: lateWindow };
     } else {
       input = { ...base, kind };
     }
@@ -330,6 +334,16 @@ export function ScenarioEditorDialog({
                     <select aria-label={t.minute} value={minute} onChange={(event) => setClock(hour, event.target.value)}>{Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, "0")}>{number(index, 2)}</option>)}</select>
                   </div>
                 </div>
+              )}
+
+              {kind !== "themed" && (
+                <label className="form-field">
+                  <span>{t.lateWindow}</span>
+                  <select value={lateWindow} onChange={(event) => setLateWindow(Number(event.target.value) as ScenarioLateWindow)}>
+                    {scenarioLateWindows.map((seconds) => <option key={seconds} value={seconds}>{t.lateWindows[seconds]}</option>)}
+                  </select>
+                  <small className="form-note">{t.lateWindowNote}</small>
+                </label>
               )}
 
               <div className="form-field">

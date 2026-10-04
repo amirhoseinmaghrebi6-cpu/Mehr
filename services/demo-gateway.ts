@@ -6,6 +6,7 @@
 import {
   capabilities,
   capabilityValueError,
+  DEFAULT_SCENARIO_LATE_WINDOW,
   defaultSettings,
   defaultTimeZone,
   type Command,
@@ -59,7 +60,7 @@ export function createDemoGateway(userId: string): HomeGateway {
   const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
   // Scenarios follow the same rules as the API. Scheduled ones show their next run but do not run
-  // in the demo: scenarios run on a home's hub, and the demo has none.
+  // in the demo: scenarios run on the server, and the demo never reaches it.
   function scenariosOf(propertyId: string): Scenario[] {
     home(propertyId);
     data.scenarios ??= createDemoScenarios();
@@ -87,6 +88,7 @@ export function createDemoGateway(userId: string): HomeGateway {
       weekdays: input.kind === "periodic" ? ([...input.weekdays].sort((a, b) => a - b) as Scenario["weekdays"]) : null,
       time: input.kind === "themed" ? null : input.time,
       date: input.kind === "one_time" ? input.date : null,
+      lateWindowSeconds: input.kind === "themed" ? null : (input.lateWindowSeconds ?? DEFAULT_SCENARIO_LATE_WINDOW),
       actions: input.actions.map((action) => ({ ...action })),
       nextRunAt: null,
       lastRun,

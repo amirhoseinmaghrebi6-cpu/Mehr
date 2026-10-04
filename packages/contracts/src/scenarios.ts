@@ -5,9 +5,10 @@
  * - themed: a named set of actions run by a tap ("Morning", "Party").
  *
  * Times and dates are in the home's time zone (Property.timeZone), never the phone's. Each action
- * becomes an ordinary command when the scenario runs. Scenarios run on the home's hub (the dev hub
- * simulator until Phase 4). A periodic run the hub missed is skipped and recorded as missed; a
- * one-time run may start up to 10 minutes late.
+ * becomes an ordinary command when the scenario runs. Scenarios run on the server. If the power or
+ * internet was out at the scheduled time, a scenario still runs when it comes back within the
+ * scenario's validity window (lateWindowSeconds); after the window it is recorded as missed. Only
+ * the latest run is kept, and a one-time scenario is deleted once it is over.
  */
 import { z } from "zod";
 import { capabilities, type CapabilityName, type CapabilityValue } from "./catalog.js";
@@ -15,8 +16,12 @@ import { capabilities, type CapabilityName, type CapabilityValue } from "./catal
 export const scenarioKinds = ["periodic", "one_time", "themed"] as const;
 export type ScenarioKind = (typeof scenarioKinds)[number];
 
-/** How late a scheduled run may still start; later than that it is recorded as missed. */
-export const scenarioGraceSeconds: Readonly<Record<Exclude<ScenarioKind, "themed">, number>> = { periodic: 120, one_time: 600 };
+/** How late a scheduled scenario may still run: never, 10 minutes, 1 hour or 3 hours. */
+export const scenarioLateWindows = [0, 600, 3600, 10800] as const;
+export type ScenarioLateWindow = (typeof scenarioLateWindows)[number];
+export const DEFAULT_SCENARIO_LATE_WINDOW: ScenarioLateWindow = 600;
+/** The scheduler is always a few seconds behind, so even "never late" allows this much. */
+export const SCENARIO_MIN_GRACE_SECONDS = 60;
 
 /** Most actions one scenario may have. */
 export const MAX_SCENARIO_ACTIONS = 50;
@@ -35,6 +40,8 @@ const localDate = z
     const date = new Date(Date.UTC(year, month - 1, day));
     return year >= 2000 && year <= 2200 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }, "not a date");
+
+const lateWindow = z.union([z.literal(0), z.literal(600), z.literal(3600), z.literal(10800)]).default(DEFAULT_SCENARIO_LATE_WINDOW);
 
 export const scenarioAction = z.strictObject({
   deviceId: z.uuid(),
@@ -64,8 +71,9 @@ export const scenarioRequest = z.discriminatedUnion("kind", [
       .max(7)
       .refine((days) => new Set(days).size === days.length, "duplicate weekday"),
     time: localTime,
+    lateWindowSeconds: lateWindow,
   }),
-  z.strictObject({ ...scenarioBase, kind: z.literal("one_time"), date: localDate, time: localTime }),
+  z.strictObject({ ...scenarioBase, kind: z.literal("one_time"), date: localDate, time: localTime, lateWindowSeconds: lateWindow }),
   z.strictObject({ ...scenarioBase, kind: z.literal("themed") }),
 ]);
 export type ScenarioRequest = z.input<typeof scenarioRequest>;
@@ -78,7 +86,7 @@ export type ScenarioRunStatus = "started" | "missed";
 
 export interface ScenarioRun {
   id: string;
-  /** schedule: the hub ran it at its time; manual: someone tapped it. */
+  /** schedule: the server ran it at its time; manual: someone tapped it. */
   trigger: "schedule" | "manual";
   status: ScenarioRunStatus;
   /** The occurrence a scheduled run belongs to. */
@@ -97,6 +105,8 @@ export interface Scenario {
   time: string | null;
   /** one_time only: Gregorian "YYYY-MM-DD" in the home's time zone. */
   date: string | null;
+  /** periodic and one_time: how late it may still run, in seconds (0 = never late). */
+  lateWindowSeconds: ScenarioLateWindow | null;
   actions: Array<{ deviceId: string; capability: CapabilityName; targetValue: CapabilityValue }>;
   /** The next time it runs, or null (themed, switched off, or a one-time scenario that is over). */
   nextRunAt: string | null;

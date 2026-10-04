@@ -15,6 +15,15 @@ describe("scenario requests", () => {
     expect(parsed.enabled).toBe(true);
   });
 
+  it("gives scheduled scenarios a 10-minute validity window unless another offered one is chosen", () => {
+    const periodic = { kind: "periodic", name: "Evening", weekdays: [1], time: "15:00", actions: [action] };
+    expect(scenarioRequest.parse(periodic)).toMatchObject({ lateWindowSeconds: 600 });
+    expect(scenarioRequest.parse({ ...periodic, lateWindowSeconds: 0 })).toMatchObject({ lateWindowSeconds: 0 });
+    expect(scenarioRequest.parse({ ...periodic, lateWindowSeconds: 10800 })).toMatchObject({ lateWindowSeconds: 10800 });
+    expect(scenarioRequest.safeParse({ ...periodic, lateWindowSeconds: 7200 }).success).toBe(false);
+    expect(scenarioRequest.safeParse({ kind: "themed", name: "Morning", actions: [action], lateWindowSeconds: 600 }).success).toBe(false);
+  });
+
   it.each([
     ["no actions", { kind: "themed", name: "Empty", actions: [] }],
     ["no weekdays", { kind: "periodic", name: "x", weekdays: [], time: "15:00", actions: [action] }],

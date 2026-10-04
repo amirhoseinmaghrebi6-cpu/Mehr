@@ -4,7 +4,10 @@
  * - finished commands after 24 hours (their delivery attempts go with them);
  * - events after 1 hour (they exist only to tell open apps about a change);
  * - pairing codes that expired unused;
- * - daily energy totals after one year.
+ * - daily energy totals after one year;
+ * - one-time scenarios whose time and validity window have passed (commands they already sent
+ *   stay until they finish);
+ * - every scenario run except the latest of its scenario.
  *
  * Runs in every API process; deleting is idempotent, so several at once is harmless.
  */
@@ -17,6 +20,18 @@ const RULES: Array<[name: string, sql: string]> = [
   ["commands", `delete from public.device_commands where id in (select id from public.device_commands where completed_at < now() - interval '24 hours' limit ${BATCH})`],
   ["events", `delete from public.realtime_events where id in (select id from public.realtime_events where created_at < now() - interval '1 hour' limit ${BATCH})`],
   ["pairings", "delete from public.board_pairings where expires_at <= now()"],
+  [
+    "one-time scenarios",
+    `delete from public.scenarios as scenario using public.properties as property
+     where property.id = scenario.property_id and scenario.kind = 'one_time'
+       and ((scenario.local_date + scenario.local_time) at time zone property.time_zone)
+         + make_interval(secs => greatest(scenario.late_window_seconds, 60)) < now() - interval '1 minute'`,
+  ],
+  [
+    "scenario runs",
+    `delete from public.scenario_runs as run
+     where exists (select 1 from public.scenario_runs as newer where newer.scenario_id = run.scenario_id and newer.created_at > run.created_at)`,
+  ],
   ["energy", `delete from public.device_energy_daily where (device_id, day) in (select device_id, day from public.device_energy_daily where day < current_date - 366 limit ${BATCH})`],
 ];
 
