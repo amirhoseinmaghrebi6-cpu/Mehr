@@ -13,7 +13,7 @@ import type {
   CreatePropertyRequest,
   CreateRoomRequest,
   Device,
-  DeviceType,
+  HardwareProduct,
   PairBoardResponse,
   Property,
   Room,
@@ -67,18 +67,20 @@ export interface HomeGateway {
   getSettings(): Promise<UserSettings>;
   updateSettings(input: UpdateSettingsRequest): Promise<UserSettings>;
 
+  /** The products (board models) a home can add, by category. */
+  listProducts(): Promise<HardwareProduct[]>;
+  /** Adds a product to the home: its channels become devices that wait for pairing. */
+  addBoard(propertyId: string, input: { modelCode: string; channels: Array<{ key: string; name: string; roomId: string | null }> }): Promise<PairBoardResponse>;
   /**
-   * Adds the board whose pairing code this is (the text of the QR code its setup page showed) to
-   * the home. Real homes only: the demo adds sample devices with addDemoDevice instead.
+   * Pairs a waiting board with the real board whose pairing code this is (the text of the QR code
+   * its setup page showed). The real board must be the same product.
    */
-  pairBoard?(propertyId: string, pairingCode: string): Promise<PairBoardResponse>;
+  pairBoard(propertyId: string, boardId: string, pairingCode: string): Promise<PairBoardResponse>;
   /** Removes a board with all its devices; the board must be paired again to be used. */
   removeBoard(propertyId: string, boardId: string): Promise<void>;
 
-  /**
-   * Demo only. Real devices come from boards paired with the home, never from a form, so the API
-   * gateway has neither.
-   */
-  addDemoDevice?(propertyId: string, input: { type: DeviceType; name: string; roomId: string | null }): Promise<Device>;
+  /** Demo only: removes one of the demo's original sample devices (they have no board). */
   removeDemoDevice?(propertyId: string, deviceId: string): Promise<void>;
+  /** Demo only: the sample QR code of a waiting board's product, to save and upload. */
+  demoPairingSample?(boardId: string): { label: string; image: string } | null;
 }

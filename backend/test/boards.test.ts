@@ -2,9 +2,10 @@
  * Pairing and factory reset against the dev database and broker: a board joins a home only with
  * its factory secret, a fresh pairing code, and an owner or admin uploading that code; a code
  * works once and for 24 hours; pairing with another home, a reset, or removing the board in the
- * app leaves nothing of the board behind in the old home. Unused channels can be hidden.
+ * app leaves nothing of the board behind in the old home. Unused channels can be hidden. A product
+ * can also be added first, named, and paired later with a real board of the same product.
  */
-import { boardTopic, formatPairingCode, type Device, type PairBoardResponse, type Property, type Scenario } from "@m2smart/contracts";
+import { boardTopic, formatPairingCode, type Device, type HardwareProductListResponse, type PairBoardResponse, type Property, type Scenario, type ScenarioRunResponse } from "@m2smart/contracts";
 import mqtt from "mqtt";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,6 +30,7 @@ const USERS = {
 type UserKey = keyof typeof USERS;
 const ALL_USERS = Object.values(USERS);
 const MODEL = "test-pair-switch-2ch";
+const OTHER_MODEL = "test-pair-dimmer";
 const UID = "TEST-PAIR-0001";
 const FACTORY_SECRET = "factory-secret-of-test-pair-0001-abcdefghijklmnop";
 const CODE_1 = "AAAAAAAAAAAAAAAAAAAAAAAAA2";
@@ -49,7 +51,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function cleanup(): Promise<void> {
   await adminQuery("delete from public.properties where created_by = any($1::uuid[])", [ALL_USERS]);
   await adminQuery("delete from public.manufactured_boards where hardware_uid = $1", [UID]);
-  await adminQuery("delete from public.hardware_models where code = $1", [MODEL]);
+  await adminQuery("delete from public.hardware_models where code = any($1::text[])", [[MODEL, OTHER_MODEL]]);
   await deleteUsers(ALL_USERS);
 }
 
@@ -90,6 +92,11 @@ describe("pairing and factory reset", () => {
       button as (insert into public.hardware_model_pins (model_id, gpio, function, role) select id, 35, 'setup_button', 'setup' from model),
       registry as (insert into public.manufactured_boards (hardware_uid, model_id, factory_secret_hash) select '${UID}', id, '${sha256(FACTORY_SECRET)}' from model)
       insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, writable) select model_id, channel_key, 'power', 'boolean', true from channels`);
+    await adminQuery(`
+      with model as (insert into public.hardware_models (code, name) values ('${OTHER_MODEL}', 'Pairing test dimmer') returning id),
+      channel as (insert into public.hardware_model_channels (model_id, channel_key, device_type, default_name) select id, 'light', 'dimmer', 'Dimmer' from model returning model_id),
+      button as (insert into public.hardware_model_pins (model_id, gpio, function, role) select id, 35, 'setup_button', 'setup' from model)
+      insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, min_value, max_value, step, unit, writable) select model_id, 'light', 'brightness', 'integer', 0, 100, 1, '%', true from channel`);
     pool = createApiPool();
     broker = await connectBroker(brokerConfig, silentLog);
     followBoardStatus(broker, pool, silentLog);
@@ -316,6 +323,92 @@ describe("pairing and factory reset", () => {
       // The physical board can be paired again, with a new code.
       expect((await announce(CODE_2)).status).toBe(204);
       expect((await pair("ownerA", homeA, CODE_2)).status).toBe(201);
+    });
+  });
+
+  describe("adding a product first, pairing it later", () => {
+    const boards = (home: Property) => `/v1/properties/${home.id}/boards`;
+    let hall: { id: string };
+    let waiting: PairBoardResponse;
+    let waitingDimmer: PairBoardResponse;
+
+    beforeAll(async () => {
+      hall = (await call("ownerA", "POST", `/v1/properties/${homeA.id}/rooms`, { name: "Waiting hall" })).body;
+    });
+
+    it("lists the products a home can add, with their channels and category", async () => {
+      const { products } = (await call("memberA", "GET", "/v1/hardware-products")).body as HardwareProductListResponse;
+      expect(products.find((product) => product.code === MODEL)).toEqual({
+        code: MODEL,
+        name: "Pairing test switch",
+        category: "lighting",
+        channels: [{ key: "ch1", deviceType: "switch", defaultName: "Lamp 1" }, { key: "ch2", deviceType: "switch", defaultName: "Lamp 2" }],
+      });
+      expect((await call(null, "GET", "/v1/hardware-products")).status).toBe(401);
+    });
+
+    it("only an owner or admin adds a product, and only what the product really has", async () => {
+      const body = { modelCode: MODEL, channels: [{ key: "ch1", name: "Ceiling", roomId: hall.id }] };
+      expect((await call("memberA", "POST", boards(homeA), body)).status).toBe(403);
+      expect((await call("ownerB", "POST", boards(homeA), body)).status).toBe(404);
+      expect((await call("ownerA", "POST", boards(homeA), { modelCode: "no-such-product" })).status).toBe(404);
+      expect((await call("ownerA", "POST", boards(homeA), { modelCode: MODEL, channels: [{ key: "ch9", name: "Ghost", roomId: null }] })).status).toBe(400);
+      // A room of another home is refused, and nothing is added.
+      const before = (await devicesOf("ownerA", homeA)).length;
+      expect((await call("ownerB", "POST", boards(homeB), body)).status).toBe(400);
+      expect((await devicesOf("ownerB", homeB)).length).toBe(0);
+      expect((await devicesOf("ownerA", homeA)).length).toBe(before);
+    });
+
+    it("the product's channels join the home, named and placed, waiting for pairing", async () => {
+      const added = await call("adminA", "POST", boards(homeA), { modelCode: MODEL, channels: [{ key: "ch1", name: "Ceiling", roomId: hall.id }, { key: "ch2", name: "Wall", roomId: null }] });
+      expect(added.status).toBe(201);
+      waiting = added.body;
+      expect(waiting.devices.map((device) => [device.name, device.roomId, device.pending, device.online])).toEqual([["Ceiling", hall.id, true, false], ["Wall", null, true, false]]);
+      waitingDimmer = (await call("ownerA", "POST", boards(homeA), { modelCode: OTHER_MODEL })).body;
+      expect(waitingDimmer.devices.map((device) => [device.name, device.pending])).toEqual([["Dimmer", true]]);
+    });
+
+    it("a waiting device cannot be commanded, and scenarios skip it until it is paired", async () => {
+      const ceiling = waiting.devices[0];
+      const command = await call("ownerA", "POST", `/v1/properties/${homeA.id}/commands`, { deviceId: ceiling.id, capability: "power", targetValue: true, idempotencyKey: `waiting-${Date.now()}` });
+      expect([command.status, command.body]).toEqual([409, { error: "conflict" }]);
+      const scenario = (await call("ownerA", "POST", `/v1/properties/${homeA.id}/scenarios`, { kind: "themed", name: "Prepared", actions: [{ deviceId: ceiling.id, capability: "power", targetValue: true }] })).body as Scenario;
+      expect(scenario.actions).toHaveLength(1);
+      const run = (await call("ownerA", "POST", `/v1/properties/${homeA.id}/scenarios/${scenario.id}/run`)).body as ScenarioRunResponse;
+      expect(run.commandIds).toEqual([]);
+    });
+
+    it("pairs only with a real board of the same product", async () => {
+      expect((await announce(CODE_3)).status).toBe(204);
+      const pairWith = (user: UserKey, home: Property, boardId: string, code = CODE_3) => call(user, "POST", `${boards(home)}/${boardId}/pair`, { pairingCode: formatPairingCode(UID, code) });
+      expect((await pairWith("ownerA", homeA, waitingDimmer.boardId)).status).toBe(409); // the real board is the switch
+      expect((await pairWith("memberA", homeA, waiting.boardId)).status).toBe(403);
+      expect((await pairWith("ownerB", homeB, waiting.boardId)).status).toBe(404); // not waiting in home B
+      expect((await pairWith("ownerA", homeA, waiting.boardId, CODE_1)).status).toBe(404); // not the board's current code
+      expect((await devicesOf("ownerA", homeA)).filter((device) => device.boardId === waiting.boardId).every((device) => device.pending)).toBe(true);
+
+      const paired = await pairWith("ownerA", homeA, waiting.boardId);
+      expect(paired.status).toBe(200);
+      // The names and rooms chosen before stay; the devices are real now.
+      expect((paired.body as PairBoardResponse).devices.map((device) => [device.name, device.roomId, device.pending])).toEqual([["Ceiling", hall.id, false], ["Wall", null, false]]);
+      // The board is in one home at most: where it was before (an earlier test), it is gone.
+      expect(await count("public.controllers where hardware_uid = $1", [UID])).toBe(1);
+      expect((await pairWith("ownerA", homeA, waiting.boardId)).status).toBe(404); // the code is used, the board no longer waits
+    });
+
+    it("the real board then gets its account under the waiting board's id, and commands and scenarios work", async () => {
+      const account = (await credentials(CODE_3)).body;
+      expect(account).toMatchObject({ status: "paired", boardId: waiting.boardId });
+      const command = await call("ownerA", "POST", `/v1/properties/${homeA.id}/commands`, { deviceId: waiting.devices[0].id, capability: "power", targetValue: true, idempotencyKey: `paired-${Date.now()}` });
+      expect(command.status).toBe(201);
+      const prepared = ((await call("ownerA", "GET", `/v1/properties/${homeA.id}/scenarios`)).body.scenarios as Scenario[]).find((scenario) => scenario.name === "Prepared")!;
+      expect(((await call("ownerA", "POST", `/v1/properties/${homeA.id}/scenarios/${prepared.id}/run`)).body as ScenarioRunResponse).commandIds).toHaveLength(1);
+    });
+
+    it("a board that never gets paired can simply be removed", async () => {
+      expect((await call("ownerA", "DELETE", `${boards(homeA)}/${waitingDimmer.boardId}`)).status).toBe(204);
+      expect((await devicesOf("ownerA", homeA)).some((device) => device.boardId === waitingDimmer.boardId)).toBe(false);
     });
   });
 });

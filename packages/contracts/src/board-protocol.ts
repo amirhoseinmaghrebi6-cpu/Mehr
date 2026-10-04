@@ -120,9 +120,31 @@ export type BoardCredentialsRequest = z.infer<typeof boardCredentialsRequest>;
 /** 202 while no owner or admin has uploaded the code yet; 200 with the account once they have. */
 export type BoardCredentialsResponse = { status: "waiting" } | { status: "paired"; boardId: string; brokerSecret: string };
 
-/** POST /v1/properties/:propertyId/boards — an owner or admin adds the board whose code they hold. */
-export const pairBoardRequest = z.strictObject({
-  /** The text of the board's pairing QR code: `M2P1:{hardwareUid}:{code}`. */
-  pairingCode: z.string().max(200),
-});
+/** The text of a board's pairing QR code: `M2P1:{hardwareUid}:{code}`. */
+const pairingCode = z.string().max(200);
+
+/**
+ * POST /v1/properties/:propertyId/boards/:boardId/pair — an owner or admin pairs a board that was
+ * added to the home earlier with the real board whose code they hold. The real board must be the
+ * same product.
+ */
+export const pairBoardRequest = z.strictObject({ pairingCode });
 export type PairBoardRequest = z.infer<typeof pairBoardRequest>;
+
+/**
+ * POST /v1/properties/:propertyId/boards — an owner or admin adds a board to the home:
+ * - by product: the product's channels become devices with the given names and rooms, waiting to
+ *   be paired later;
+ * - by pairing code: the board is added and paired in one step.
+ */
+export const addBoardRequest = z.union([
+  z.strictObject({
+    modelCode: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
+    channels: z
+      .array(z.strictObject({ key: z.string().regex(/^[a-z][a-z0-9_]*$/).max(32), name: z.string().trim().min(1).max(60), roomId: z.uuid().nullable() }))
+      .max(32)
+      .default([]),
+  }),
+  pairBoardRequest,
+]);
+export type AddBoardRequest = z.input<typeof addBoardRequest>;

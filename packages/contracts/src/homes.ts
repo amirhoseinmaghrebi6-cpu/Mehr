@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { defaultTimeZone, isTimeZone } from "./calendar.js";
-import { capabilities, photoPresets, type CapabilityName, type CapabilityValue, type DeviceType, type PhotoPreset } from "./catalog.js";
+import { capabilities, photoPresets, type CapabilityName, type CapabilityValue, type DeviceType, type PhotoPreset, type ProductCategory } from "./catalog.js";
 import type { PropertyRole } from "./permissions.js";
 
 export const propertyTypes = ["house", "villa", "apartment", "office", "commercial", "custom"] as const;
@@ -109,6 +109,21 @@ export interface Device {
   boardName: string | null;
   /** Hidden by an owner or admin: an input or output that is not wired to anything. */
   hidden: boolean;
+  /** Its board was added to the home but is not paired yet: it cannot be controlled until it is. */
+  pending: boolean;
+}
+
+/** A product (a board model) the user can add to a home. Its channels become the home's devices. */
+export interface HardwareProduct {
+  code: string;
+  name: string;
+  category: ProductCategory;
+  channels: Array<{ key: string; deviceType: DeviceType; defaultName: string }>;
+}
+
+/** GET /v1/hardware-products */
+export interface HardwareProductListResponse {
+  products: HardwareProduct[];
 }
 
 /** GET /v1/properties/:propertyId/devices */
@@ -116,7 +131,10 @@ export interface DeviceListResponse {
   devices: Device[];
 }
 
-/** The answer to POST /v1/properties/:propertyId/boards: the new board and its devices, to name and place. */
+/**
+ * The answer to POST /v1/properties/:propertyId/boards (and …/boards/:boardId/pair): the board and
+ * its devices.
+ */
 export interface PairBoardResponse {
   boardId: string;
   boardName: string;

@@ -91,6 +91,32 @@ export function isDeviceType(value: unknown): value is DeviceType {
   return typeof value === "string" && Object.hasOwn(deviceTypes, value);
 }
 
+/** How products are grouped where the user picks one to add. A product's category is that of its first channel. */
+export const productCategories = ["lighting", "climate", "openings", "power", "security", "sensors"] as const;
+export type ProductCategory = (typeof productCategories)[number];
+
+export const deviceTypeCategory: Readonly<Record<DeviceType, ProductCategory>> = {
+  switch: "lighting",
+  dimmer: "lighting",
+  cooler: "climate",
+  fan: "climate",
+  curtain: "openings",
+  garage_door: "openings",
+  socket: "power",
+  pump: "power",
+  alarm: "security",
+  camera: "security",
+  motion_sensor: "security",
+  presence_sensor: "security",
+  contact_sensor: "security",
+  leak_sensor: "sensors",
+  smoke_sensor: "sensors",
+  co_sensor: "sensors",
+  air_quality_sensor: "sensors",
+  humidity_sensor: "sensors",
+  light_sensor: "sensors",
+};
+
 /** Whether a device of `type` may have `capability` at all. */
 export function allowsCapability(type: DeviceType, capability: CapabilityName): boolean {
   const { required, optional } = deviceTypes[type];

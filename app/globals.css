@@ -973,3 +973,19 @@ a.auth-submit { text-decoration: none; }
 .hidden-devices li > span { display: grid; gap: 3px; color: var(--ink-soft); font-size: 10px; font-weight: 600; }
 .hidden-devices li small { color: var(--muted); font-size: 9px; font-weight: 500; }
 @media (max-width: 800px) { .hidden-devices > ul { grid-template-columns: minmax(0, 1fr); } }
+
+/* Adding a device: the product list, and a device that waits for pairing. */
+.add-board-dialog { width: min(100%, 520px); }
+.product-list { display: grid; max-height: 44dvh; gap: 14px; overflow: auto; padding-inline-end: 2px; }
+.product-list > section { display: grid; gap: 6px; }
+.product-row { display: flex; min-height: 54px; align-items: center; gap: 11px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer; text-align: start; transition: border-color .16s, background .16s; }
+.product-row:hover { border-color: var(--accent); background: var(--accent-pale); }
+.product-icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 8px; }
+.product-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.product-copy strong { color: var(--ink); font-size: 10.5px; font-weight: 600; }
+.product-copy small { color: var(--muted); font-size: 9px; }
+.product-arrow { flex: 0 0 auto; color: var(--muted); }
+[dir="rtl"] .product-arrow { transform: scaleX(-1); }
+.sheet-pending { display: grid; gap: 10px; margin: 6px 0 14px; padding: 13px 14px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--warning-soft); }
+.sheet-pending > p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
+.sheet-pending > button { justify-self: start; }

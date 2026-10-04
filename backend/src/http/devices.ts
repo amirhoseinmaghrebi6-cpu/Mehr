@@ -67,12 +67,14 @@ type DeviceRow = {
   hidden: boolean;
   controller_id: string | null;
   board_name: string | null;
+  pending: boolean;
   capabilities: Array<{ capability: string; writable: boolean; value: CapabilityValue | null; reportedAt: string | null }>;
 };
 
 const DEVICE_SELECT = `
   select device.id, device.name, device.device_type, device.room_id, device.online, device.last_seen_at, device.hidden, device.controller_id,
     (select board.name from public.controllers as board where board.id = device.controller_id) as board_name,
+    coalesce((select board.hardware_uid is null from public.controllers as board where board.id = device.controller_id), false) as pending,
     coalesce(
       json_agg(
         json_build_object('capability', capability.capability, 'writable', capability.writable, 'value', state.value, 'reportedAt', state.reported_at)
@@ -96,6 +98,7 @@ function toDevice(row: DeviceRow): Device {
     boardId: row.controller_id,
     boardName: row.board_name,
     hidden: row.hidden,
+    pending: row.pending,
     capabilities: row.capabilities
       .filter((entry): entry is typeof entry & { capability: CapabilityName } => isCapabilityName(entry.capability))
       .map((entry): CapabilityState => ({
@@ -190,8 +193,9 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
       await requireAction(tx, propertyId, "device.control");
       const body = parse(createCommandRequest, request.body);
 
-      const { rows: capabilities } = await tx.query<CapabilityRow & { device_type: DeviceType }>(
-        `select capability.value_type, capability.min_value, capability.max_value, capability.enum_values, capability.writable, device.device_type
+      const { rows: capabilities } = await tx.query<CapabilityRow & { device_type: DeviceType; pending: boolean }>(
+        `select capability.value_type, capability.min_value, capability.max_value, capability.enum_values, capability.writable, device.device_type,
+           coalesce((select board.hardware_uid is null from public.controllers as board where board.id = device.controller_id), false) as pending
          from public.device_capabilities as capability
          join public.devices as device on device.id = capability.device_id
          where device.id = $1 and device.property_id = $2 and device.device_type is not null and capability.capability = $3`,
@@ -203,6 +207,8 @@ export function registerDeviceRoutes(app: FastifyInstance, pool: Pool, verifier:
       }
       const definition = definitionFromRow(capabilities[0]);
       if (!definition.writable || capabilityValueError(definition, body.targetValue) !== null) throw invalidRequest();
+      // A board that is not paired yet has no hardware to command.
+      if (capabilities[0].pending) throw new HttpError(409, "conflict");
       // A camera records only while it is on (the ESP32 enforces this too).
       if (capabilities[0].device_type === "camera" && body.capability === "recording" && body.targetValue === true) {
         const power = await tx.query<{ value: unknown }>("select value from public.device_states where device_id = $1 and capability = 'power'", [body.deviceId]);

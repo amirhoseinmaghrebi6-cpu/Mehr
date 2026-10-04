@@ -9,6 +9,8 @@ export type DemoData = {
   properties: Property[];
   rooms: Record<string, Room[]>;
   devices: Record<string, Device[]>;
+  /** Boards that wait for pairing: board id → the product (a key of demoBoards). */
+  waitingBoards?: Record<string, string>;
   /** Missing in demo data saved before scenarios existed: then the samples are added. */
   scenarios?: Record<string, Scenario[]>;
 };
@@ -28,6 +30,7 @@ export function demoDevice(id: string, type: DeviceType, name: string, roomId: s
     boardId: null,
     boardName: null,
     hidden: false,
+    pending: false,
     capabilities: names.map((capability) => ({
       capability,
       writable: capabilities[capability].writable,
@@ -87,18 +90,21 @@ export function createDemoData(): DemoData {
 }
 
 /**
- * Sample boards for presenting pairing in the demo. Their pairing QR codes are images served by
- * the app (public/images/demo); uploading one adds the board's channels, like a real board would.
- * In the demo a sample code can be used again and again.
+ * The demo's products. Each has a pairing QR code served by the app (public/images/demo): picking
+ * a product adds its channels, waiting for pairing, and uploading that QR code pairs them, like a
+ * real board would. In the demo a sample code can be used again and again.
  */
 export const demoBoards: Record<string, { name: string; image: string; channels: Array<[type: DeviceType, name: string, values?: Partial<Record<CapabilityName, CapabilityValue>>]> }> = {
   "DEMO-SWITCH-2CH": { name: "2-switch board", image: "/images/demo/pairing-switch-2ch.png", channels: [["switch", "Switch 1"], ["switch", "Switch 2"]] },
-  "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
+  "DEMO-DIMMER": { name: "Dimmer board", image: "/images/demo/pairing-dimmer.png", channels: [["dimmer", "Dimmer", { brightness: 0 }]] },
   "DEMO-MULTI-6CH": {
     name: "6-channel board",
     image: "/images/demo/pairing-multi-6ch.png",
     channels: [["switch", "Switch 1"], ["switch", "Switch 2"], ["dimmer", "Dimmer", { brightness: 0 }], ["socket", "Socket"], ["curtain", "Curtain"], ["contact_sensor", "Window sensor"]],
   },
+  "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler", "Cooler"]] },
+  "DEMO-CURTAIN": { name: "Curtain board", image: "/images/demo/pairing-curtain.png", channels: [["curtain", "Curtain"]] },
+  "DEMO-GARAGE": { name: "Parking door board", image: "/images/demo/pairing-garage.png", channels: [["garage_door", "Parking door"]] },
 };
 
 /** Sample scenarios of the demo homes (their device ids are those above). */

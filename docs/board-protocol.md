@@ -91,7 +91,10 @@ Nothing is printed on the product. The board makes its own pairing code.
    - asks for the home's Wi-Fi name and password;
    - shows the pairing code as a QR code and as text, for the user to save: `M2P1:{hardware id}:{code}`.
 3. **Announce.** The board joins the home's Wi-Fi and calls `POST /v1/boards/announce` over HTTPS with `{"hardwareUid", "secret", "codeHash"}`: its hardware id, its factory secret and the SHA-256 (hex) of the pairing code. The answer is 204, or 401 for a board the registry does not know. The server now knows a genuine board is waiting; it stores only the hash, for at most 24 hours.
-4. **Confirm.** An owner or admin uploads the QR code (or pastes the text) in the app, in the home they choose. The server adds the board and all its channels to that home.
+4. **Confirm.** An owner or admin uploads the QR code (or pastes the text) in the app, for a board that waits in their home.
+   - In the app the product is picked first: its channels are named and placed, and they wait in the home ("awaiting pairing") until this step.
+   - The real board must be the same product as the one waiting; another product is refused.
+   - The waiting devices keep their names, rooms and scenario actions and become real.
 5. **Credentials.** The board calls `POST /v1/boards/credentials` with `{"hardwareUid", "secret", "code"}` every few seconds. Until step 4 has happened the answer is 202 `{"status":"waiting"}`; then it is 200 `{"status":"paired","boardId","brokerSecret"}`. Every such answer carries a fresh broker secret and ends the earlier one, so a board whose answer got lost simply asks again. A wrong secret or code gets 401.
 6. The board stores the credentials, closes the access point and connects to the broker.
 

@@ -78,7 +78,8 @@ The current delivery implements:
   - Command deadlines follow the hardware's time.
   - A development simulator plays the ESP32s: each simulated board is a real client of the MQTT broker, so commands and reports travel the same path real boards will use.
 - (Phase 4) boards connect straight to the cloud over MQTT, with no hub:
-  - A board joins a home by the QR code it shows on its own setup page, uploaded by an owner or admin.
+  - An owner or admin first picks the product and names its channels; the devices wait in the home ("awaiting pairing") until the real board is paired.
+  - The real board is paired by the QR code it shows on its own setup page, uploaded by an owner or admin; it must be the same product.
   - A factory reset leaves nothing of the board on the server.
   - See `docs/plans/phase-4.md` and `docs/board-protocol.md`.
 

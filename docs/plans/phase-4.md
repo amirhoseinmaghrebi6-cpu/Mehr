@@ -162,6 +162,7 @@ Each step is one commit, tested on its own, with the two-home isolation tests ex
 **Added after the exit (2026-10-04):**
 - **Removing a board in the app:** an owner or admin removes a board from a device's details; the server does what it does for a factory reset.
 - **Hiding devices:** an input or output that is not wired to anything can be hidden; it stays out of every screen and of scenarios until it is shown again.
+- **Product first, pairing later:** "Add a device" now starts with the product (from the catalog, by category), then names and rooms for its channels. The devices join the home at once, "awaiting pairing": they cannot be commanded, and scenarios skip them, until a real board of the same product is paired with them by its QR code. A waiting board that is never paired stays until its owner removes it.
 
 - **No energy and no automations page (2026-10-04):** the Automations and Energy screens, the daily energy totals and every consumption number in the app were removed. Scenarios cover scheduling; consumption is not a feature of the product.
 

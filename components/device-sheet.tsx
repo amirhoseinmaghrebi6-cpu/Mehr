@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Droplets, LoaderCircle, Pencil, Power, Video, X } from "lucide-react";
+import { Droplets, LoaderCircle, Pencil, Power, Video, X, QrCode } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { capabilityLabel, deviceTypeInfo, formatNumber, typeLabel, valueLabel, shownCapabilities } from "@/lib/device-ui";
@@ -19,10 +19,12 @@ type Props = {
   canEdit: boolean;
   onCommand: (capability: CapabilityName, value: CapabilityValue) => void;
   onEdit: () => void;
+  /** Opens pairing for the device's board, when it still waits for it (owners and admins). */
+  onPair?: () => void;
   onClose: () => void;
 };
 
-export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHardware, canEdit, onCommand, onEdit, onClose }: Props) {
+export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHardware, canEdit, onCommand, onEdit, onPair, onClose }: Props) {
   const { locale, m, rtl, temperatureUnit } = useI18n();
   const info = deviceTypeInfo[device.type];
   const Icon = info.icon;
@@ -47,7 +49,7 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
         <div className="device-sheet-heading">
           <span className={`device-sheet-icon device-icon-${info.tone}`}><Icon size={20} strokeWidth={1.7} /></span>
           <span><span className="panel-overline">{roomName || typeLabel(device.type, locale)}</span><h2 id="device-sheet-title">{name}</h2></span>
-          <span className={`sheet-connection${device.online ? "" : " is-disconnected"}`}><span />{device.online ? m.common.online : m.common.offline}</span>
+          <span className={`sheet-connection${device.online ? "" : " is-disconnected"}`}><span />{device.pending ? m.devices.awaitingPairing : device.online ? m.common.online : m.common.offline}</span>
         </div>
 
         {writable.map((state) => {
@@ -84,9 +86,16 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
           </p>
         )}
 
+        {device.pending && (
+          <div className="sheet-pending">
+            <p>{m.sheet.awaitingPairingText}</p>
+            {onPair && <button type="button" className="button-primary" onClick={onPair}><QrCode size={15} />{m.sheet.pairNow}</button>}
+          </div>
+        )}
+
         <div className="device-sheet-footer">
           <span className="status-pulse" />
-          {device.online ? m.sheet.secureConnection : m.sheet.connectionUnavailable}
+          {device.pending ? m.devices.awaitingPairing : device.online ? m.sheet.secureConnection : m.sheet.connectionUnavailable}
           {canEdit && <button type="button" className="text-action device-edit-link" onClick={onEdit}><Pencil size={13} />{m.sheet.nameAndSpace}</button>}
         </div>
       </motion.section>

@@ -167,6 +167,7 @@ export const shownCapabilities = (device: Device) => device.capabilities.filter(
 
 /** One line under the device name: its most telling values. */
 export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale, temperatureUnit: TemperatureUnit = "celsius"): string {
+  if (device.pending) return messages[locale].devices.awaitingPairing;
   if (!device.online) return messages[locale].devices.offline;
   // With several values, plain "On"/"Off" would be ambiguous ("Off · Off"), so those get their name.
   const capabilities = shownCapabilities(device);

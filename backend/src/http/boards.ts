@@ -2,7 +2,10 @@
  * Pairing a board with a home (docs/board-protocol.md):
  *   POST /v1/boards/announce                    (the board: "I am in pairing mode and online")
  *   POST /v1/boards/credentials                 (the board: asks for its broker account)
- *   POST /v1/properties/:propertyId/boards      (owner, admin: uploads the board's pairing code)
+ *   GET  /v1/hardware-products                  (the products a home can add)
+ *   POST /v1/properties/:propertyId/boards      (owner, admin: adds a product that waits for pairing,
+ *                                                or adds and pairs a board by its pairing code)
+ *   POST /v1/properties/:propertyId/boards/:boardId/pair   (owner, admin: pairs a waiting board)
  *   DELETE /v1/properties/:propertyId/boards/:boardId   (owner, admin: removes the board)
  *
  * Removing a board from the app does what a factory reset does on the server: the board, all its
@@ -15,11 +18,24 @@
  * ponytail: no rate limit here; secrets and codes are 130+ random bits, so guessing is hopeless.
  * Add a per-address limit at the reverse proxy when the API is exposed to the internet.
  */
-import { boardAnnounceRequest, boardCredentialsRequest, pairBoardRequest, parsePairingCode, type BoardCredentialsResponse, type PairBoardResponse } from "@m2smart/contracts";
+import {
+  addBoardRequest,
+  boardAnnounceRequest,
+  boardCredentialsRequest,
+  deviceTypeCategory,
+  isDeviceType,
+  pairBoardRequest,
+  parsePairingCode,
+  type BoardCredentialsResponse,
+  type DeviceType,
+  type HardwareProductListResponse,
+  type PairBoardResponse,
+} from "@m2smart/contracts";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { SessionVerifier } from "../auth/session-verifier";
-import { announceBoard, issueCredentials, pairBoard, removeBoard } from "../boards/pairing";
+import { addPendingBoard, announceBoard, issueCredentials, pairBoard, pairPendingBoard, removeBoard } from "../boards/pairing";
+import { withSystemTx } from "../db/tx";
 import type { Broker } from "../broker/broker";
 import { listDevices } from "./devices";
 import { createHandler, HttpError, invalidRequest, notFound, parse, requireAction, requireUuid } from "./route-helpers";
@@ -48,16 +64,62 @@ export function registerBoardRoutes(app: FastifyInstance, pool: Pool, verifier: 
 
   if (!verifier) return;
   const handle = createHandler(pool, verifier);
+  app.get("/v1/hardware-products", (request, reply) =>
+    handle(request, reply, 200, async (): Promise<HardwareProductListResponse> => {
+      // The catalog is the same for everyone; pins stay backend-only, so it is read as the system.
+      const { rows } = await withSystemTx(pool, (system) =>
+        system.query<{ code: string; name: string; channels: Array<{ key: string; deviceType: string; defaultName: string }> }>(
+          `select model.code, model.name,
+             json_agg(json_build_object('key', channel.channel_key, 'deviceType', channel.device_type, 'defaultName', channel.default_name) order by channel.channel_key) as channels
+           from public.hardware_models as model
+           join public.hardware_model_channels as channel on channel.model_id = model.id
+           where exists (select 1 from public.hardware_model_pins as pin where pin.model_id = model.id and pin.function = 'setup_button')
+           group by model.id
+           order by model.name, model.code`,
+        ),
+      );
+      const products = rows
+        .filter((row) => row.channels.every((channel) => isDeviceType(channel.deviceType)))
+        .map((row) => ({ ...row, channels: row.channels as Array<{ key: string; deviceType: DeviceType; defaultName: string }> }))
+        .map((row) => ({ ...row, category: deviceTypeCategory[row.channels[0].deviceType] }));
+      return { products };
+    }),
+  );
+
   app.post<{ Params: { propertyId: string } }>("/v1/properties/:propertyId/boards", (request, reply) =>
     handle(request, reply, 201, async (tx): Promise<PairBoardResponse> => {
       const { propertyId } = request.params;
       await requireAction(tx, propertyId, "board.pair");
-      const code = parsePairingCode(parse(pairBoardRequest, request.body).pairingCode);
+      const body = parse(addBoardRequest, request.body);
+      if ("modelCode" in body) {
+        const added = await addPendingBoard(pool, propertyId, body.modelCode, body.channels);
+        if (added === "invalid") throw invalidRequest();
+        if (!added) throw notFound();
+        return { ...added, devices: await listDevices(tx, propertyId, added.boardId) };
+      }
+      const code = parsePairingCode(body.pairingCode);
       if (!code) throw invalidRequest();
       const broker = getBroker();
       if (!broker) throw new HttpError(503, "internal_error");
       // Unknown, used or expired code, or the board has not come online yet: all "not found".
       const paired = await pairBoard(pool, broker, propertyId, code.hardwareUid, code.code);
+      if (!paired) throw notFound();
+      return { ...paired, devices: await listDevices(tx, propertyId, paired.boardId) };
+    }),
+  );
+
+  app.post<{ Params: { propertyId: string; boardId: string } }>("/v1/properties/:propertyId/boards/:boardId/pair", (request, reply) =>
+    handle(request, reply, 200, async (tx): Promise<PairBoardResponse> => {
+      const { propertyId } = request.params;
+      await requireAction(tx, propertyId, "board.pair");
+      const boardId = requireUuid(request.params.boardId);
+      const code = parsePairingCode(parse(pairBoardRequest, request.body).pairingCode);
+      if (!code) throw invalidRequest();
+      const broker = getBroker();
+      if (!broker) throw new HttpError(503, "internal_error");
+      const paired = await pairPendingBoard(pool, broker, propertyId, boardId, code.hardwareUid, code.code);
+      // The real board is a different product than the one waiting in the home.
+      if (paired === "mismatch") throw new HttpError(409, "conflict");
       if (!paired) throw notFound();
       return { ...paired, devices: await listDevices(tx, propertyId, paired.boardId) };
     }),

@@ -7,6 +7,10 @@
  *   holds the secret's hash);
  * - an owner or admin of the home uploads that code.
  *
+ * A board can also be added first and paired later: the product is picked and its channels are
+ * named in the app, and the board waits (no hardware id) until a real board of the same product is
+ * paired with it.
+ *
  * The server stores only hashes of factory secrets and pairing codes. Removing a board (a factory
  * reset, or pairing it with another home) leaves nothing of it behind: its devices, their states,
  * commands, scenario actions and energy totals go with it, and so does its broker account.
@@ -73,18 +77,93 @@ export async function pairBoard(pool: Pool, broker: Broker, propertyId: string, 
     // A board is in one home at most: pairing it again removes it from where it was.
     const { rows: previous } = await tx.query<{ id: string }>("delete from public.controllers where hardware_uid = $1 returning id", [hardwareUid]);
 
-    // The home's internal hub row stands for its cloud connection (there is no physical hub).
-    let hub = await tx.query<{ id: string }>("select id from public.hubs where property_id = $1 order by created_at limit 1", [propertyId]);
-    if (!hub.rows.length) {
-      hub = await tx.query<{ id: string }>("insert into public.hubs (property_id, name, hardware_id, status) values ($1, 'Cloud', $2, 'online') returning id", [propertyId, `cloud-${propertyId}`]);
-    }
     const boardName = pending[0].model_name.slice(0, 60);
-    const { rows } = await tx.query<{ id: string }>("select public.provision_controller($1, $2, $3, $4) as id", [hub.rows[0].id, pending[0].model_code, hardwareUid, boardName]);
+    const { rows } = await tx.query<{ id: string }>("select public.provision_controller($1, $2, $3, $4) as id", [await cloudHub(tx, propertyId), pending[0].model_code, hardwareUid, boardName]);
     await tx.query("update public.board_pairings set controller_id = $2 where hardware_uid = $1", [hardwareUid, rows[0].id]);
     return { boardId: rows[0].id, boardName, previous: previous.map((row) => row.id) };
   });
   if (!paired) return null;
   for (const boardId of paired.previous) await broker.removeBoard(boardId);
+  return { boardId: paired.boardId, boardName: paired.boardName };
+}
+
+/** The home's internal hub row stands for its cloud connection (there is no physical hub). */
+async function cloudHub(tx: TxClient, propertyId: string): Promise<string> {
+  const hub = await tx.query<{ id: string }>("select id from public.hubs where property_id = $1 order by created_at limit 1", [propertyId]);
+  if (hub.rows.length) return hub.rows[0].id;
+  const created = await tx.query<{ id: string }>("insert into public.hubs (property_id, name, hardware_id, status) values ($1, 'Cloud', $2, 'online') returning id", [propertyId, `cloud-${propertyId}`]);
+  return created.rows[0].id;
+}
+
+/**
+ * Adds a product to the home as a board that waits for pairing, with the given names and rooms for
+ * its channels. The caller has checked that the user is an owner or admin. Null if there is no
+ * such product; "invalid" if a channel or a room does not belong.
+ */
+export async function addPendingBoard(
+  pool: Pool,
+  propertyId: string,
+  modelCode: string,
+  channels: Array<{ key: string; name: string; roomId: string | null }>,
+): Promise<PairedBoard | "invalid" | null> {
+  return withSystemTx(pool, async (tx) => {
+    const { rows: models } = await tx.query<{ name: string }>(
+      `select model.name from public.hardware_models as model
+       where model.code = $1 and exists (select 1 from public.hardware_model_pins as pin where pin.model_id = model.id and pin.function = 'setup_button')`,
+      [modelCode],
+    );
+    if (!models.length) return null;
+    const boardName = models[0].name.slice(0, 60);
+    const { rows } = await tx.query<{ id: string }>("select public.provision_controller($1, $2, null, $3) as id", [await cloudHub(tx, propertyId), modelCode, boardName]);
+    for (const channel of channels) {
+      const { rowCount } = await tx.query(
+        `update public.devices set name = $3, room_id = $4
+         where controller_id = $1 and channel_key = $2
+           and ($4::uuid is null or exists (select 1 from public.rooms where id = $4 and property_id = $5))`,
+        [rows[0].id, channel.key, channel.name, channel.roomId, propertyId],
+      );
+      // An unknown channel or a room of another home: nothing is added.
+      if (!rowCount) throw new InvalidBoardInput();
+    }
+    return { boardId: rows[0].id, boardName };
+  }).catch((error: unknown) => {
+    if (error instanceof InvalidBoardInput) return "invalid" as const;
+    throw error;
+  });
+}
+class InvalidBoardInput extends Error {}
+
+/**
+ * Pairs a board that waits in the home with the real board whose pairing code is `code`. Null if
+ * the code is unknown, used or expired, or the board is not waiting in this home; "mismatch" if the
+ * real board is a different product.
+ */
+export async function pairPendingBoard(pool: Pool, broker: Broker, propertyId: string, boardId: string, hardwareUid: string, code: string): Promise<PairedBoard | "mismatch" | null> {
+  const paired = await withSystemTx(pool, async (tx) => {
+    const { rows: pending } = await tx.query<{ model_id: string }>(
+      `select board.model_id
+       from public.board_pairings as pairing
+       join public.manufactured_boards as board on board.hardware_uid = pairing.hardware_uid
+       where pairing.hardware_uid = $1 and pairing.code_hash = $2 and pairing.controller_id is null and pairing.expires_at > now()
+       for update of pairing`,
+      [hardwareUid, sha256(code)],
+    );
+    const { rows: waiting } = await tx.query<{ model_id: string; name: string }>(
+      "select model_id, name from public.controllers where id = $1 and property_id = $2 and hardware_uid is null for update",
+      [boardId, propertyId],
+    );
+    if (!pending.length || !waiting.length) return null;
+    if (pending[0].model_id !== waiting[0].model_id) return "mismatch" as const;
+
+    // A board is in one home at most: pairing it again removes it from where it was.
+    const { rows: previous } = await tx.query<{ id: string }>("delete from public.controllers where hardware_uid = $1 returning id", [hardwareUid]);
+    await tx.query("update public.controllers set hardware_uid = $2 where id = $1", [boardId, hardwareUid]);
+    await tx.query("update public.devices set external_id = $2 || ':' || channel_key where controller_id = $1", [boardId, hardwareUid]);
+    await tx.query("update public.board_pairings set controller_id = $2 where hardware_uid = $1", [hardwareUid, boardId]);
+    return { boardId, boardName: waiting[0].name, previous: previous.map((row) => row.id) };
+  });
+  if (!paired || paired === "mismatch") return paired;
+  for (const previous of paired.previous) await broker.removeBoard(previous);
   return { boardId: paired.boardId, boardName: paired.boardName };
 }
 

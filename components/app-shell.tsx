@@ -88,7 +88,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   const [propertyManagerOpen, setPropertyManagerOpen] = useState(false);
   const [roomEditor, setRoomEditor] = useState<Room | "new" | null>(null);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  const [addDeviceOpen, setAddDeviceOpen] = useState(false);
+  // "new": pick a product; a board: pair one that was added earlier.
+  const [addDevice, setAddDevice] = useState<"new" | { boardId: string; boardName: string } | null>(null);
   const [pendingRemoveDevice, setPendingRemoveDevice] = useState<Device | null>(null);
   const [scenarioEditor, setScenarioEditor] = useState<Scenario | "new" | null>(null);
   const [runningScenario, setRunningScenario] = useState<string | null>(null);
@@ -393,7 +394,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
               onClearSearch={() => setSearch("")}
               onAddRoom={() => setRoomEditor("new")}
               onEditRoom={setRoomEditor}
-              onAddDevice={() => setAddDeviceOpen(true)}
+              onAddDevice={() => setAddDevice("new")}
               onRemoveDevice={gateway.removeDemoDevice ? setPendingRemoveDevice : undefined}
             />
           )}
@@ -443,6 +444,9 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
           canEdit={canEditDevices}
           onCommand={(capability, value) => command(activeDevice, capability, value)}
           onEdit={() => { setEditingDevice(activeDevice); setActiveDeviceId(null); }}
+          onPair={activeDevice.pending && activeDevice.boardId && property && can(property.role, "board.pair")
+            ? () => { setAddDevice({ boardId: activeDevice.boardId!, boardName: activeDevice.boardName ?? "" }); setActiveDeviceId(null); }
+            : undefined}
           onClose={() => setActiveDeviceId(null)}
         />}
       </AnimatePresence>
@@ -549,28 +553,25 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         }}
       />}
 
-      {addDeviceOpen && propertyId && <AddDeviceDialog
+      {addDevice && propertyId && <AddDeviceDialog
         rooms={rooms}
         nameOf={nameOf}
         canPair={property ? can(property.role, "board.pair") : false}
-        onClose={() => setAddDeviceOpen(false)}
-        onPair={async (pairingCode) => {
-          if (!gateway.pairBoard) throw new GatewayError("forbidden");
-          const paired = await gateway.pairBoard(propertyId, pairingCode);
-          home.setDevices((current) => [...current.filter((device) => !paired.devices.some((added) => added.id === device.id)), ...paired.devices]);
+        waiting={addDevice === "new" ? undefined : addDevice}
+        loadProducts={gateway.listProducts}
+        sampleQr={gateway.demoPairingSample}
+        onClose={() => setAddDevice(null)}
+        onAdd={async (product, channels) => {
+          const added = await gateway.addBoard(propertyId, { modelCode: product.code, channels });
+          home.setDevices((current) => [...current, ...added.devices]);
           showToast(m.shell.toasts.boardAdded);
-          return paired.devices;
+          return { boardId: added.boardId, boardName: added.boardName };
         }}
-        onRename={async (device, form) => {
-          const updated = await gateway.updateDevice(propertyId, device.id, form);
-          home.setDevices((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+        onPair={async (board, pairingCode) => {
+          const paired = await gateway.pairBoard(propertyId, board.boardId, pairingCode);
+          home.setDevices((current) => [...current.filter((device) => device.boardId !== paired.boardId), ...paired.devices]);
+          showToast(m.shell.toasts.boardPaired);
         }}
-        onAddDemo={gateway.addDemoDevice ? async (input) => {
-          const created = await gateway.addDemoDevice!(propertyId, input);
-          home.setDevices((current) => [...current, created]);
-          setAddDeviceOpen(false);
-          showToast(m.shell.toasts.deviceAdded(created.name));
-        } : undefined}
       />}
 
       {pendingRemoveDevice && propertyId && <div className="modal-backdrop lock-confirm-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPendingRemoveDevice(null)}>

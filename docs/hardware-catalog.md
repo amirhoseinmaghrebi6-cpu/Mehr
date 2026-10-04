@@ -127,4 +127,4 @@ where code = 'cooler-rev-a';
 
 The `sample-*` models from `pnpm db:seed` are examples for development only. They are not real M2smart PCBs.
 
-Real boards join a home by the pairing code they show on their own setup page ([board-protocol.md](board-protocol.md)). To try that flow without hardware, `pnpm dev:pairing <model-code>` plays a new board in pairing mode and prints its pairing code; paste it under "Add a device" in the app. Every board ever made is listed in the registry of manufactured boards, with its model.
+Real boards join a home by the pairing code they show on their own setup page ([board-protocol.md](board-protocol.md)). To try that flow without hardware, add the product under "Add a device" in the app, then `pnpm dev:pairing <model-code>` plays a new board of that model in pairing mode and prints its pairing code; paste it in the pairing step. Products are listed by category (the category of the model's first channel, `deviceTypeCategory` in the contracts); only models with a setup button are offered. Every board ever made is listed in the registry of manufactured boards, with its model.

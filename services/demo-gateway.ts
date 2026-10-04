@@ -9,11 +9,11 @@ import {
   DEFAULT_SCENARIO_LATE_WINDOW,
   defaultSettings,
   defaultTimeZone,
+  deviceTypeCategory,
   isDeviceType,
   parsePairingCode,
   type Command,
   type CommandStatus,
-  type Device,
   type Property,
   type Room,
   type Scenario,
@@ -207,6 +207,8 @@ export function createDemoGateway(userId: string): HomeGateway {
       if (!device) throw new GatewayError("not_found");
       const state = device.capabilities.find((entry) => entry.capability === input.capability);
       if (!state || !state.writable || capabilityValueError(capabilities[input.capability], input.targetValue) !== null) throw new GatewayError("invalid_request");
+      // Like the API: a board that is not paired yet has no hardware to command.
+      if (device.pending) throw new GatewayError("conflict");
       // Like the API: a camera records only while it is on.
       if (device.type === "camera" && input.capability === "recording" && input.targetValue === true && device.capabilities.find((entry) => entry.capability === "power")?.value !== true) {
         throw new GatewayError("conflict");
@@ -300,36 +302,59 @@ export function createDemoGateway(userId: string): HomeGateway {
       return next;
     },
 
-    // Pairing in the demo: the sample boards' QR codes add their channels, as a real board would.
-    async pairBoard(propertyId, pairingCode) {
+    // Adding and pairing in the demo: the same three steps as a real home, with sample products.
+    async listProducts() {
+      return Object.entries(demoBoards).map(([code, board]) => ({
+        code,
+        name: board.name,
+        category: deviceTypeCategory[board.channels[0][0]],
+        channels: board.channels.map(([deviceType, defaultName], index) => ({ key: `ch${index + 1}`, deviceType, defaultName })),
+      }));
+    },
+    async addBoard(propertyId, input) {
       home(propertyId);
-      const parsed = parsePairingCode(pairingCode);
-      const board = parsed ? demoBoards[parsed.hardwareUid] : undefined;
+      const board = demoBoards[input.modelCode];
       if (!board) throw new GatewayError("not_found");
-      await later(700);
       const boardId = newId("board");
-      const devices = board.channels.map(([type, name, values]) => ({ ...demoDevice(newId("device"), type, name, null, values), boardId, boardName: board.name }));
+      const devices = board.channels.map(([type, name, values], index) => {
+        const chosen = input.channels.find((channel) => channel.key === `ch${index + 1}`);
+        return { ...demoDevice(newId("device"), type, chosen?.name.trim() || name, chosen?.roomId ?? null, values), boardId, boardName: board.name, online: false, pending: true };
+      });
       (data.devices[propertyId] ??= []).push(...devices);
+      (data.waitingBoards ??= {})[boardId] = input.modelCode;
       save();
       return { boardId, boardName: board.name, devices: clone(devices) };
+    },
+    async pairBoard(propertyId, boardId, pairingCode) {
+      home(propertyId);
+      const product = data.waitingBoards?.[boardId];
+      const parsed = parsePairingCode(pairingCode);
+      if (!product || !parsed || !demoBoards[parsed.hardwareUid]) throw new GatewayError("not_found");
+      // Like the API: the real board must be the product that was picked.
+      if (parsed.hardwareUid !== product) throw new GatewayError("conflict");
+      await later(700);
+      const now = new Date().toISOString();
+      const devices = (data.devices[propertyId] ?? []).filter((device) => device.boardId === boardId);
+      for (const device of devices) Object.assign(device, { pending: false, online: true, lastSeenAt: now });
+      delete data.waitingBoards![boardId];
+      save();
+      return { boardId, boardName: demoBoards[product].name, devices: clone(devices) };
+    },
+    demoPairingSample(boardId) {
+      const product = data.waitingBoards?.[boardId];
+      return product ? { label: demoBoards[product].name, image: demoBoards[product].image } : null;
     },
     async removeBoard(propertyId, boardId) {
       const devices = data.devices[propertyId] ?? [];
       const removed = new Set(devices.filter((device) => device.boardId === boardId).map((device) => device.id));
       if (!removed.size) throw new GatewayError("not_found");
       data.devices[propertyId] = devices.filter((device) => !removed.has(device.id));
+      if (data.waitingBoards) delete data.waitingBoards[boardId];
       // Like the database: actions on the board's devices go with it.
       for (const scenario of scenariosOf(propertyId)) scenario.actions = scenario.actions.filter((action) => !removed.has(action.deviceId));
       save();
     },
 
-    async addDemoDevice(propertyId, input) {
-      home(propertyId);
-      const device = demoDevice(newId("device"), input.type, input.name.trim(), input.roomId);
-      (data.devices[propertyId] ??= []).push(device);
-      save();
-      return clone(device) as Device;
-    },
     async removeDemoDevice(propertyId, deviceId) {
       data.devices[propertyId] = (data.devices[propertyId] ?? []).filter((device) => device.id !== deviceId);
       // Like the database: actions on a removed device go with it.

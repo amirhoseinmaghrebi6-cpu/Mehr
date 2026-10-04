@@ -33,7 +33,8 @@ export function toRun(row: RunRow): ScenarioRun {
 }
 
 /**
- * Inserts the commands of a started run; returns their ids in action order. They share one
+ * Inserts the commands of a started run; returns their ids in action order. Actions on a device
+ * whose board is not paired yet are skipped: there is no hardware to command. They share one
  * created_at, so their idempotency keys end in the zero-padded position: commands are sent to a
  * board in (created_at, idempotency_key) order.
  */
@@ -42,7 +43,10 @@ async function createRunCommands(tx: TxClient, propertyId: string, scenarioId: s
     `insert into public.device_commands (property_id, device_id, capability, target_value, idempotency_key, scenario_run_id)
      select action.property_id, action.device_id, action.capability, action.target_value, 'scenario-' || $3::text || '-' || lpad(action.position::text, 2, '0'), $3::uuid
      from public.scenario_actions as action
+     join public.devices as device on device.id = action.device_id
+     left join public.controllers as board on board.id = device.controller_id
      where action.scenario_id = $1 and action.property_id = $2
+       and (device.controller_id is null or board.hardware_uid is not null)
      order by action.position
      returning id`,
     [scenarioId, propertyId, runId],
