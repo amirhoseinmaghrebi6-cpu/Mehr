@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "palettes": "node scripts/palettes.mjs",
+    "check:palettes": "node scripts/palettes.mjs --check",
     "infra:up": "docker compose -f infra/dev/compose.yaml up -d --wait",
     "infra:down": "docker compose -f infra/dev/compose.yaml down",
     "infra:reset": "docker compose -f infra/dev/compose.yaml down -v --remove-orphans && docker compose -f infra/dev/compose.yaml up -d --wait",

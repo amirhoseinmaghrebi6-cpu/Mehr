@@ -496,6 +496,9 @@ export const en = {
   },
 
   settings: {
+    palette: "Colours",
+    paletteNote: "Each palette has a light and a dark mode; switch between them with the moon button.",
+    palettes: { sage: "Sage", ocean: "Ocean", violet: "Violet", rose: "Rose", sand: "Sand", graphite: "Graphite" },
     title: "Your preferences",
     subtitle: "Saved to your account, so every phone and browser you sign in on shows the same.",
     demoSubtitle: "In the demo, preferences stay in this browser.",

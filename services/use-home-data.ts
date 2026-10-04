@@ -9,7 +9,8 @@
  * allows (its expiresAt: seconds for a light, minutes for a parking door) plus a margin for a slow
  * connection, and tolerates failed status requests in between. Only then does the control fall
  * back to the last reported value. The device list is refreshed every 15 seconds while the page is
- * visible, which picks up wall-switch presses and sensor changes.
+ * visible, which picks up wall-switch presses and sensor changes, and every 5 seconds while any
+ * device is offline, so a board that comes online shows up quickly.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CapabilityName, CapabilityValue, Command, CommandStatus, Device, Property, Room } from "@m2smart/contracts";
@@ -18,6 +19,8 @@ import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/service
 
 const POLL_MS = 1_000;
 const REFRESH_MS = 15_000;
+/** While a device is offline (e.g. a board that was just added), look again this often. */
+const OFFLINE_REFRESH_MS = 5_000;
 /** Extra wait past a command's deadline before giving up on hearing its result. */
 const DEADLINE_MARGIN_MS = 10_000;
 
@@ -105,10 +108,16 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
   // Periodic refresh while visible (reports that arrive without a command).
   useEffect(() => {
     if (!propertyId) return;
+    let last = Date.now();
     const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") void refreshDevices();
+      if (document.visibilityState !== "visible") return;
+      last = Date.now();
+      void refreshDevices();
     };
-    const timer = window.setInterval(refreshIfVisible, REFRESH_MS);
+    const timer = window.setInterval(() => {
+      const due = devicesRef.current.some((device) => !device.online) ? OFFLINE_REFRESH_MS : REFRESH_MS;
+      if (Date.now() - last >= due) refreshIfVisible();
+    }, OFFLINE_REFRESH_MS);
     document.addEventListener("visibilitychange", refreshIfVisible);
     return () => {
       window.clearInterval(timer);
@@ -129,7 +138,8 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
         current.map((device) =>
           device.id !== entry.deviceId
             ? device
-            : { ...device, capabilities: device.capabilities.map((state) => (state.capability === entry.capability ? { ...state, value: entry.target, reportedAt } : state)) },
+            : // A board that just carried out a command is online, whatever the last refresh said.
+              { ...device, online: true, lastSeenAt: reportedAt, capabilities: device.capabilities.map((state) => (state.capability === entry.capability ? { ...state, value: entry.target, reportedAt } : state)) },
         ),
       );
     }

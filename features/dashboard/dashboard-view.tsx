@@ -30,7 +30,7 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
-import { calendars, defaultTimeZone, displayTemperature, languages, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
+import { calendars, defaultTimeZone, displayTemperature, languages, palettes, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
 import { ScenarioList, ScenarioQuickList } from "@/features/scenarios/scenarios";
 import { useI18n } from "@/components/i18n-provider";
@@ -377,7 +377,7 @@ function CameraSection() {
 }
 
 function SettingsSection({ demo, property }: { demo: boolean; property: Property }) {
-  const { locale, m, calendar, temperatureUnit, setPreferences } = useI18n();
+  const { locale, m, calendar, temperatureUnit, palette, setPreferences } = useI18n();
   const t = m.settings;
   const choice = <T extends string>(label: string, options: readonly T[], value: T, name: (option: T) => string, onPick: (option: T) => void) => (
     <section className="segmented-section">
@@ -396,6 +396,19 @@ function SettingsSection({ demo, property }: { demo: boolean; property: Property
         {choice(t.language, languages, locale, (option) => messages[option].meta.languageName, (language) => setPreferences({ language }))}
         {choice(t.calendar, calendars, calendar, (option) => t.calendars[option], (next) => setPreferences({ calendar: next }))}
         {choice(t.temperature, temperatureUnits, temperatureUnit, (option) => t.temperatureUnits[option], (next) => setPreferences({ temperatureUnit: next }))}
+        <section className="segmented-section">
+          <span className="panel-overline">{t.palette}</span>
+          <div className="palette-picker" role="radiogroup" aria-label={t.palette}>
+            {palettes.map((option) => (
+              <button key={option} type="button" role="radio" aria-checked={palette === option} className={palette === option ? "selected" : ""} data-palette={option} onClick={() => palette !== option && setPreferences({ palette: option })}>
+                <span className="palette-swatch" aria-hidden="true"><i /><i /><i /></span>
+                <span>{t.palettes[option]}</span>
+                {palette === option && <Check size={13} />}
+              </button>
+            ))}
+          </div>
+          <p className="form-note">{t.paletteNote}</p>
+        </section>
         <p className="settings-preview">{t.today(formatDate(new Date(), locale, calendar, homeTimeZone(property)))}</p>
         <p className="form-note">{t.timeNote}</p>
         <p className="form-note">{t.moreSoon}</p>

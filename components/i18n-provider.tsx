@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CALENDAR_COOKIE, isLocale, isRtl, LOCALE_COOKIE, messages, TEMPERATURE_COOKIE, type Calendar, type Locale, type Messages, type TemperatureUnit, type UserSettings } from "@/lib/i18n";
+import { CALENDAR_COOKIE, isLocale, isRtl, LOCALE_COOKIE, messages, PALETTE_COOKIE, TEMPERATURE_COOKIE, type Calendar, type Locale, type Messages, type Palette, type TemperatureUnit, type UserSettings } from "@/lib/i18n";
 
 type Preferences = {
   locale: Locale;
@@ -9,8 +9,9 @@ type Preferences = {
   rtl: boolean;
   calendar: Calendar;
   temperatureUnit: TemperatureUnit;
+  palette: Palette;
   setLocale: (locale: Locale) => void;
-  /** Applies any of the three preferences (e.g. from the user's account). */
+  /** Applies any of the preferences (e.g. from the user's account). */
   setPreferences: (settings: Partial<UserSettings>) => void;
 };
 
@@ -21,7 +22,7 @@ const setCookie = (name: string, value: string) => {
 };
 
 /**
- * The user's display preferences: language, calendar, temperature unit. Each is kept in a cookie
+ * The user's display preferences: language, calendar, temperature unit, colour palette. Each is kept in a cookie
  * (read by the server for the first render) and, for signed-in users, on the account; the app shell
  * syncs the two (components/app-shell.tsx).
  */
@@ -33,6 +34,7 @@ export function I18nProvider({ initial, children }: { initial: UserSettings; chi
     if (next.language) setCookie(LOCALE_COOKIE, next.language);
     if (next.calendar) setCookie(CALENDAR_COOKIE, next.calendar);
     if (next.temperatureUnit) setCookie(TEMPERATURE_COOKIE, next.temperatureUnit);
+    if (next.palette) setCookie(PALETTE_COOKIE, next.palette);
   }, []);
   const setLocale = useCallback((language: Locale) => setPreferences({ language }), [setPreferences]);
 
@@ -52,6 +54,11 @@ export function I18nProvider({ initial, children }: { initial: UserSettings; chi
     document.documentElement.dir = isRtl(settings.language) ? "rtl" : "ltr";
   }, [settings.language]);
 
+  // The palette is an attribute of <html> (app/palettes.css); the server sets it for the first render.
+  useEffect(() => {
+    document.documentElement.dataset.palette = settings.palette;
+  }, [settings.palette]);
+
   const value = useMemo<Preferences>(
     () => ({
       locale: settings.language,
@@ -59,6 +66,7 @@ export function I18nProvider({ initial, children }: { initial: UserSettings; chi
       rtl: isRtl(settings.language),
       calendar: settings.calendar,
       temperatureUnit: settings.temperatureUnit,
+      palette: settings.palette,
       setLocale,
       setPreferences,
     }),

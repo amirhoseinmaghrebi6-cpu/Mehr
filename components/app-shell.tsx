@@ -85,7 +85,7 @@ type Confirmation = { device: Device; capability: CapabilityName; target: Capabi
 export function AppShell({ userId, displayName, demoMode = false }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { locale, m, rtl, calendar, temperatureUnit, setPreferences } = useI18n();
+  const { locale, m, rtl, calendar, temperatureUnit, palette, setPreferences } = useI18n();
   const [theme, setTheme] = useState<Theme>("light");
   const [section, setSection] = useState<DashboardSection>("overview");
   const [search, setSearch] = useState("");
@@ -129,8 +129,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   // language, calendar or unit was already chosen here (e.g. on the sign-up screen), that choice is
   // kept and saved to the account. Later changes, from the settings page or the language menu, are
   // saved as they happen.
-  const preferences = useRef<UserSettings>({ language: locale, calendar, temperatureUnit });
-  preferences.current = { language: locale, calendar, temperatureUnit };
+  const preferences = useRef<UserSettings>({ language: locale, calendar, temperatureUnit, palette });
+  preferences.current = { language: locale, calendar, temperatureUnit, palette };
   const account = useRef<UserSettings | null>(null);
   useEffect(() => {
     let active = true;
@@ -139,8 +139,8 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       (stored) => {
         if (!active) return;
         const current = preferences.current;
-        const untouched = stored.language === defaultSettings.language && stored.calendar === defaultSettings.calendar && stored.temperatureUnit === defaultSettings.temperatureUnit;
-        const differs = current.language !== stored.language || current.calendar !== stored.calendar || current.temperatureUnit !== stored.temperatureUnit;
+        const untouched = stored.language === defaultSettings.language && stored.calendar === defaultSettings.calendar && stored.temperatureUnit === defaultSettings.temperatureUnit && stored.palette === defaultSettings.palette;
+        const differs = current.language !== stored.language || current.calendar !== stored.calendar || current.temperatureUnit !== stored.temperatureUnit || current.palette !== stored.palette;
         if (untouched && differs) {
           account.current = current;
           void gateway.updateSettings(current).catch(() => undefined);
@@ -162,10 +162,11 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
     if (locale !== saved.language) changes.language = locale;
     if (calendar !== saved.calendar) changes.calendar = calendar;
     if (temperatureUnit !== saved.temperatureUnit) changes.temperatureUnit = temperatureUnit;
+    if (palette !== saved.palette) changes.palette = palette;
     if (!Object.keys(changes).length) return;
     account.current = { ...saved, ...changes };
     gateway.updateSettings(changes).catch(() => setToast({ message: messages[locale].settings.saveFailed, tone: "warn" }));
-  }, [gateway, locale, calendar, temperatureUnit]);
+  }, [gateway, locale, calendar, temperatureUnit, palette]);
 
   const home = useHomeData(gateway, requestedPropertyId, onOutcome);
   const { property, propertyId, properties, rooms, devices } = home;

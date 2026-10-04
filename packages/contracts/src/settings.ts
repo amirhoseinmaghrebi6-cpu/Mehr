@@ -14,19 +14,25 @@ export type Calendar = (typeof calendars)[number];
 export const temperatureUnits = ["celsius", "fahrenheit"] as const;
 export type TemperatureUnit = (typeof temperatureUnits)[number];
 
+/** Colour palettes of the app; each has a light and a dark mode (scripts/palettes.mjs). */
+export const palettes = ["sage", "ocean", "violet", "rose", "sand", "graphite"] as const;
+export type Palette = (typeof palettes)[number];
+
 export interface UserSettings {
   language: Language;
   calendar: Calendar;
   temperatureUnit: TemperatureUnit;
+  palette: Palette;
 }
 
-export const defaultSettings: UserSettings = { language: "en", calendar: "solar_hijri", temperatureUnit: "celsius" };
+export const defaultSettings: UserSettings = { language: "en", calendar: "solar_hijri", temperatureUnit: "celsius", palette: "sage" };
 
 export const updateSettingsRequest = z
   .strictObject({
     language: z.enum(languages),
     calendar: z.enum(calendars),
     temperatureUnit: z.enum(temperatureUnits),
+    palette: z.enum(palettes),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "nothing to update");

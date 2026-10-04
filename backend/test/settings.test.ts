@@ -49,23 +49,26 @@ describe("user settings", () => {
   });
 
   it("starts with English, Solar Hijri and Celsius, also for a user the webhook missed", async () => {
-    expect((await call("alice", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius" });
-    expect((await call("bob", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius" });
+    expect((await call("alice", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius", palette: "sage" });
+    expect((await call("bob", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius", palette: "sage" });
   });
 
   it("saves changes and returns them in /v1/me too", async () => {
     const saved = await call("alice", "PATCH", "/v1/me/settings", { language: "ar", temperatureUnit: "fahrenheit" });
-    expect(saved).toEqual({ status: 200, body: { language: "ar", calendar: "solar_hijri", temperatureUnit: "fahrenheit" } satisfies UserSettings });
-    expect((await call("alice", "PATCH", "/v1/me/settings", { calendar: "gregorian" })).body).toEqual({ language: "ar", calendar: "gregorian", temperatureUnit: "fahrenheit" });
-    expect(((await call("alice", "GET", "/v1/me")).body as MeResponse).settings).toEqual({ language: "ar", calendar: "gregorian", temperatureUnit: "fahrenheit" });
+    expect(saved).toEqual({ status: 200, body: { language: "ar", calendar: "solar_hijri", temperatureUnit: "fahrenheit", palette: "sage" } satisfies UserSettings });
+    expect((await call("alice", "PATCH", "/v1/me/settings", { calendar: "gregorian" })).body).toEqual({ language: "ar", calendar: "gregorian", temperatureUnit: "fahrenheit", palette: "sage" });
+    expect(((await call("alice", "GET", "/v1/me")).body as MeResponse).settings).toEqual({ language: "ar", calendar: "gregorian", temperatureUnit: "fahrenheit", palette: "sage" });
+    // The colour palette is saved on the account too.
+    expect((await call("alice", "PATCH", "/v1/me/settings", { palette: "ocean" })).body).toMatchObject({ palette: "ocean", language: "ar" });
+    expect(((await call("alice", "GET", "/v1/me")).body as MeResponse).settings.palette).toBe("ocean");
   });
 
   it("never touches another user's settings", async () => {
-    expect((await call("bob", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius" });
+    expect((await call("bob", "GET", "/v1/me/settings")).body).toEqual({ language: "en", calendar: "solar_hijri", temperatureUnit: "celsius", palette: "sage" });
   });
 
   it("rejects unknown or empty changes", async () => {
-    for (const payload of [{}, { language: "de" }, { calendar: "lunar_hijri" }, { temperatureUnit: "kelvin" }, { userId: USERS.bob }]) {
+    for (const payload of [{}, { language: "de" }, { calendar: "lunar_hijri" }, { temperatureUnit: "kelvin" }, { palette: "neon" }, { userId: USERS.bob }]) {
       const response = await call("alice", "PATCH", "/v1/me/settings", payload);
       expect([response.status, response.body], JSON.stringify(payload)).toEqual([400, { error: "invalid_request" }]);
     }

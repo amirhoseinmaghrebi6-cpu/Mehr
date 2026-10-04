@@ -11,7 +11,7 @@ import { en, type Messages } from "@/messages/en";
 import { fa } from "@/messages/fa";
 
 export type { Messages } from "@/messages/en";
-export type { Calendar, TemperatureUnit, UserSettings } from "@m2smart/contracts";
+export type { Calendar, Palette, TemperatureUnit, UserSettings } from "@m2smart/contracts";
 
 export const locales = ["fa", "en", "ar"] as const;
 export type Locale = (typeof locales)[number];
@@ -36,6 +36,7 @@ export function formatNumber(value: number, locale: Locale, fractionDigits = 0):
 
 export const CALENDAR_COOKIE = "m2smart-calendar";
 export const TEMPERATURE_COOKIE = "m2smart-temperature";
+export const PALETTE_COOKIE = "m2smart-palette";
 
 const dateLocales: Record<Locale, string> = { fa: "fa-IR", ar: "ar", en: "en-US" };
 const numberingSystems: Record<Locale, string> = { fa: "arabext", ar: "arab", en: "latn" };
