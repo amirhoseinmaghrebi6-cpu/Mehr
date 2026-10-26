@@ -4,7 +4,7 @@
 
 The organization is the tenancy boundary. A person may belong to multiple organizations; each organization owns properties. A property contains buildings, floors, rooms, areas, devices, scenes, automations, cameras, and membership grants. The active organization and property scope every read, realtime subscription, and mutation. The backend remains authoritative for identity, authorization, audit, and device commands.
 
-Primary customer navigation is: Overview; Spaces (rooms and devices); Scenarios; Safety (security and cameras); Home & you (activity and settings). Emergency, AI, users and sharing, integrations, and device onboarding are contextual destinations that can be added without expanding the first-level navigation.
+Primary customer navigation is: Overview; Spaces (rooms and devices); Scenarios; Safety (security and cameras); Home & you (activity, members and settings). Emergency, AI, users and sharing, integrations, and device onboarding are contextual destinations that can be added without expanding the first-level navigation.
 
 ## Route hierarchy
 
@@ -85,10 +85,11 @@ The current delivery implements:
 
 Security and cameras still use sample data, in the demo only; real users see "coming soon" there. There is no Automations page and no Energy page, and the app shows no consumption numbers: scenarios cover scheduling, and consumption is not a feature of the product (decided 2026-10-04).
 
+Home members (Phase 5A): owners and admins invite people by mobile number; the invited person sees the invitation after signing in with that number and accepts or declines it. An owner manages admins and members, an admin manages members only, and anyone but the owner may leave. An invitation stays until it is accepted, declined or cancelled, and is then deleted. See `docs/plans/phase-5.md`.
+
 Still to be implemented:
 - firmware;
 - realtime push;
-- member invitations;
 - administration;
 - the real SMS provider;
 - deployment on servers in Iran, with TLS and our own certificate authority for the boards.

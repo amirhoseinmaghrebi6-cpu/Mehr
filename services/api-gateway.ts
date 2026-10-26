@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ApiErrorResponse, Command, CommandStatus, Device, HardwareProduct, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
+import type { ApiErrorResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -58,6 +58,15 @@ export function createApiGateway(): HomeGateway {
     createProperty: (input) => request<Property>("POST", "/properties", input),
     updateProperty: (id, input) => request<Property>("PATCH", `/properties/${id}`, input),
     deleteProperty: (id) => request<void>("DELETE", `/properties/${id}`),
+
+    listMembers: (id) => request<MemberListResponse>("GET", `/properties/${id}/members`),
+    invite: (id, input) => request<HomeInvitation>("POST", `/properties/${id}/invitations`, input),
+    cancelInvitation: (id, invitationId) => request<void>("DELETE", `/properties/${id}/invitations/${invitationId}`),
+    updateMember: (id, userId, input) => request<HomeMember>("PATCH", `/properties/${id}/members/${userId}`, input),
+    removeMember: (id, userId) => request<void>("DELETE", `/properties/${id}/members/${userId}`),
+    listMyInvitations: async () => (await request<{ invitations: MyInvitation[] }>("GET", "/me/invitations")).invitations,
+    acceptInvitation: (invitationId) => request<Property>("POST", `/me/invitations/${invitationId}/accept`),
+    declineInvitation: (invitationId) => request<void>("DELETE", `/me/invitations/${invitationId}`),
 
     listRooms: async (id) => (await request<{ rooms: Room[] }>("GET", `/properties/${id}/rooms`)).rooms,
     createRoom: (id, input) => request<Room>("POST", `/properties/${id}/rooms`, input),

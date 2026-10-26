@@ -24,6 +24,7 @@ import { registerDevReportRoute } from "./http/dev-report";
 import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
 import { registerHomeRoutes } from "./http/homes";
+import { registerMemberRoutes } from "./http/members";
 import { registerMeRoute } from "./http/me";
 import { registerScenarioRoutes } from "./http/scenarios";
 import { registerSettingsRoutes } from "./http/settings";
@@ -73,6 +74,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
   if (services.sessionVerifier) {
     registerMeRoute(app, pool, services.sessionVerifier);
     registerHomeRoutes(app, pool, services.sessionVerifier);
+    registerMemberRoutes(app, pool, services.sessionVerifier);
     registerDeviceRoutes(app, pool, services.sessionVerifier);
     registerSettingsRoutes(app, pool, services.sessionVerifier);
     registerScenarioRoutes(app, pool, services.sessionVerifier);

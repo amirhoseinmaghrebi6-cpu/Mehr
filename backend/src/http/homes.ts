@@ -25,9 +25,9 @@ import { createHandler, HttpError, notFound, parse, requireAction, requireUuid }
 export const MAX_HOMES_PER_USER = 50;
 export const MAX_ROOMS_PER_HOME = 200;
 
-type PropertyRow = { id: string; name: string; property_type: PropertyType; address: string; cover_photo: PhotoPreset; time_zone: string };
-const PROPERTY_COLUMNS = "property.id, property.name, property.property_type, property.address, property.cover_photo, property.time_zone";
-const toProperty = (row: PropertyRow, role: PropertyRole): Property => ({
+export type PropertyRow = { id: string; name: string; property_type: PropertyType; address: string; cover_photo: PhotoPreset; time_zone: string };
+export const PROPERTY_COLUMNS = "property.id, property.name, property.property_type, property.address, property.cover_photo, property.time_zone";
+export const toProperty = (row: PropertyRow, role: PropertyRole): Property => ({
   id: row.id,
   name: row.name,
   type: row.property_type,

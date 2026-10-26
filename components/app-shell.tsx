@@ -27,11 +27,13 @@ import {
   Sun,
   Sunset,
   TriangleAlert,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type Scenario, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
 import { DashboardView, homeTimeZone, type DashboardSection } from "@/features/dashboard/dashboard-view";
+import { InvitationBanner, MembersSection } from "@/features/members/members";
 import { ScenarioEditorDialog } from "@/features/scenarios/scenarios";
 import { DeviceSheet } from "@/components/device-sheet";
 import { useI18n } from "@/components/i18n-provider";
@@ -60,6 +62,7 @@ const moreLinks: { id: DashboardSection; icon: LucideIcon }[] = [
   { id: "security", icon: ShieldCheck },
   { id: "cameras", icon: Activity },
   { id: "notifications", icon: Bell },
+  { id: "members", icon: Users },
   { id: "settings", icon: Settings },
 ];
 
@@ -192,9 +195,11 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
     if (!properties || !propertyId || requestedPropertyId === propertyId) return;
     router.replace(`/homes/${propertyId}${section === "overview" ? "" : `/${section}`}`, { scroll: false });
   }, [properties, propertyId, requestedPropertyId, router, section]);
+  // A new user is asked for their first home, unless an invitation to one is waiting.
+  const [invitationCount, setInvitationCount] = useState<number | null>(null);
   useEffect(() => {
-    if (properties && properties.length === 0) setPropertyManagerOpen(true);
-  }, [properties]);
+    if (properties && properties.length === 0 && invitationCount === 0) setPropertyManagerOpen(true);
+  }, [properties, invitationCount]);
 
   useEffect(() => {
     try {
@@ -360,6 +365,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         </header>
 
         <div className="scroll-area" key={propertyId ?? "none"}>
+          <InvitationBanner gateway={gateway} nameOf={nameOf} onCount={setInvitationCount} onAccepted={(joined) => { home.setProperties((current) => [...(current ?? []).filter((item) => item.id !== joined.id), joined]); changeProperty(joined.id); showToast(m.members.toasts.joined(nameOf(joined.name))); }} />
           {home.loadError && !properties ? (
             <div className="quiet-panel" role="alert"><span className="quiet-icon"><TriangleAlert size={24} strokeWidth={1.6} /></span><h2>{m.shell.loadErrorTitle}</h2><p>{gatewayMessage(home.loadError, locale)}</p><button type="button" className="workspace-quick-add" onClick={() => void home.reloadProperties()}><RefreshCw size={14} />{m.common.tryAgain}</button></div>
           ) : !properties ? (
@@ -370,6 +376,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
             <DashboardView
               section={section}
               property={property}
+              membersPanel={<MembersSection gateway={gateway} property={property} nameOf={nameOf} onToast={showToast} onLeft={() => { const remaining = (properties ?? []).filter((item) => item.id !== property.id); home.setProperties(remaining); if (remaining[0]) changeProperty(remaining[0].id); else router.push("/dashboard"); }} />}
               displayName={displayName}
               rooms={rooms}
               devices={visibleDevices}
@@ -412,7 +419,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
-          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>
@@ -614,5 +621,5 @@ function MobileNavigationItem({ id, icon: Icon, active, onClick }: { id: Dashboa
 }
 
 function isDashboardSection(section: string | undefined): section is DashboardSection {
-  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "settings"].includes(section ?? "");
+  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "members", "settings"].includes(section ?? "");
 }

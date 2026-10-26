@@ -7,3 +7,5 @@ export * from "./settings.js";
 export * from "./calendar.js";
 export * from "./scenarios.js";
 export * from "./board-protocol.js";
+export * from "./phone.js";
+export * from "./members.js";

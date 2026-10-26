@@ -6,6 +6,7 @@
 import {
   capabilities,
   capabilityValueError,
+  createInvitationRequest,
   DEFAULT_SCENARIO_LATE_WINDOW,
   defaultSettings,
   defaultTimeZone,
@@ -22,7 +23,7 @@ import {
 } from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
 import { nextRun } from "@/lib/scenario-time";
-import { createDemoData, createDemoScenarios, demoBoards, demoDevice, type DemoData } from "@/services/demo-home";
+import { createDemoData, createDemoPeople, createDemoScenarios, demoBoards, demoDevice, demoInvitedHome, type DemoData } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
@@ -65,6 +66,11 @@ export function createDemoGateway(userId: string): HomeGateway {
     return property;
   }
   const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+  /** Members and invitations (demo data saved before they existed gets the samples). */
+  function people() {
+    if (!data.members) Object.assign(data, createDemoPeople(userId));
+    return { members: data.members!, invitations: (data.invitations ??= {}), myInvitations: (data.myInvitations ??= []) };
+  }
 
   // Scenarios follow the same rules as the API. Scheduled ones show their next run but do not run
   // in the demo: scenarios run on the server, and the demo never reaches it.
@@ -150,10 +156,86 @@ export function createDemoGateway(userId: string): HomeGateway {
     },
     async deleteProperty(propertyId) {
       home(propertyId);
-      data = { properties: data.properties.filter((item) => item.id !== propertyId), rooms: { ...data.rooms }, devices: { ...data.devices }, scenarios: { ...data.scenarios } };
+      data = { ...data, properties: data.properties.filter((item) => item.id !== propertyId), rooms: { ...data.rooms }, devices: { ...data.devices }, scenarios: { ...data.scenarios }, members: { ...people().members }, invitations: { ...people().invitations } };
       delete data.rooms[propertyId];
       delete data.devices[propertyId];
       if (data.scenarios) delete data.scenarios[propertyId];
+      delete data.members![propertyId];
+      delete data.invitations![propertyId];
+      save();
+    },
+
+    // Members: the visitor owns the sample homes, so every owner action can be shown.
+    async listMembers(propertyId) {
+      const { role } = home(propertyId);
+      const { members, invitations } = people();
+      // A home created in the demo starts with the visitor alone.
+      const list = (members[propertyId] ??= [{ userId, name: "You", phone: "+989120000000", role, you: true }]);
+      const you = list.find((member) => member.you);
+      const manager = you?.role === "owner" || you?.role === "admin";
+      return clone({ members: manager ? list : list.filter((member) => member.you), invitations: manager ? (invitations[propertyId] ?? []) : [] });
+    },
+    async invite(propertyId, input) {
+      home(propertyId);
+      const parsed = createInvitationRequest.safeParse(input);
+      if (!parsed.success) throw new GatewayError("invalid_request");
+      const { members, invitations } = people();
+      const open = (invitations[propertyId] ??= []);
+      if ((members[propertyId] ?? []).some((member) => member.phone === parsed.data.phone) || open.some((item) => item.phone === parsed.data.phone)) throw new GatewayError("conflict");
+      const invitation = { id: newId("invitation"), phone: parsed.data.phone, role: parsed.data.role, createdAt: new Date().toISOString() };
+      open.push(invitation);
+      save();
+      return clone(invitation);
+    },
+    async cancelInvitation(propertyId, invitationId) {
+      const { invitations } = people();
+      invitations[propertyId] = (invitations[propertyId] ?? []).filter((item) => item.id !== invitationId);
+      save();
+    },
+    async updateMember(propertyId, userId, input) {
+      const member = (people().members[propertyId] ?? []).find((item) => item.userId === userId);
+      if (!member) throw new GatewayError("not_found");
+      if (member.you || member.role === "owner") throw new GatewayError("forbidden");
+      member.role = input.role;
+      save();
+      return clone(member);
+    },
+    async removeMember(propertyId, userId) {
+      const { members } = people();
+      const member = (members[propertyId] ?? []).find((item) => item.userId === userId);
+      if (!member) throw new GatewayError("not_found");
+      if (member.role === "owner") throw new GatewayError(member.you ? "conflict" : "forbidden");
+      members[propertyId] = members[propertyId].filter((item) => item.userId !== userId);
+      if (member.you) {
+        data.properties = data.properties.filter((item) => item.id !== propertyId);
+        delete data.rooms[propertyId];
+        delete data.devices[propertyId];
+        if (data.scenarios) delete data.scenarios[propertyId];
+      }
+      save();
+    },
+    async listMyInvitations() {
+      return clone(people().myInvitations);
+    },
+    async acceptInvitation(invitationId) {
+      const { myInvitations, members } = people();
+      if (!myInvitations.some((item) => item.id === invitationId)) throw new GatewayError("not_found");
+      data.myInvitations = myInvitations.filter((item) => item.id !== invitationId);
+      const invited = demoInvitedHome();
+      const id = invited.property.id;
+      data.properties = [...data.properties.filter((item) => item.id !== id), invited.property];
+      data.rooms[id] = invited.rooms;
+      data.devices[id] = invited.devices;
+      (data.scenarios ??= createDemoScenarios())[id] = [];
+      members[id] = [
+        { userId: "demo-maryam", name: "Maryam Rahimi", phone: "+989171234567", role: "owner", you: false },
+        { userId, name: "You", phone: "+989120000000", role: invited.property.role, you: true },
+      ];
+      save();
+      return clone(invited.property);
+    },
+    async declineInvitation(invitationId) {
+      data.myInvitations = people().myInvitations.filter((item) => item.id !== invitationId);
       save();
     },
 

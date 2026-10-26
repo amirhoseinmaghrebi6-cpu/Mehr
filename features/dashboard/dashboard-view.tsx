@@ -33,7 +33,7 @@ import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
 /** A home's time zone (homes saved by older demo sessions have none: Tehran). */
 export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
 
-export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "settings";
+export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings";
 
 /** Sections that only have sample data so far; real users see "coming soon" there. */
 const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["security", "cameras"]);
@@ -41,6 +41,8 @@ const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["security", "
 type Props = {
   section: DashboardSection;
   property: Property;
+  /** The Members section (it loads its own data). */
+  membersPanel?: React.ReactNode;
   displayName: string;
   rooms: Room[];
   devices: Device[];
@@ -307,6 +309,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
   if (section === "settings") return <SettingsSection demo={demo} property={props.property} />;
+  if (section === "members") return <>{props.membersPanel}</>;
   if (section === "scenes") {
     return (
       <ScenarioList

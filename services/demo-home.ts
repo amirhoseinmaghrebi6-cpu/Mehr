@@ -2,7 +2,7 @@
  * Sample homes for the demo account, in the same shape the API returns. The demo never touches
  * the database: this data lives in the demo visitor's browser (services/demo-gateway.ts).
  */
-import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type Property, type Room, type Scenario } from "@m2smart/contracts";
+import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type HomeInvitation, type HomeMember, type MyInvitation, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { messages, type Locale } from "@/lib/i18n";
 
 export type DemoData = {
@@ -13,6 +13,10 @@ export type DemoData = {
   waitingBoards?: Record<string, string>;
   /** Missing in demo data saved before scenarios existed: then the samples are added. */
   scenarios?: Record<string, Scenario[]>;
+  /** Missing in demo data saved before members existed: then the samples are added. */
+  members?: Record<string, HomeMember[]>;
+  invitations?: Record<string, HomeInvitation[]>;
+  myInvitations?: MyInvitation[];
 };
 
 /** A device of `type` with every capability of the type and the given reported values. */
@@ -150,4 +154,29 @@ export function createDemoScenarios(): Record<string, Scenario[]> {
 /** The demo's sample homes, rooms and devices in the visitor's language; other names are shown as typed. */
 export function demoName(name: string, locale: Locale): string {
   return messages[locale].demo.names[name] ?? name;
+}
+
+/**
+ * The demo's people: members of the sample homes (the visitor is the owner) and one invitation to
+ * the visitor, so accepting can be shown. Names go through demoName like the rest of the demo.
+ */
+export function createDemoPeople(userId: string): Pick<DemoData, "members" | "invitations" | "myInvitations"> {
+  const you: HomeMember = { userId, name: "You", phone: "+989120000000", role: "owner", you: true };
+  return {
+    members: {
+      tehran: [you, { userId: "demo-sara", name: "Sara Ahmadi", phone: "+989121112233", role: "admin", you: false }, { userId: "demo-reza", name: "Reza Karimi", phone: "+989351234567", role: "member", you: false }],
+      caspian: [you],
+    },
+    invitations: { tehran: [{ id: "demo-invitation-nima", phone: "+989198765432", role: "member", createdAt: new Date().toISOString() }] },
+    myInvitations: [{ id: "demo-invitation-shiraz", propertyName: "Shiraz Apartment", invitedBy: "Maryam Rahimi", role: "member", createdAt: new Date().toISOString() }],
+  };
+}
+
+/** The home the demo's invitation leads to. */
+export function demoInvitedHome(): { property: Property; rooms: Room[]; devices: Device[] } {
+  return {
+    property: { id: "shiraz", name: "Shiraz Apartment", type: "apartment", address: "Shiraz", coverPhoto: "living", timeZone: "Asia/Tehran", role: "member" },
+    rooms: [{ id: "s-living", name: "Living room", photo: "living", sortOrder: 0 }],
+    devices: [demoDevice("s-light", "switch", "Ceiling light", "s-living", { power: false })],
+  };
 }

@@ -28,14 +28,26 @@ export const propertyActions = [
   "board.remove",
   /** Delete the home with everything in it. */
   "property.delete",
+  /** See all members and invite or remove people (which roles: canManageRole). */
+  "member.manage",
 ] as const;
 export type PropertyAction = (typeof propertyActions)[number];
 
 export const rolePermissions: Readonly<Record<PropertyRole, readonly PropertyAction[]>> = {
-  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair", "board.remove", "property.delete"],
-  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair", "board.remove"],
+  owner: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair", "board.remove", "property.delete", "member.manage"],
+  admin: ["property.view", "device.control", "property.edit", "room.edit", "device.edit", "scenario.edit", "scenario.run", "board.pair", "board.remove", "member.manage"],
   member: ["property.view", "device.control", "scenario.run"],
 };
+
+/**
+ * Whether `actor` may invite, remove or give the role `target`: an owner manages admins and
+ * members, an admin manages members only. Nobody manages an owner.
+ */
+export function canManageRole(actor: PropertyRole | null | undefined, target: PropertyRole): boolean {
+  if (actor === "owner") return target !== "owner";
+  if (actor === "admin") return target === "member";
+  return false;
+}
 
 export function isPropertyRole(value: unknown): value is PropertyRole {
   return typeof value === "string" && (propertyRoles as readonly string[]).includes(value);

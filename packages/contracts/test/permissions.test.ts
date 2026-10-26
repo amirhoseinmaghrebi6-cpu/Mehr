@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { can, propertyActions, propertyRoles, rolePermissions, type PropertyAction } from "../src/permissions.js";
+import { can, canManageRole, propertyActions, propertyRoles, rolePermissions, type PropertyAction } from "../src/permissions.js";
 
 describe("permissions", () => {
   it("has exactly the owner, admin and member roles", () => {
@@ -17,6 +17,7 @@ describe("permissions", () => {
     "board.pair": [true, true, false],
     "board.remove": [true, true, false],
     "property.delete": [true, false, false],
+    "member.manage": [true, true, false],
   };
 
   it.each(propertyActions)("%s follows the agreed table", (action) => {
@@ -34,5 +35,12 @@ describe("permissions", () => {
     for (const actions of Object.values(rolePermissions)) {
       for (const action of actions) expect(propertyActions).toContain(action);
     }
+  });
+
+  it("an owner manages admins and members, an admin only members, nobody an owner", () => {
+    expect(propertyRoles.map((target) => canManageRole("owner", target))).toEqual([false, true, true]);
+    expect(propertyRoles.map((target) => canManageRole("admin", target))).toEqual([false, false, true]);
+    expect(propertyRoles.map((target) => canManageRole("member", target))).toEqual([false, false, false]);
+    expect(canManageRole(null, "member")).toBe(false);
   });
 });

@@ -10,10 +10,15 @@
 import type {
   Command,
   CreateCommandRequest,
+  CreateInvitationRequest,
   CreatePropertyRequest,
   CreateRoomRequest,
   Device,
   HardwareProduct,
+  HomeInvitation,
+  HomeMember,
+  MemberListResponse,
+  MyInvitation,
   PairBoardResponse,
   Property,
   Room,
@@ -21,6 +26,7 @@ import type {
   ScenarioRequest,
   ScenarioRunResponse,
   UpdateDeviceRequest,
+  UpdateMemberRequest,
   UpdatePropertyRequest,
   UpdateRoomRequest,
   UpdateSettingsRequest,
@@ -40,6 +46,19 @@ export interface HomeGateway {
   createProperty(input: CreatePropertyRequest): Promise<Property>;
   updateProperty(propertyId: string, input: UpdatePropertyRequest): Promise<Property>;
   deleteProperty(propertyId: string): Promise<void>;
+
+  /** Owners and admins get everyone and the open invitations; a member only themself. */
+  listMembers(propertyId: string): Promise<MemberListResponse>;
+  invite(propertyId: string, input: CreateInvitationRequest): Promise<HomeInvitation>;
+  cancelInvitation(propertyId: string, invitationId: string): Promise<void>;
+  updateMember(propertyId: string, userId: string, input: UpdateMemberRequest): Promise<HomeMember>;
+  /** Removes someone, or (the user's own id) leaves the home. */
+  removeMember(propertyId: string, userId: string): Promise<void>;
+  /** Invitations to the signed-in user. */
+  listMyInvitations(): Promise<MyInvitation[]>;
+  /** Joins the home; returns it with the user's new role. */
+  acceptInvitation(invitationId: string): Promise<Property>;
+  declineInvitation(invitationId: string): Promise<void>;
 
   listRooms(propertyId: string): Promise<Room[]>;
   createRoom(propertyId: string, input: CreateRoomRequest): Promise<Room>;

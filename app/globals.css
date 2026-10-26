@@ -992,3 +992,39 @@ a.auth-submit { text-decoration: none; }
 
 /* A door opener's push button in the device sheet. */
 .push-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+
+/* Members of a home (features/members/members.tsx). */
+.members-layout { display: grid; max-width: 860px; }
+.members-panel { display: grid; gap: 4px; padding: 20px 22px; }
+.members-overline { display: block; margin-top: 16px; }
+.member-list { display: grid; margin: 6px 0 0; padding: 0; list-style: none; }
+.member-row { display: flex; min-width: 0; min-height: 54px; align-items: center; gap: 10px; border-top: 1px solid var(--line); }
+.member-row:first-child { border-top: 0; }
+.member-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.member-copy strong { overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.member-copy small { color: var(--muted); font-size: 9px; }
+.member-row.is-pending .member-avatar { background: var(--surface-soft); color: var(--muted); }
+.member-role { height: 32px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font-size: 10px; }
+.member-role-badge { padding: 4px 8px; border-radius: 999px; background: var(--surface-soft); color: var(--ink-soft); font-size: 9px; font-weight: 600; white-space: nowrap; }
+.member-role-badge.role-owner { background: var(--accent-soft); color: var(--accent-deep); }
+.member-confirm { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.member-confirm > button { min-height: 32px; }
+.invite-form { display: grid; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.invite-fields { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; align-items: end; gap: 9px; }
+.invite-fields > .button-primary { min-height: 39px; }
+.member-leave { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.member-leave p { margin: 0; color: var(--muted); font-size: 10px; }
+.member-leave .button-danger-subtle { justify-self: start; margin-inline-end: 0; padding-inline: 0; }
+.invitation-banners { display: grid; gap: 8px; margin-bottom: 16px; }
+.invitation-banner { display: flex; min-width: 0; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 7px; background: var(--accent-pale); }
+.invitation-icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); }
+.invitation-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.invitation-copy strong { font-size: 11px; font-weight: 600; }
+.invitation-copy small { color: var(--muted); font-size: 9px; }
+.invitation-actions { display: inline-flex; flex-wrap: wrap; gap: 7px; }
+@media (max-width: 600px) {
+  .members-panel { padding: 16px; }
+  .invite-fields { grid-template-columns: minmax(0, 1fr); }
+  .invitation-banner { flex-wrap: wrap; }
+  .invitation-actions { width: 100%; justify-content: flex-end; }
+}
