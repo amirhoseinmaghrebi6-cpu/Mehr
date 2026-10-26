@@ -23,7 +23,7 @@ import { withSystemTx } from "../db/tx";
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
 /** How long the simulated hardware takes to finish a command, by device type. */
-const HARDWARE_DELAY_MS: Record<string, number> = { garage_door: 25_000, curtain: 20_000, cooler: 1_000, fan: 1_000 };
+const HARDWARE_DELAY_MS: Record<string, number> = { garage_door: 25_000, door_opener: 1_000, curtain: 20_000, cooler: 1_000, fan: 1_000 };
 const DEFAULT_HARDWARE_DELAY_MS = 300;
 /** Simulated network delay between the broker and the board (each way), in ms. */
 const NETWORK_DELAY_MS: [min: number, max: number] = [200, 1_200];

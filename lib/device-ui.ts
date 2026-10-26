@@ -9,6 +9,7 @@ import {
   Blinds,
   Cctv,
   CloudFog,
+  DoorClosed,
   DoorOpen,
   Droplet,
   Droplets,
@@ -24,7 +25,7 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
-import { displayTemperature, type CapabilityName, type CapabilityState, type CapabilityValue, type Device, type DeviceType, type PhotoPreset, type TemperatureUnit } from "@m2smart/contracts";
+import { capabilities as capabilitiesCatalog, displayTemperature, type CapabilityName, type CapabilityState, type CapabilityValue, type Device, type DeviceType, type PhotoPreset, type TemperatureUnit } from "@m2smart/contracts";
 import { EvaporativeCooler, WaterPump } from "@/components/icons";
 import { formatNumber, messages, type Locale } from "@/lib/i18n";
 
@@ -40,11 +41,12 @@ export const deviceTypeInfo: Record<DeviceType, { icon: LucideIcon; tone: string
   pump: { icon: WaterPump, tone: "climate" },
   curtain: { icon: Blinds, tone: "curtain" },
   garage_door: { icon: Warehouse, tone: "lock" },
+  door_opener: { icon: DoorOpen, tone: "lock" },
   alarm: { icon: Siren, tone: "lock" },
   camera: { icon: Cctv, tone: "lock" },
   motion_sensor: { icon: Footprints, tone: "air" },
   presence_sensor: { icon: PersonStanding, tone: "air" },
-  contact_sensor: { icon: DoorOpen, tone: "air" },
+  contact_sensor: { icon: DoorClosed, tone: "air" },
   leak_sensor: { icon: Droplets, tone: "air" },
   smoke_sensor: { icon: AlarmSmoke, tone: "air" },
   co_sensor: { icon: CloudFog, tone: "air" },
@@ -100,6 +102,7 @@ export function primaryCapability(device: Device): CapabilityName | null {
     fan: "speed",
     curtain: "curtain",
     garage_door: "door",
+    door_opener: "door_release",
     alarm: "alarm_mode",
   };
   const capability = order[device.type];
@@ -123,6 +126,9 @@ export function isActive(type: DeviceType, value: CapabilityValue | null): boole
       return value === "open";
     case "alarm":
       return value !== "disarmed";
+    case "door_opener":
+      // A push button: never "on".
+      return false;
     default:
       return value === true;
   }
@@ -145,6 +151,8 @@ export function toggledValue(type: DeviceType, current: CapabilityValue | null, 
       return active ? "closed" : "open";
     case "alarm":
       return active ? "disarmed" : "armed_away";
+    case "door_opener":
+      return "open";
     default:
       return !active;
   }
@@ -170,6 +178,8 @@ export function deviceSummary(device: Device, valueOf: (capability: CapabilityNa
   if (device.pending) return messages[locale].devices.awaitingPairing;
   if (!device.online) return messages[locale].devices.offline;
   // With several values, plain "On"/"Off" would be ambiguous ("Off · Off"), so those get their name.
+  // A push button (a door opener) has no state to show: the line says what a press does.
+  if (device.capabilities.some((state) => "momentary" in capabilitiesCatalog[state.capability])) return messages[locale].devices.pressToOpen;
   const capabilities = shownCapabilities(device);
   const several = capabilities.length > 1;
   const plain = (capability: CapabilityName) => capability === "power" || capability === "pump" || capability === "speed";

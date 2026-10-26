@@ -206,6 +206,7 @@ export const en = {
       pump: "Water pump",
       curtain: "Curtain / shutter",
       garage_door: "Parking door",
+      door_opener: "Door opener",
       alarm: "Alarm",
       camera: "Security camera",
       motion_sensor: "Motion sensor",
@@ -219,6 +220,7 @@ export const en = {
       light_sensor: "Light sensor",
     },
     capabilities: {
+      door_release: "Door release",
       power: "Power",
       brightness: "Brightness",
       pump: "Water pump",
@@ -270,6 +272,9 @@ export const en = {
     sending: "Sending…",
     inProgress: "In progress…",
     quickOn: (name: string) => `Turn on or open ${name}`,
+    quickOpen: (name: string) => `Open ${name}`,
+    pressToOpen: "Press to open",
+    openNow: "Open the door",
     quickOff: (name: string) => `Turn off or close ${name}`,
   },
 

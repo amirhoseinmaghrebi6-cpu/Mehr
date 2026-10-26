@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Droplets, LoaderCircle, Pencil, Power, Video, X, QrCode } from "lucide-react";
+import { Droplets, LoaderCircle, Pencil, Power, Video, X, QrCode, DoorOpen } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
+import { messages } from "@/lib/i18n";
 import { capabilityLabel, deviceTypeInfo, formatNumber, typeLabel, valueLabel, shownCapabilities } from "@/lib/device-ui";
 import type { Locale } from "@/lib/i18n";
 
@@ -115,6 +116,17 @@ function CapabilityControl({ capability, value, locale, disabled, note, onChange
         <span className={`plug-status${on ? " is-on" : ""}`}><Icon size={23} /></span>
         <div><strong>{label}</strong><small>{note ?? valueLabel(capability, value, locale)}</small></div>
         <button type="button" className={`plug-toggle${on ? " selected" : ""}`} onClick={() => onChange(!on)} aria-pressed={on} aria-label={label} disabled={disabled}><Icon size={18} /></button>
+      </section>
+    );
+  }
+
+  // A push button: one press, then ready again.
+  if ("momentary" in definition && definition.momentary && definition.valueType === "enum") {
+    return (
+      <section className="plug-control">
+        <span className="plug-status"><DoorOpen size={23} /></span>
+        <div><strong>{label}</strong><small>{note ?? messages[locale].devices.pressToOpen}</small></div>
+        <button type="button" className="button-primary push-button" onClick={() => onChange(definition.values[0])} disabled={disabled}><DoorOpen size={16} />{messages[locale].devices.openNow}</button>
       </section>
     );
   }

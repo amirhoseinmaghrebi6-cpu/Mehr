@@ -70,6 +70,7 @@ A command expires 30 s (network allowance) plus the channel's `action_seconds` a
 | parking door | 120 s |
 | curtain | 90 s |
 | cooler, fan | 10 s |
+| door opener | 5 s |
 | everything else | 0 s |
 
 Set `action_seconds` from the real motor, with some margin. A command is applied only when the ESP32 reports the new value before its deadline.

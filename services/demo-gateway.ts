@@ -26,9 +26,9 @@ import { createDemoData, createDemoScenarios, demoBoards, demoDevice, type DemoD
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
-const ACTION_SECONDS: Record<string, number> = { garage_door: 120, curtain: 90, cooler: 10, fan: 10 };
+const ACTION_SECONDS: Record<string, number> = { door_opener: 5, garage_door: 120, curtain: 90, cooler: 10, fan: 10 };
 /** Shorter than real hardware, so the demo stays pleasant, but clearly not instant. */
-const DEMO_HARDWARE_MS: Record<string, number> = { garage_door: 8_000, curtain: 6_000, cooler: 1_200, fan: 1_200, alarm: 1_000 };
+const DEMO_HARDWARE_MS: Record<string, number> = { door_opener: 1_000, garage_door: 8_000, curtain: 6_000, cooler: 1_200, fan: 1_200, alarm: 1_000 };
 
 const clone = <T>(value: T): T => structuredClone(value);
 const later = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

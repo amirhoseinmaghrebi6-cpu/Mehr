@@ -190,6 +190,8 @@ export const ar: Messages = {
     camerasOnline: "الكاميرتان متصلتان وتسجّلان.",
     camerasCount: "٢ / ٢ كاميرا متصلة",
     names: {
+      "Door opener board": "لوحة فاتح الباب",
+      "Front door": "الباب الأمامي",
       "1-switch board": "لوحة بمفتاح واحد",
       "Switch": "مفتاح",
       "Fan board": "لوحة المروحة",
@@ -274,6 +276,7 @@ export const ar: Messages = {
       pump: "مضخة مياه",
       curtain: "ستارة / مصراع",
       garage_door: "باب الموقف",
+      door_opener: "فاتح الباب",
       alarm: "جهاز إنذار",
       camera: "كاميرا مراقبة",
       motion_sensor: "مستشعر حركة",
@@ -287,6 +290,7 @@ export const ar: Messages = {
       light_sensor: "مستشعر ضوء",
     },
     capabilities: {
+      door_release: "فتح الباب",
       power: "التشغيل / الإيقاف",
       brightness: "شدة الإضاءة",
       pump: "مضخة المياه",
@@ -337,6 +341,9 @@ export const ar: Messages = {
     sending: "جارٍ الإرسال…",
     inProgress: "قيد التنفيذ…",
     quickOn: (name) => `تشغيل أو فتح ${name}`,
+    quickOpen: (name: string) => `فتح ${name}`,
+    pressToOpen: "اضغط للفتح",
+    openNow: "افتح",
     quickOff: (name) => `إيقاف أو إغلاق ${name}`,
   },
 

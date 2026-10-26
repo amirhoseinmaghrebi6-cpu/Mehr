@@ -102,6 +102,7 @@ export const demoBoards: Record<string, { name: string; image: string; channels:
   "DEMO-COOLER": { name: "Cooler board", image: "/images/demo/pairing-cooler.png", channels: [["cooler","Cooler"]] },
   "DEMO-FAN": { name: "Fan board", image: "/images/demo/pairing-fan.png", channels: [["fan","Fan"]] },
   "DEMO-CURTAIN": { name: "Curtain board", image: "/images/demo/pairing-curtain.png", channels: [["curtain","Curtain"]] },
+  "DEMO-DOOR": { name: "Door opener board", image: "/images/demo/pairing-door.png", channels: [["door_opener","Front door"]] },
   "DEMO-GARAGE": { name: "Parking door board", image: "/images/demo/pairing-garage.png", channels: [["garage_door","Parking door"]] },
   "DEMO-SOCKET": { name: "Smart socket", image: "/images/demo/pairing-socket.png", channels: [["socket","Socket"]] },
   "DEMO-PUMP": { name: "Water pump board", image: "/images/demo/pairing-pump.png", channels: [["pump","Water pump"]] },

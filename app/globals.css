@@ -989,3 +989,6 @@ a.auth-submit { text-decoration: none; }
 .sheet-pending { display: grid; gap: 10px; margin: 6px 0 14px; padding: 13px 14px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--warning-soft); }
 .sheet-pending > p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
 .sheet-pending > button { justify-self: start; }
+
+/* A door opener's push button in the device sheet. */
+.push-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; }

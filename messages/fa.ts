@@ -190,6 +190,8 @@ export const fa: Messages = {
     camerasOnline: "۲ دوربین از ۲ دوربین آماده هستند.",
     camerasCount: "۲ / ۲ متصل",
     names: {
+      "Door opener board": "بُرد درب بازکن",
+      "Front door": "در ورودی",
       "1-switch board": "بُرد ۱ کلید",
       "Switch": "کلید",
       "Fan board": "بُرد فن",
@@ -274,6 +276,7 @@ export const fa: Messages = {
       pump: "پمپ آب",
       curtain: "پرده / کرکره",
       garage_door: "درب پارکینگ",
+      door_opener: "درب بازکن",
       alarm: "دزدگیر",
       camera: "دوربین امنیتی",
       motion_sensor: "سنسور حرکت",
@@ -287,6 +290,7 @@ export const fa: Messages = {
       light_sensor: "سنسور نور",
     },
     capabilities: {
+      door_release: "باز کردن در",
       power: "روشن / خاموش",
       brightness: "شدت نور",
       pump: "پمپ آب",
@@ -337,6 +341,9 @@ export const fa: Messages = {
     sending: "در حال ارسال…",
     inProgress: "در حال انجام…",
     quickOn: (name) => `روشن / باز کردن ${name}`,
+    quickOpen: (name: string) => `باز کردن ${name}`,
+    pressToOpen: "برای باز کردن بزنید",
+    openNow: "باز کن",
     quickOff: (name) => `خاموش / بستن ${name}`,
   },
 

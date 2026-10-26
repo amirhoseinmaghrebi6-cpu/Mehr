@@ -15,6 +15,11 @@ type CapabilityBase = {
   /** Whether users may send commands for it; false for values the board only reports. */
   writable: boolean;
   unit?: string;
+  /**
+   * A push button rather than a switch: the command is an action (e.g. "open"), carried out once,
+   * and the value it leaves is not a state worth showing.
+   */
+  momentary?: boolean;
 };
 
 export type CapabilityDefinition =
@@ -33,6 +38,8 @@ export const capabilities = {
   alarm_mode: { valueType: "enum", values: ["disarmed", "armed_home", "armed_away"], writable: true },
   /** A camera records only while it is on; switching it off also stops recording. */
   recording: { valueType: "boolean", writable: true },
+  /** A door opener: one press opens the door (the board pulses the strike), then it is ready again. */
+  door_release: { valueType: "enum", values: ["open"], writable: true, momentary: true },
 
   // Inputs and measurements (reported only).
   triggered: { valueType: "boolean", writable: false },
@@ -82,6 +89,7 @@ export const deviceTypes = {
   light_sensor: { required: ["illuminance_lux"], optional: [] },
   pump: { required: ["power"], optional: [] },
   camera: { required: ["power", "recording"], optional: [] },
+  door_opener: { required: ["door_release"], optional: [] },
 } as const satisfies Record<string, { required: readonly CapabilityName[]; optional: readonly CapabilityName[] }>;
 
 export type DeviceType = keyof typeof deviceTypes;
@@ -102,6 +110,7 @@ export const deviceTypeCategory: Readonly<Record<DeviceType, ProductCategory>> =
   fan: "climate",
   curtain: "openings",
   garage_door: "openings",
+  door_opener: "openings",
   socket: "power",
   pump: "power",
   alarm: "security",

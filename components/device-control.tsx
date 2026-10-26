@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ChevronRight, LoaderCircle, Power, TriangleAlert } from "lucide-react";
+import { ChevronRight, DoorOpen, LoaderCircle, Power, TriangleAlert } from "lucide-react";
 import type { Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceTypeInfo } from "@/lib/device-ui";
@@ -27,6 +27,8 @@ export function DeviceControl({ device, name, summary, roomName, active, alert, 
   const Icon = info.icon;
   const activityText = activity === "working" ? m.devices.inProgress : activity === "sending" ? m.devices.sending : "";
   const detail = [roomName, activityText || summary].filter(Boolean).join(" · ");
+  // A door opener's button is a push button ("Open"), not a power switch.
+  const pushButton = device.type === "door_opener";
 
   return (
     <motion.article className={`device-control${active ? " is-on" : ""}${device.online ? "" : " is-offline"}${alert ? " is-alert" : ""}${activity ? " is-busy" : ""}`} layout>
@@ -44,11 +46,11 @@ export function DeviceControl({ device, name, summary, roomName, active, alert, 
           type="button"
           className={`device-power${active ? " selected" : ""}`}
           onClick={() => onQuickAction(device)}
-          aria-pressed={active}
-          aria-label={active ? m.devices.quickOff(name) : m.devices.quickOn(name)}
-          disabled={!device.online || activity === "sending"}
+          aria-pressed={pushButton ? undefined : active}
+          aria-label={pushButton ? m.devices.quickOpen(name) : active ? m.devices.quickOff(name) : m.devices.quickOn(name)}
+          disabled={!device.online || activity !== null && (pushButton || activity === "sending")}
         >
-          <Power size={16} strokeWidth={1.8} aria-hidden="true" />
+          {pushButton ? <DoorOpen size={16} strokeWidth={1.8} aria-hidden="true" /> : <Power size={16} strokeWidth={1.8} aria-hidden="true" />}
         </button>
       )}
     </motion.article>

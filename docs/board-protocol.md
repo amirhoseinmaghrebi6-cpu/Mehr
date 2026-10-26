@@ -63,6 +63,7 @@ All topics are `m2/v1/boards/{boardId}/{kind}`. Messages are small JSON objects 
 4. When the hardware has reached the value, it publishes `state` with the command's id and the value it really has.
    - A parking door reports only when its sensor shows the door open or closed.
    - A camera switched off also reports `recording` false in the same message.
+   - A door opener (`door_release`, a push button) pulses the strike's relay, then reports `"open"` once the door is released. Every press is a new command with the same value; the value is not a lasting state, and the app does not show it.
 5. If the same command id arrives again, the board repeats its last answer and does not run the hardware twice.
 6. If `ttl` has passed before the hardware could start, the board drops the command silently; the server marks it timed out.
 
