@@ -3,13 +3,13 @@ import { ConfigError, loadConfig } from "../src/config";
 
 describe("loadConfig", () => {
   it("applies defaults when only DATABASE_URL is set", () => {
-    expect(loadConfig({ DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart" })).toEqual({
+    expect(loadConfig({ DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:15432/m2smart" })).toEqual({
       nodeEnv: "development",
       devRoutes: false,
       devBoardSimulator: false,
       host: "127.0.0.1",
       port: 4000,
-      databaseUrl: "postgres://m2_api:pw@127.0.0.1:55432/m2smart",
+      databaseUrl: "postgres://m2_api:pw@127.0.0.1:15432/m2smart",
       databasePoolMax: 10,
       logLevel: "info",
       kratosPublicUrl: "http://127.0.0.1:4433",
@@ -19,7 +19,7 @@ describe("loadConfig", () => {
   });
 
   it("reads the boards' broker, and requires its account with MQTT_URL", () => {
-    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart", MQTT_URL: "mqtt://127.0.0.1:18830" };
+    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:15432/m2smart", MQTT_URL: "mqtt://127.0.0.1:18830" };
     expect(loadConfig({ ...base, MQTT_USERNAME: "m2-api", MQTT_PASSWORD: "a-long-random-password" }).broker).toEqual({
       url: "mqtt://127.0.0.1:18830",
       username: "m2-api",
@@ -30,7 +30,7 @@ describe("loadConfig", () => {
   });
 
   it("enables development routes only when NODE_ENV=development is set explicitly", () => {
-    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart" };
+    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:15432/m2smart" };
     expect(loadConfig({ ...base, NODE_ENV: "development" }).devRoutes).toBe(true);
     expect(loadConfig(base).devRoutes).toBe(false);
     expect(loadConfig({ ...base, NODE_ENV: "production" }).devRoutes).toBe(false);
@@ -38,7 +38,7 @@ describe("loadConfig", () => {
   });
 
   it("runs the dev board simulator only in explicit development with the flag on", () => {
-    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:55432/m2smart", M2SMART_DEV_BOARD_SIMULATOR: "true" };
+    const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:15432/m2smart", M2SMART_DEV_BOARD_SIMULATOR: "true" };
     expect(loadConfig({ ...base, NODE_ENV: "development" }).devBoardSimulator).toBe(true);
     expect(loadConfig({ ...base, NODE_ENV: "production" }).devBoardSimulator).toBe(false);
     expect(loadConfig(base).devBoardSimulator).toBe(false);

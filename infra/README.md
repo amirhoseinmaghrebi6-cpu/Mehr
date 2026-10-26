@@ -6,7 +6,7 @@ One command brings up the self-hosted services M2smart needs for local developme
 
 | Service    | Image (pinned by tag and digest in `dev/compose.yaml`) | Host address      | Container port |
 |------------|---------------------------------------------------------|-------------------|----------------|
-| PostgreSQL | `postgres:17.11-alpine3.24`                             | `127.0.0.1:55432` | 5432           |
+| PostgreSQL | `postgres:17.11-alpine3.24`                             | `127.0.0.1:15432` | 5432           |
 | Mosquitto  | `eclipse-mosquitto:2.0.22`                              | `127.0.0.1:18830` | 1883           |
 | Ory Kratos (auth, public API only) | `oryd/kratos:v25.4.0`                | `127.0.0.1:4433`  | 4433           |
 
@@ -30,7 +30,7 @@ Then set `POSTGRES_PASSWORD` in `infra/dev/.env`. The file is gitignored (`.env*
 | `POSTGRES_USER`      | `m2smart`                 | Superuser of the dev cluster                       |
 | `POSTGRES_PASSWORD`  | *(set your own)*          | Its password                                       |
 | `POSTGRES_DB`        | `m2smart`                 | Database created on first start                    |
-| `POSTGRES_HOST_PORT` | `55432`                   | Host port for PostgreSQL (on `127.0.0.1`)          |
+| `POSTGRES_HOST_PORT` | `15432`                   | Host port for PostgreSQL (on `127.0.0.1`). Outside the ranges Windows reserves for Hyper-V (55432 often was) |
 | `MQTT_HOST_PORT`     | `18830`                   | Host port for MQTT (on `127.0.0.1`)                |
 | `KRATOS_PUBLIC_HOST_PORT` | `4433`               | Host port for the Kratos public API (on `127.0.0.1`) |
 | `KRATOS_DB_PASSWORD` | *(set your own)*          | Password of the `kratos` database role. Hex only (`openssl rand -hex 16`): it goes into a URL |
@@ -54,8 +54,8 @@ These commands only touch `m2smart-dev` resources. Other Compose projects are no
 **PostgreSQL**
 
 ```
-host=127.0.0.1 port=55432 user=<POSTGRES_USER> password=<POSTGRES_PASSWORD> dbname=<POSTGRES_DB>
-postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@127.0.0.1:55432/<POSTGRES_DB>
+host=127.0.0.1 port=15432 user=<POSTGRES_USER> password=<POSTGRES_PASSWORD> dbname=<POSTGRES_DB>
+postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@127.0.0.1:15432/<POSTGRES_DB>
 ```
 
 Open a shell inside the container (no local `psql` needed):
