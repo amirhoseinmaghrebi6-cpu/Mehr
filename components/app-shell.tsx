@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  ArrowUpLeft,
+  ArrowUpRight,
   BedDouble,
   Bell,
   Building2,
@@ -343,7 +343,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpLeft size={14} /></button>
+          <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpRight size={14} /></button>
           <div className="profile-row"><span className="profile-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{displayName}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span><button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
         </div>
       </aside>

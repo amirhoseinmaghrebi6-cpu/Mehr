@@ -480,7 +480,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .app-rtl { font-family: var(--font-ui); }
 .app-rtl .sidebar-caption, .app-rtl .breadcrumb-label, .app-rtl .eyebrow, .app-rtl .welcome-kicker, .app-rtl .room-topline > span:first-child, .app-rtl .panel-overline, .app-rtl .brand-edition { letter-spacing: 0; }
 .app-rtl .welcome-wash { background: linear-gradient(270deg, rgb(14 25 18 / 68%) 0%, rgb(17 29 20 / 54%) 36%, rgb(20 30 22 / 12%) 79%, rgb(17 25 19 / 18%) 100%); }
-.app-rtl .room-arrow > svg, .app-rtl .device-chevron { transform: rotate(180deg); }
 .app-rtl .global-search kbd { display: none; }
 
 @keyframes hero-arrive { from { transform: scale(1.04); filter: saturate(.8); } to { transform: scale(1.015); filter: saturate(1); } }
@@ -749,7 +748,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .auth-footer > span:first-child { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-ui); font-size: 8px; font-weight: 450; letter-spacing: 0; }
 .auth-footer-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--positive); }
 .app-rtl .auth-overline, .app-rtl .auth-brand-caption { letter-spacing: 0; }
-.app-rtl .auth-submit > svg { transform: rotate(180deg); }
 
 @keyframes auth-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -984,7 +982,6 @@ a.auth-submit { text-decoration: none; }
 .product-copy strong { color: var(--ink); font-size: 10.5px; font-weight: 600; }
 .product-copy small { color: var(--muted); font-size: 9px; }
 .product-arrow { flex: 0 0 auto; color: var(--muted); }
-[dir="rtl"] .product-arrow { transform: scaleX(-1); }
 .sheet-pending { display: grid; gap: 10px; margin: 6px 0 14px; padding: 13px 14px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--warning-soft); }
 .sheet-pending > p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
 .sheet-pending > button { justify-self: start; }
@@ -1061,3 +1058,7 @@ button.activity-row:hover { background: var(--surface-soft); }
   .camera-grid { grid-template-columns: minmax(0, 1fr); }
   .activity-panel { padding: 16px; }
 }
+
+/* Right-to-left: icons that point a way (arrows, chevrons, sign-out) are mirrored; every other
+   icon (a check, a warning, play) keeps its shape. Components always use the LTR icon. */
+[dir="rtl"] :is(.lucide-arrow-left, .lucide-arrow-right, .lucide-arrow-up-left, .lucide-arrow-up-right, .lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-log-in) { transform: scaleX(-1); }

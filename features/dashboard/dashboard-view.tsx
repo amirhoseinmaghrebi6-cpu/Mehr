@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   ArrowRight,
   Building2,
   Check,
@@ -132,7 +131,7 @@ function Overview(props: Props) {
   const { property, displayName, devices, rooms, scenarios, runningScenario, nameOf, onNavigate, onRunScenario } = props;
   const { locale, m, rtl, calendar, temperatureUnit } = useI18n();
   const d = m.dashboard;
-  const arrow = rtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />;
+  const arrow = <ArrowRight size={16} />;
   const featured = [...devices].sort((a, b) => Number(primaryCapability(b) !== null) - Number(primaryCapability(a) !== null)).slice(0, 5);
   const numbers = (capability: CapabilityName) => devices.flatMap((device) => device.capabilities.filter((state) => state.capability === capability && typeof state.value === "number").map((state) => state.value as number));
   const temperatures = numbers("temperature");
@@ -256,10 +255,10 @@ function RoomTile({ room, devices, nameOf, valueOf, canEditRooms, onEditRoom, on
 
 function DeviceCollection(props: Props & { roomName: (device: Device) => string; title: string }) {
   const { devices, title, nameOf, onNavigate, onRemoveDevice } = props;
-  const { locale, m, rtl } = useI18n();
+  const { locale, m } = useI18n();
   return (
     <section className="collection-section">
-      <SectionHeading title={title} detail={m.dashboard.statesNote} action={m.dashboard.browseRooms} onAction={() => onNavigate("rooms")} arrow={rtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />} />
+      <SectionHeading title={title} detail={m.dashboard.statesNote} action={m.dashboard.browseRooms} onAction={() => onNavigate("rooms")} arrow={<ArrowRight size={16} />} />
       {devices.length === 0 && props.hiddenDevices.length === 0 ? <NoDevices {...props} /> : (
         <div className="collection-device-grid">
           {devices.map((device) => (

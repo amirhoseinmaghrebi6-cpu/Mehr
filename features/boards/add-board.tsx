@@ -12,7 +12,7 @@
  * library bundled with the app; nothing is sent anywhere but our own API.
  */
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronRight, Fingerprint, Hourglass, QrCode, Upload, Wifi } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Fingerprint, Hourglass, QrCode, Upload, Wifi } from "lucide-react";
 import { parsePairingCode, productCategories, type Device, type HardwareProduct, type Room } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceTypeInfo, typeLabel } from "@/lib/device-ui";
@@ -69,7 +69,6 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const Back = rtl ? ArrowRight : ArrowLeft;
 
   useEffect(() => {
     if (waiting) return;
@@ -196,7 +195,7 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
         </div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="workspace-form-actions">
-          <button type="button" className="button-subtle" onClick={() => { setProduct(null); setError(""); }}><Back size={14} />{m.common.back}</button>
+          <button type="button" className="button-subtle" onClick={() => { setProduct(null); setError(""); }}><ArrowLeft size={14} />{m.common.back}</button>
           <button type="submit" className="button-primary" disabled={busy}><Check size={15} />{d.addToHome}</button>
         </div>
       </form>
