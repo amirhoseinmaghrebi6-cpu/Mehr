@@ -6,31 +6,31 @@ import { buildServer } from "../src/server";
 import { createSmsSender, SmsError, type SmsSender } from "../src/sms/sms";
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as FastifyBaseLogger;
-const provider = { url: "https://edge.ippanel.test/v1", apiKey: "test-key-123", sender: "+983000505", patterns: { code: "PCODE", invitation: "PINVITE" } };
-const ok = () => new Response(JSON.stringify({ data: { message_outbox_ids: [1] }, meta: { status: true, message: "انجام شد", message_code: "200-1" } }), { status: 200 });
+const provider = { url: "https://api.iranpayamak.test", apiKey: "test-key-123", sender: "90008361", patterns: { code: "PCODE", invitation: "PINVITE" } };
+const ok = () => new Response(JSON.stringify({ status: "success", message: "", data: {} }), { status: 200 });
 
-describe("SMS through IPPanel (Faraz SMS)", () => {
-  it("sends a login code as a pattern, one recipient, with the key in Authorization", async () => {
+describe("SMS through FarazSMS / IranPayamak", () => {
+  it("sends a login code as a pattern, to the local number, with the key in Api-Key", async () => {
     const fetchImpl = vi.fn(async () => ok());
     await createSmsSender(provider, false, fetchImpl)!.sendCode("+989121234567", "123456", log);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://edge.ippanel.test/v1/api/send");
+    expect(url).toBe("https://api.iranpayamak.test/ws/v1/sms/pattern");
     expect(init.method).toBe("POST");
-    expect((init.headers as Record<string, string>).Authorization).toBe("test-key-123");
-    expect(JSON.parse(init.body as string)).toEqual({ sending_type: "pattern", from_number: "+983000505", code: "PCODE", recipients: ["+989121234567"], params: { code: "123456" } });
+    expect((init.headers as Record<string, string>)["Api-Key"]).toBe("test-key-123");
+    expect(JSON.parse(init.body as string)).toEqual({ code: "PCODE", recipient: "09121234567", attributes: { code: "123456" }, line_number: "90008361", number_format: "english" });
   });
 
   it("sends an invitation with short names, and nothing without its pattern", async () => {
     const fetchImpl = vi.fn(async () => ok());
     await createSmsSender(provider, false, fetchImpl)!.sendInvitation("+989121234567", "Sara", "A very long home name that goes on and on", log);
-    expect(JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).params).toEqual({ name: "Sara", home: "A very long home name that go…" });
+    expect(JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).attributes).toEqual({ name: "Sara", home: "A very long home name that go…" });
     await createSmsSender({ ...provider, patterns: { code: "PCODE", invitation: null } }, false, fetchImpl)!.sendInvitation("+989121234567", "Sara", "Home", log);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("fails when the provider refuses or cannot be reached", async () => {
-    const refused = vi.fn(async () => new Response(JSON.stringify({ data: null, meta: { status: false, message: "pattern not approved", message_code: "400-1" } }), { status: 400 }));
-    await expect(createSmsSender(provider, false, refused)!.sendCode("+989121234567", "123456", log)).rejects.toThrow(/400.*pattern not approved/);
+    const refused = vi.fn(async () => new Response(JSON.stringify({ status: "error", message: "pattern not approved" }), { status: 422 }));
+    await expect(createSmsSender(provider, false, refused)!.sendCode("+989121234567", "123456", log)).rejects.toThrow(/422.*pattern not approved/);
     const down = vi.fn(async () => { throw new TypeError("fetch failed"); });
     await expect(createSmsSender(provider, false, down)!.sendCode("+989121234567", "123456", log)).rejects.toBeInstanceOf(SmsError);
   });
@@ -43,13 +43,13 @@ describe("SMS through IPPanel (Faraz SMS)", () => {
 
 describe("SMS configuration", () => {
   const base = { DATABASE_URL: "postgres://m2_api:pw@127.0.0.1:15432/m2smart" };
-  it("needs the sender and the code pattern with a key", () => {
+  it("has no provider until the key, the sender and the code pattern are all set", () => {
     expect(loadConfig(base).sms).toBeNull();
-    expect(() => loadConfig({ ...base, SMS_API_KEY: "secret-key" })).toThrow(/SMS_SENDER, SMS_PATTERN_CODE/);
-    expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "983000505", SMS_PATTERN_CODE: "abc" }).sms).toEqual({
-      url: "https://edge.ippanel.com/v1",
+    expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "90008361" }).sms).toBeNull();
+    expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "90008361", SMS_PATTERN_CODE: "abc" }).sms).toEqual({
+      url: "https://api.iranpayamak.com",
       apiKey: "secret-key",
-      sender: "+983000505",
+      sender: "90008361",
       patterns: { code: "abc", invitation: null },
     });
   });

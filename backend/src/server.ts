@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     app.log.info({ role }, "Database role verified");
     if (!config.kratosWebhookSecret) app.log.warn("KRATOS_WEBHOOK_SECRET not set: identity webhook disabled; /v1/me still creates missing users.");
     if (config.devRoutes) app.log.warn("Development routes enabled. Never enable in production.");
-    if (!config.sms) app.log.warn(config.devRoutes ? "SMS_API_KEY not set: SMS messages are only logged (development)." : "SMS_API_KEY not set: login codes cannot be sent.");
+    if (!config.sms) app.log.warn(`SMS provider not ready (SMS_API_KEY, SMS_SENDER and SMS_PATTERN_CODE are all needed): ${config.devRoutes ? "messages are only logged (development)" : "login codes cannot be sent"}.`);
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;
     app.log.fatal(message);

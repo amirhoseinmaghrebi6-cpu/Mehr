@@ -9,7 +9,7 @@ Status: in progress (started 2026-10-26).
 | Step | What |
 |------|------|
 | 5A | Home members (done): invitations by mobile number, accepting and declining, roles, removing and leaving; a Members section; the demo shows all of it. |
-| 5B | The real SMS provider: Faraz SMS (IPPanel Edge API). Code built (login codes and invitation SMS); waiting for the approved patterns to test live. Sending limits come with deployment (Phase 9). |
+| 5B | The real SMS provider: FarazSMS / IranPayamak. Code built (login codes and invitation SMS); the key works (balance and lines read); waiting for the two patterns to be submitted and approved to test live. Sending limits come with deployment (Phase 9). |
 | 5C | Live updates in the browser instead of 15-second refreshes. |
 | 5D | Security and Activity for real homes (they are sample data in the demo only today). |
 
@@ -25,8 +25,9 @@ Where: `supabase/migrations/202610270001_home_members.sql`, `backend/src/http/me
 
 ## 5B decisions (2026-10-26)
 
-- Provider: Faraz SMS, through IPPanel's Edge API (`POST https://edge.ippanel.com/v1/api/send`, header `Authorization: <key>`). Every message is a pre-approved pattern, so it also reaches numbers that blocked advertising.
+- Provider: FarazSMS, which runs on IranPayamak (`POST https://api.iranpayamak.com/ws/v1/sms/pattern`, header `Api-Key: <key>`, recipients as 09…, pattern line 90008361). Every message is a pre-approved pattern, so it also reaches numbers that blocked advertising. (An earlier draft targeted IPPanel; the account is on IranPayamak.)
 - Only the one-time code leaves our servers; the wording is the approved pattern. Kratos hands codes to `POST /internal/kratos/sms` (internal network and the webhook secret only), and a failed send answers 502 so Kratos retries.
+- Until the key, the sender and the code pattern are all set, the API only logs messages (and warns at startup).
 - An invitation also sends an SMS (best effort: the invitation stands if it fails).
 - Patterns to submit in the panel: login `M2smart / کد ورود شما: %code% / این کد را به کسی ندهید.`; invitation `%name% شما را به خانه‌ی «%home%» در M2smart دعوت کرد. برای پذیرفتن، با همین شماره وارد شوید.`
 - The API key lives only in `backend/.env.local` (production: the server's environment).
