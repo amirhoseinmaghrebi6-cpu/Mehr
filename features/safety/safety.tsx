@@ -6,7 +6,7 @@
  * the activity list is the last 24 hours of commands (the API keeps them that long anyway).
  */
 import { useEffect, useState } from "react";
-import { Camera, CircleCheck, Clock3, CloudFog, DoorOpen, Droplets, Flame, QrCode, ShieldAlert, ShieldCheck, Siren, Sparkles, TriangleAlert, User, WifiOff, type LucideIcon } from "lucide-react";
+import { Camera, CircleCheck, Clock3, CloudFog, DoorOpen, Droplets, Flame, QrCode, ShieldAlert, ShieldCheck, Siren, Sparkles, TriangleAlert, User, Wifi, WifiOff, type LucideIcon } from "lucide-react";
 import type { ActivityEntry, CapabilityName, CapabilityValue, Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { valueLabel } from "@/lib/device-ui";
@@ -72,7 +72,7 @@ export function SecuritySection({ devices, valueOf, nameOf, onOpenDevice }: Sect
     rows.push({ key: "cameras", icon: Camera, title: t.rows.cameras, detail: t.camerasOn(formatNumber(on.length, locale), formatNumber(cameras.length, locale)), ok: on.length === cameras.length, open: cameras.find((device) => valueOf(device, "power") !== true) });
   }
   const offline = live.filter((device) => !device.online);
-  if (live.length) rows.push({ key: "boards", icon: WifiOff, title: t.rows.boards, detail: offline.length ? t.offlineNow(names(offline)) : t.allOnline, ok: offline.length === 0, open: offline[0] });
+  if (live.length) rows.push({ key: "boards", icon: offline.length ? WifiOff : Wifi, title: t.rows.boards, detail: offline.length ? t.offlineNow(names(offline)) : t.allOnline, ok: offline.length === 0, open: offline[0] });
 
   if (!alarms.length && !openings.length && !hazards.length && !cameras.length) {
     return <div className="quiet-panel"><span className="quiet-icon"><ShieldCheck size={24} strokeWidth={1.6} /></span><h2>{t.noSecurityTitle}</h2><p>{t.noSecurityText}</p></div>;
