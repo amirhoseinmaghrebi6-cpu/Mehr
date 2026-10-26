@@ -24,6 +24,7 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { SessionVerifier } from "../auth/session-verifier";
 import type { TxClient } from "../db/tx";
+import type { SmsSender } from "../sms/sms";
 import { PROPERTY_COLUMNS, toProperty, type PropertyRow } from "./homes";
 import { createHandler, HttpError, notFound, parse, requireAction, requireUuid, roleIn } from "./route-helpers";
 
@@ -46,7 +47,7 @@ async function memberRole(tx: TxClient, propertyId: string, userId: string): Pro
   return rows[0].role;
 }
 
-export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier): void {
+export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier, sms: SmsSender | null = null): void {
   const handle = createHandler(pool, verifier);
   type HomeParams = { Params: { propertyId: string } };
 
@@ -75,6 +76,15 @@ export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier:
         "insert into public.property_invitations (property_id, phone, role, invited_by) values ($1, $2, $3, auth.uid()) returning id, phone, role, created_at",
         [propertyId, body.phone, body.role],
       );
+      // Tell them by SMS. Best effort: the invitation stands even if the message does not go out.
+      if (sms) {
+        const { rows: names } = await tx.query<{ inviter: string; home: string }>(
+          "select coalesce((select full_name from public.profiles where user_id = auth.uid()), '') as inviter, name as home from public.properties where id = $1",
+          [propertyId],
+        );
+        const log = request.log;
+        void sms.sendInvitation(body.phone, names[0].inviter || "M2smart", names[0].home, log).catch((error: unknown) => log.warn({ err: error }, "Invitation SMS not sent"));
+      }
       return toInvitation(rows[0]);
     }),
   );

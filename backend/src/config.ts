@@ -21,12 +21,19 @@ const configSchema = z.object({
   MQTT_PASSWORD: z.string().min(16, { error: "must be at least 16 characters" }).optional(),
   // Development only: simulated ESP32 boards connect to the broker (src/dev/board-simulator.ts).
   M2SMART_DEV_BOARD_SIMULATOR: z.enum(["true", "false"]).default("false"),
+  // Text messages through IPPanel (Faraz SMS). Without SMS_API_KEY, development only logs them and
+  // production cannot send login codes. Pattern codes come from the provider's panel once approved.
+  SMS_API_URL: z.url({ protocol: /^https$/, error: "must be an https URL" }).default("https://edge.ippanel.com/v1"),
+  SMS_API_KEY: z.string().min(8, { error: "is too short" }).optional(),
+  SMS_SENDER: z.string().regex(/^\+?\d{4,15}$/, { error: "must be the sender number, e.g. +983000505" }).optional(),
+  SMS_PATTERN_CODE: z.string().min(1).optional(),
+  SMS_PATTERN_INVITATION: z.string().min(1).optional(),
 });
 
 export type Config = {
   nodeEnv: "development" | "test" | "production";
   /**
-   * Development-only routes (e.g. POST /internal/dev/sms). True only when NODE_ENV is set to
+   * Development-only routes (e.g. POST /internal/dev/report). True only when NODE_ENV is set to
    * "development" explicitly; the NODE_ENV default does not count, so a forgotten variable in
    * production never opens them.
    */
@@ -40,6 +47,8 @@ export type Config = {
   logLevel: string;
   kratosPublicUrl: string;
   kratosWebhookSecret: string | null;
+  /** The SMS provider, or null when SMS_API_KEY is not set. */
+  sms: { url: string; apiKey: string; sender: string; patterns: { code: string; invitation: string | null } } | null;
   /** The boards' MQTT broker, or null when MQTT_URL is not set. */
   broker: { url: string; username: string; password: string } | null;
 };
@@ -57,6 +66,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (value.MQTT_URL && !(value.MQTT_USERNAME && value.MQTT_PASSWORD)) {
     throw new ConfigError("Invalid API configuration:\n  MQTT_USERNAME, MQTT_PASSWORD: are required with MQTT_URL");
   }
+  if (value.SMS_API_KEY && !(value.SMS_SENDER && value.SMS_PATTERN_CODE)) {
+    throw new ConfigError("Invalid API configuration:\n  SMS_SENDER, SMS_PATTERN_CODE: are required with SMS_API_KEY");
+  }
   return {
     nodeEnv: value.NODE_ENV,
     devRoutes: env.NODE_ENV === "development",
@@ -68,6 +80,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: value.LOG_LEVEL,
     kratosPublicUrl: value.KRATOS_PUBLIC_URL.replace(/\/+$/, ""),
     kratosWebhookSecret: value.KRATOS_WEBHOOK_SECRET ?? null,
+    sms: value.SMS_API_KEY
+      ? {
+          url: value.SMS_API_URL.replace(/\/+$/, ""),
+          apiKey: value.SMS_API_KEY,
+          sender: value.SMS_SENDER!.startsWith("+") ? value.SMS_SENDER! : `+${value.SMS_SENDER!}`,
+          patterns: { code: value.SMS_PATTERN_CODE!, invitation: value.SMS_PATTERN_INVITATION ?? null },
+        }
+      : null,
     broker: value.MQTT_URL ? { url: value.MQTT_URL, username: value.MQTT_USERNAME!, password: value.MQTT_PASSWORD! } : null,
   };
 }

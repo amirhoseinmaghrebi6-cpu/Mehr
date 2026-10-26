@@ -50,7 +50,7 @@ Error messages are shown in English and Persian. Kratos or the API being unreach
 
 Kratos's courier sends SMS over HTTP.
 
-- **In development:** it posts to the API's `POST /internal/dev/sms`, which logs the code as `DEV SMS (not sent)` instead of sending it.
+- **Delivery:** Kratos posts each code to the API's `POST /internal/kratos/sms` (internal network and the webhook secret only). The API sends just the code through IPPanel (Faraz SMS) as an approved pattern (`backend/src/sms/sms.ts`, settings `SMS_*` in `backend/.env.example`). In development without `SMS_API_KEY` it logs the code as `DEV SMS (not sent)` instead.
 - **Still to do:**
   - Connect a real Iranian SMS provider.
   - Rate-limit code requests per number and per IP (at the SMS proxy or nginx). Kratos's self-hosted build does not rate-limit code requests itself.

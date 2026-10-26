@@ -1,8 +1,11 @@
-// Request body Kratos sends to the SMS endpoint. In development that is the API's
-// POST /internal/dev/sms, which only logs the message. A real Iranian SMS provider gets its own
-// field names here (Phase 2D-4 / production config).
-function(ctx) {
-  to: ctx.recipient,
-  text: ctx.body,
-  template: ctx.template_type,
-}
+// Request body Kratos sends to the API's POST /internal/kratos/sms, which sends the one-time code
+// through the SMS provider as an approved pattern (or only logs it in development).
+function(ctx)
+  local data = if 'template_data' in ctx && ctx.template_data != null then ctx.template_data else {};
+  local codes = [std.toString(data[key]) for key in ['login_code', 'registration_code', 'verification_code', 'recovery_code'] if key in data && data[key] != null];
+  {
+    to: ctx.recipient,
+    text: ctx.body,
+    template: ctx.template_type,
+    code: if std.length(codes) > 0 then codes[0] else null,
+  }

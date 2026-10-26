@@ -94,9 +94,10 @@ services:
       # backend/.env.local). Fills auth.config.value of the hooks in kratos.yml.
       SELFSERVICE_FLOWS_REGISTRATION_AFTER_CODE_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?set KRATOS_WEBHOOK_SECRET in infra/dev/.env}
       SELFSERVICE_FLOWS_REGISTRATION_AFTER_PASSWORD_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?set KRATOS_WEBHOOK_SECRET in infra/dev/.env}
+      COURIER_CHANNELS_0_REQUEST_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?set KRATOS_WEBHOOK_SECRET in infra/dev/.env}
     volumes:
       - ./kratos:/etc/config/kratos:ro
-    # Lets the courier reach the API's dev SMS route on the host (Docker Desktop provides this
+    # Lets the courier reach the API's SMS route on the host (Docker Desktop provides this
     # name already; the mapping makes it work on Linux too).
     extra_hosts:
       - "host.docker.internal:host-gateway"

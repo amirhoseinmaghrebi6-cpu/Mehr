@@ -118,7 +118,7 @@ Kratos keeps users, sessions and login flows in its own `kratos` database in the
 
 Configuration is in `infra/dev/kratos/` (`kratos.yml`, `identity.schema.json`, `courier-sms.jsonnet`); background and test results are in `docs/spikes/kratos-2d2.md`. Users sign in with a mobile number and an SMS code; a password is optional.
 
-**SMS codes in development.** Kratos sends every SMS to the API's `POST /internal/dev/sms`, which logs it instead of sending it. Start the API (`pnpm api:dev`, with `NODE_ENV=development` in `backend/.env.local`) and read the code from its log line `DEV SMS (not sent)`. If the API isn't running, Kratos retries delivery.
+**SMS codes in development.** Kratos sends every SMS to the API's `POST /internal/kratos/sms`; without `SMS_API_KEY` the API logs it instead of sending it. Start the API (`pnpm api:dev`, with `NODE_ENV=development` in `backend/.env.local`) and read the code from its log line `DEV SMS (not sent)`. If the API isn't running, Kratos retries delivery.
 
 Try a registration with curl:
 

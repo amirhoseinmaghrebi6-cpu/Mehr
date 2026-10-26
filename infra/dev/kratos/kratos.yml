@@ -98,11 +98,18 @@ courier:
     - id: sms
       type: http
       request_config:
-        url: http://host.docker.internal:4000/internal/dev/sms
+        # The API sends the code through the SMS provider (or only logs it in development).
+        url: http://host.docker.internal:4000/internal/kratos/sms
         method: POST
         body: file:///etc/config/kratos/courier-sms.jsonnet
         headers:
           Content-Type: application/json
+        auth:
+          type: api_key
+          config:
+            name: X-Webhook-Secret
+            value: set-by-environment
+            in: header
 
 identity:
   default_schema_id: m2smart

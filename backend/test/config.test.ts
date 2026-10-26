@@ -14,6 +14,7 @@ describe("loadConfig", () => {
       logLevel: "info",
       kratosPublicUrl: "http://127.0.0.1:4433",
       kratosWebhookSecret: null,
+      sms: null,
       broker: null,
     });
   });

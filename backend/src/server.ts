@@ -21,10 +21,11 @@ import { loadBackendEnv } from "./env";
 import { registerBoardRoutes } from "./http/boards";
 import { registerDeviceRoutes } from "./http/devices";
 import { registerDevReportRoute } from "./http/dev-report";
-import { registerDevSmsRoute } from "./http/dev-sms";
 import { registerHealthRoutes } from "./http/health";
 import { registerHomeRoutes } from "./http/homes";
 import { registerMemberRoutes } from "./http/members";
+import { registerSmsRoute } from "./http/sms";
+import { createSmsSender, type SmsSender } from "./sms/sms";
 import { registerMeRoute } from "./http/me";
 import { registerScenarioRoutes } from "./http/scenarios";
 import { registerSettingsRoutes } from "./http/settings";
@@ -37,6 +38,8 @@ export type ServerServices = {
   sessionVerifier?: SessionVerifier;
   /** The boards' broker once it is connected (pairing needs it); null until then. */
   broker?: () => Broker | null;
+  /** Sends login codes and invitations; null when no provider is configured. */
+  sms?: SmsSender | null;
 };
 
 export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
@@ -74,15 +77,17 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
   if (services.sessionVerifier) {
     registerMeRoute(app, pool, services.sessionVerifier);
     registerHomeRoutes(app, pool, services.sessionVerifier);
-    registerMemberRoutes(app, pool, services.sessionVerifier);
+    registerMemberRoutes(app, pool, services.sessionVerifier, services.sms ?? null);
     registerDeviceRoutes(app, pool, services.sessionVerifier);
     registerSettingsRoutes(app, pool, services.sessionVerifier);
     registerScenarioRoutes(app, pool, services.sessionVerifier);
   }
   registerBoardRoutes(app, pool, services.sessionVerifier, services.broker ?? (() => null));
-  if (config.kratosWebhookSecret) registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
+  if (config.kratosWebhookSecret) {
+    registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
+    registerSmsRoute(app, services.sms ?? null);
+  }
   if (config.devRoutes) {
-    registerDevSmsRoute(app);
     registerDevReportRoute(app, pool);
   }
   return app;
@@ -108,14 +113,16 @@ async function main(): Promise<void> {
   const sessionVerifier = withSessionCache(createKratosVerifier(config.kratosPublicUrl));
   // The boards' broker, once connected (below).
   let broker: Broker | null = null;
-  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker });
+  const sms = createSmsSender(config.sms, config.devRoutes);
+  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms });
   logTarget = app;
 
   try {
     const role = await assertSafeDatabaseRole(pool);
     app.log.info({ role }, "Database role verified");
     if (!config.kratosWebhookSecret) app.log.warn("KRATOS_WEBHOOK_SECRET not set: identity webhook disabled; /v1/me still creates missing users.");
-    if (config.devRoutes) app.log.warn("Development routes enabled (POST /internal/dev/sms logs SMS codes). Never enable in production.");
+    if (config.devRoutes) app.log.warn("Development routes enabled. Never enable in production.");
+    if (!config.sms) app.log.warn(config.devRoutes ? "SMS_API_KEY not set: SMS messages are only logged (development)." : "SMS_API_KEY not set: login codes cannot be sent.");
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;
     app.log.fatal(message);
