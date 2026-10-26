@@ -5,27 +5,22 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
-  Camera,
   Check,
   ChevronRight,
-  CircleCheck,
-  Clock3,
   CloudSun,
   Hourglass,
-  House,
-  LockKeyhole,
   Pencil,
   Plus,
   ShieldCheck,
-  ShieldHalf,
   Thermometer,
   Trash2,
   TriangleAlert,
   Wifi,
 } from "lucide-react";
-import { calendars, defaultTimeZone, displayTemperature, languages, palettes, temperatureUnits, type CapabilityName, type CapabilityValue, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
+import { calendars, defaultTimeZone, displayTemperature, languages, palettes, temperatureUnits, type CapabilityName, type CapabilityValue, type ActivityEntry, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
 import { ScenarioList, ScenarioQuickList } from "@/features/scenarios/scenarios";
+import { ActivitySection, CameraSection, SecuritySection } from "@/features/safety/safety";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
 import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
@@ -35,14 +30,14 @@ export const homeTimeZone = (property: Property) => property.timeZone ?? default
 
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings";
 
-/** Sections that only have sample data so far; real users see "coming soon" there. */
-const sampleOnlySections: ReadonlySet<DashboardSection> = new Set(["security", "cameras"]);
 
 type Props = {
   section: DashboardSection;
   property: Property;
   /** The Members section (it loads its own data). */
   membersPanel?: React.ReactNode;
+  /** The last 24 hours of commands, for Activity. */
+  loadActivity: () => Promise<ActivityEntry[]>;
   displayName: string;
   rooms: Room[];
   devices: Device[];
@@ -82,7 +77,7 @@ function greeting(m: Messages): string {
 }
 
 export function DashboardView(props: Props) {
-  const { section, property, devices, rooms, query, nameOf, demo, onClearSearch } = props;
+  const { section, property, devices, rooms, query, nameOf, onClearSearch } = props;
   const { locale, m, rtl } = useI18n();
   const title = section === "overview" ? m.dashboard.commandCenter : m.nav[section];
   const roomName = (device: Device) => nameOf(rooms.find((room) => room.id === device.roomId)?.name ?? "");
@@ -126,8 +121,6 @@ export function DashboardView(props: Props) {
         <DeviceCollection {...props} devices={filteredDevices} roomName={roomName} title={m.dashboard.searchResults} />
       ) : section === "overview" ? (
         <Overview {...props} />
-      ) : !demo && sampleOnlySections.has(section) ? (
-        <ComingSoon section={section} />
       ) : (
         <SectionContent {...props} roomName={roomName} />
       )}
@@ -307,7 +300,8 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
     );
   }
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
-  if (section === "notifications") return <div className="quiet-panel"><span className="quiet-icon"><CircleCheck size={26} strokeWidth={1.6} /></span><h2>{m.dashboard.notificationsTitle}</h2><p>{m.dashboard.notificationsCopy}</p><span className="quiet-meta"><Clock3 size={14} />{m.dashboard.allCaughtUp}</span></div>;
+  const safety = { devices: props.devices, valueOf: props.valueOf, nameOf: props.nameOf, onOpenDevice: props.onOpenDevice };
+  if (section === "notifications") return <ActivitySection {...safety} loadActivity={props.loadActivity} timeZone={homeTimeZone(props.property)} />;
   if (section === "settings") return <SettingsSection demo={demo} property={props.property} />;
   if (section === "members") return <>{props.membersPanel}</>;
   if (section === "scenes") {
@@ -326,39 +320,9 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
       />
     );
   }
-  if (!demo) return <ComingSoon section={section} />;
-  if (section === "security") return <SecuritySection onNavigate={onNavigate} />;
-  if (section === "cameras") return <CameraSection />;
+  if (section === "security") return <SecuritySection {...safety} />;
+  if (section === "cameras") return <CameraSection {...safety} demo={demo} roomName={props.roomName} />;
   return null;
-}
-
-function ComingSoon({ section }: { section: DashboardSection }) {
-  const { m } = useI18n();
-  const icons = { security: ShieldCheck, cameras: Camera } as Partial<Record<DashboardSection, typeof Camera>>;
-  const Icon = icons[section] ?? Clock3;
-  return (
-    <div className="quiet-panel coming-soon" role="status">
-      <span className="quiet-icon"><Icon size={24} strokeWidth={1.6} /></span>
-      <h2>{m.dashboard.comingSoonTitle}</h2>
-      <p>{m.dashboard.comingSoonText}</p>
-    </div>
-  );
-}
-
-function SecuritySection({ onNavigate }: { onNavigate: Props["onNavigate"] }) {
-  const { m } = useI18n();
-  const demo = m.demo;
-  const icons = [LockKeyhole, House, ShieldHalf, Camera];
-  return <section className="security-layout"><div className="security-banner"><div className="security-banner-icon"><ShieldCheck size={26} /></div><div><span className="panel-overline">{demo.securityOverline}</span><h2>{demo.securityTitle}</h2><p>{demo.securityText}</p></div><span className="security-banner-badge"><span className="status-pulse" />{demo.allSecure}</span></div><div className="surface-panel security-checklist"><div className="section-heading"><div><h2>{demo.securityChecklist}<span className="check-count">4 / 4</span></h2><p>{demo.lastChecked}</p></div></div>{demo.securityRows.map(([name, detail], index) => { const Icon = icons[index]; return <button type="button" key={name} className="security-row" onClick={() => index === 3 && onNavigate("cameras")}><span className="security-device-icon"><Icon size={18} /></span><span className="security-device-copy"><strong>{name}</strong><small>{detail}</small></span><CircleCheck className="security-check-icon" size={19} /></button>; })}</div><div className="security-footnote"><span className="status-pulse" />{demo.monitored}<span>·</span>{demo.alertsOn}</div></section>;
-}
-
-function CameraSection() {
-  const { m } = useI18n();
-  const demo = m.demo;
-  const tile = (index: number, className: string, imageClass: string) => (
-    <article className={`camera-tile ${className}`}><div className={`camera-image ${imageClass}`} /><div className="camera-scrim" /><span className="camera-top"><span className="camera-recording"><span />REC</span><span className="camera-live-label"><span />{demo.cameraLive}</span></span><div className="camera-bottom"><span><Camera size={15} />{demo.cameras[index][0]}</span><small>{demo.cameras[index][1]}</small></div></article>
-  );
-  return <section className="camera-grid">{tile(0, "camera-entry", "camera-image-entry")}{tile(1, "camera-garden", "camera-image-garden")}<div className="camera-status-card"><span className="camera-health-icon"><CircleCheck size={18} /></span><strong>{demo.allInView}</strong><p>{demo.camerasOnline}</p><span><span className="status-pulse" />{demo.camerasCount}</span></div></section>;
 }
 
 function SettingsSection({ demo, property }: { demo: boolean; property: Property }) {

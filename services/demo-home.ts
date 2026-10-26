@@ -2,7 +2,7 @@
  * Sample homes for the demo account, in the same shape the API returns. The demo never touches
  * the database: this data lives in the demo visitor's browser (services/demo-gateway.ts).
  */
-import { capabilities, deviceTypes, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type HomeInvitation, type HomeMember, type MyInvitation, type Property, type Room, type Scenario } from "@m2smart/contracts";
+import { capabilities, deviceTypes, type ActivityEntry, type Command, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type HomeInvitation, type HomeMember, type MyInvitation, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { messages, type Locale } from "@/lib/i18n";
 
 export type DemoData = {
@@ -13,6 +13,8 @@ export type DemoData = {
   waitingBoards?: Record<string, string>;
   /** Missing in demo data saved before scenarios existed: then the samples are added. */
   scenarios?: Record<string, Scenario[]>;
+  /** Commands sent in the demo, for Activity; only the last 24 hours are kept (like the API). */
+  recentCommands?: Array<Command & { propertyId: string }>;
   /** Missing in demo data saved before members existed: then the samples are added. */
   members?: Record<string, HomeMember[]>;
   invitations?: Record<string, HomeInvitation[]>;
@@ -179,4 +181,22 @@ export function demoInvitedHome(): { property: Property; rooms: Room[]; devices:
     rooms: [{ id: "s-living", name: "Living room", photo: "living", sortOrder: 0 }],
     devices: [demoDevice("s-light", "switch", "Ceiling light", "s-living", { power: false })],
   };
+}
+
+/** Sample activity of the demo homes, always relative to now (so it never ages out of the 24 h). */
+export function demoActivity(propertyId: string, now = Date.now()): ActivityEntry[] {
+  const ago = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
+  const entry = (id: string, deviceId: string, deviceName: string, capability: CapabilityName, targetValue: CapabilityValue, minutes: number, by: { person?: string; scenario?: string }, status: ActivityEntry["status"] = "applied"): ActivityEntry => ({
+    id: `demo-activity-${id}`, deviceId, deviceName, capability, targetValue, status, createdAt: ago(minutes), completedAt: ago(minutes - 1), requestedBy: by.person ?? null, scenario: by.scenario ?? null,
+  });
+  if (propertyId === "tehran") {
+    return [
+      entry("coffee", "coffee", "Coffee machine", "power", false, 40, { person: "Reza Karimi" }),
+      entry("garage", "garage", "Parking door", "door", "open", 125, { person: "Sara Ahmadi" }),
+      entry("morning", "pendant", "Pendant lights", "brightness", 80, 360, { scenario: "Good morning" }),
+      entry("garden", "garden-pump", "Garden pump", "power", true, 540, { scenario: "Water the garden" }, "timed_out"),
+    ];
+  }
+  if (propertyId === "caspian") return [entry("lamp", "c-lamp", "Reading lamp", "brightness", 0, 180, { scenario: "Good night" })];
+  return [];
 }

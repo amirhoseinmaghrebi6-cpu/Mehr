@@ -1028,3 +1028,37 @@ a.auth-submit { text-decoration: none; }
   .invitation-banner { flex-wrap: wrap; }
   .invitation-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* Security, Cameras and Activity from the home's real devices (features/safety/safety.tsx). */
+.security-banner.needs-attention { border-color: color-mix(in srgb, var(--warning) 32%, var(--line)); background: color-mix(in srgb, var(--warning-soft) 55%, var(--surface)); }
+.security-banner.needs-attention .security-banner-icon { border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: var(--warning-soft); color: var(--warning); }
+.security-banner.needs-attention .security-banner-badge { border-color: color-mix(in srgb, var(--warning) 25%, var(--line)); color: var(--warning); }
+.security-row:disabled { cursor: default; }
+.security-row:disabled:hover { background: transparent; }
+.security-check-icon.is-attention { color: var(--warning); }
+.camera-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.camera-tile { display: block; width: 100%; padding: 0; border: 0; cursor: pointer; font: inherit; text-align: start; }
+.camera-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.camera-image-blank { background: linear-gradient(135deg, #2c3a31, #1d2620); }
+.camera-tile.is-off .camera-scrim { background: rgb(13 19 14 / 55%); }
+.camera-video-later { position: absolute; inset-inline: 13px; top: 50%; transform: translateY(-50%); color: rgb(255 255 255 / 72%); font-size: 9px; text-align: center; }
+.activity-layout { display: grid; max-width: 860px; gap: 14px; }
+.activity-panel { display: grid; gap: 4px; padding: 20px 22px; }
+.activity-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.activity-row { display: flex; width: 100%; min-height: 52px; align-items: center; gap: 11px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; text-align: start; }
+.activity-list > li:first-child > .activity-row, .activity-list > li.activity-row:first-child { border-top: 0; }
+button.activity-row { cursor: pointer; }
+button.activity-row:hover { background: var(--surface-soft); }
+.activity-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 7px; background: var(--surface-soft); color: var(--ink-soft); }
+.activity-row.tone-danger .activity-icon { background: var(--danger-soft, var(--warning-soft)); color: var(--danger); }
+.activity-row.tone-warn .activity-icon { background: var(--warning-soft); color: var(--warning); }
+.activity-row.tone-info .activity-icon { background: var(--accent-soft); color: var(--accent-deep); }
+.activity-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.activity-copy strong { overflow: hidden; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.activity-copy small { color: var(--muted); font-size: 9px; }
+.activity-time { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.activity-empty { display: flex; align-items: center; gap: 7px; margin: 6px 0 0; color: var(--muted); font-size: 10px; }
+@media (max-width: 600px) {
+  .camera-grid { grid-template-columns: minmax(0, 1fr); }
+  .activity-panel { padding: 16px; }
+}

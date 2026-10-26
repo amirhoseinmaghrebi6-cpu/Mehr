@@ -194,3 +194,24 @@ export interface Command {
   completedAt: string | null;
   errorCode: string | null;
 }
+
+// --- Activity -------------------------------------------------------------------------------
+
+/**
+ * One command of the last 24 hours (commands are deleted a day after they finish, so there is
+ * never more). Who asked: a member's name, or the scenario that ran it; neither for a command
+ * nobody in the home sent (e.g. from the board's own setup).
+ */
+export interface ActivityEntry {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  capability: CapabilityName;
+  targetValue: CapabilityValue;
+  status: CommandStatus;
+  createdAt: string;
+  completedAt: string | null;
+  requestedBy: string | null;
+  scenario: string | null;
+}
+export type ActivityResponse = { entries: ActivityEntry[] };

@@ -177,6 +177,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
   const canControl = property ? can(property.role, "device.control") : false;
   const canEditScenarios = property ? can(property.role, "scenario.edit") : false;
   const scenarioData = useScenarios(gateway, propertyId);
+  const loadActivity = useCallback(() => (propertyId ? gateway.listActivity(propertyId) : Promise.resolve([])), [gateway, propertyId]);
 
   // Remember each dimmer's last brightness, so switching it back on restores it.
   const lastBrightness = useRef<Record<string, number>>({});
@@ -376,6 +377,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
             <DashboardView
               section={section}
               property={property}
+              loadActivity={loadActivity}
               membersPanel={<MembersSection gateway={gateway} property={property} nameOf={nameOf} onToast={showToast} onLeft={() => { const remaining = (properties ?? []).filter((item) => item.id !== property.id); home.setProperties(remaining); if (remaining[0]) changeProperty(remaining[0].id); else router.push("/dashboard"); }} />}
               displayName={displayName}
               rooms={rooms}

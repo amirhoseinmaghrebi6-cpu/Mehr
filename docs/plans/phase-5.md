@@ -11,7 +11,7 @@ Status: in progress (started 2026-10-26).
 | 5A | Home members (done): invitations by mobile number, accepting and declining, roles, removing and leaving; a Members section; the demo shows all of it. |
 | 5B | The real SMS provider: FarazSMS / IranPayamak (done): login codes reach real phones (tested 2026-10-26 with the approved pattern). The invitation SMS waits for its pattern to be approved; until then invitations show in the app only. Sending limits come with deployment (Phase 9). |
 | 5C | Live updates (done): database notices → API Server-Sent Events → the page re-reads; a board report shows on every open page in well under a second (0.3 s in the browser test). The demo updates live between tabs. |
-| 5D | Security and Activity for real homes (they are sample data in the demo only today). |
+| 5D | Security, Cameras and Activity for real homes (done): built from the devices' current states plus the last 24 hours of commands; the demo uses the same screens with its sample devices. |
 
 ## 5A decisions (2026-10-26)
 
@@ -38,3 +38,9 @@ Where: `supabase/migrations/202610270001_home_members.sql`, `backend/src/http/me
 - Database triggers send them (devices, reported states, a board going online or offline, a command's progress), so every writer is covered: board reports, scenarios, the API.
 - One stream per open page; it ends every 10 minutes and the browser reconnects, which checks the session and membership again.
 - The 15-second refresh became a 60-second fallback.
+
+## 5D decisions (2026-10-26)
+
+- Security is a checklist of what the devices report now (alarm, doors and windows, smoke/gas/water, cameras, boards online); a row that needs attention opens its device.
+- Cameras list the camera devices with their on/recording state; live video comes later (a media service), and the demo keeps its sample pictures.
+- Activity: the alerts of right now (leak, smoke, gas, alarm, offline board, open door or window, board waiting to be paired), then the last 24 hours of commands with who sent them or which scenario ran them. Nothing new is stored: commands were already kept for a day.

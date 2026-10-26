@@ -23,7 +23,7 @@ import {
 } from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
 import { nextRun } from "@/lib/scenario-time";
-import { createDemoData, createDemoPeople, createDemoScenarios, demoBoards, demoDevice, demoInvitedHome, type DemoData } from "@/services/demo-home";
+import { createDemoData, createDemoPeople, createDemoScenarios, demoActivity, demoBoards, demoDevice, demoInvitedHome, type DemoData } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
@@ -124,6 +124,7 @@ export function createDemoGateway(userId: string): HomeGateway {
     const state = device?.capabilities.find((entry) => entry.capability === command.capability);
     if (!device || !state || Date.now() > Date.parse(command.expiresAt)) {
       step("timed_out", { completedAt: new Date().toISOString(), errorCode: "timeout" });
+      save();
       return;
     }
     state.value = command.targetValue;
@@ -132,8 +133,8 @@ export function createDemoGateway(userId: string): HomeGateway {
       const recording = device.capabilities.find((entry) => entry.capability === "recording");
       if (recording) recording.value = false;
     }
-    save();
     step("applied", { completedAt: new Date().toISOString() });
+    save();
   }
 
   return {
@@ -147,6 +148,28 @@ export function createDemoGateway(userId: string): HomeGateway {
       };
       window.addEventListener("storage", onStorage);
       return () => window.removeEventListener("storage", onStorage);
+    },
+
+    // The sample activity, plus the commands the visitor sent in the last day (by "You").
+    async listActivity(propertyId) {
+      home(propertyId);
+      const devices = data.devices[propertyId] ?? [];
+      const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+      const mine = (data.recentCommands ?? [])
+        .filter((command) => command.propertyId === propertyId && command.createdAt > dayAgo)
+        .map((command) => ({
+          id: command.id,
+          deviceId: command.deviceId,
+          deviceName: devices.find((device) => device.id === command.deviceId)?.name ?? "",
+          capability: command.capability,
+          targetValue: command.targetValue,
+          status: command.status,
+          createdAt: command.createdAt,
+          completedAt: command.completedAt,
+          requestedBy: "You",
+          scenario: null,
+        }));
+      return [...mine, ...demoActivity(propertyId)].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
 
     async listProperties() {
@@ -323,6 +346,10 @@ export function createDemoGateway(userId: string): HomeGateway {
         errorCode: null,
       };
       commands.set(command.id, command);
+      // Kept with the demo data (same object, so its progress is saved too), for Activity.
+      const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+      data.recentCommands = [...(data.recentCommands ?? []).filter((item) => item.createdAt > dayAgo), command];
+      save();
       void runCommand(command, device.type);
       return clone(command);
     },

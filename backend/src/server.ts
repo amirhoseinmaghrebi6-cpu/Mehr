@@ -26,6 +26,7 @@ import { registerHomeRoutes } from "./http/homes";
 import { registerMemberRoutes } from "./http/members";
 import { registerSmsRoute } from "./http/sms";
 import { registerEventRoutes } from "./http/events";
+import { registerActivityRoutes } from "./http/activity";
 import { startHomeEvents, type HomeEvents } from "./realtime/home-events";
 import { createSmsSender, type SmsSender } from "./sms/sms";
 import { registerMeRoute } from "./http/me";
@@ -86,6 +87,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerSettingsRoutes(app, pool, services.sessionVerifier);
     registerScenarioRoutes(app, pool, services.sessionVerifier);
     registerEventRoutes(app, pool, services.sessionVerifier, services.homeEvents ?? null);
+    registerActivityRoutes(app, pool, services.sessionVerifier);
   }
   registerBoardRoutes(app, pool, services.sessionVerifier, services.broker ?? (() => null));
   if (config.kratosWebhookSecret) {

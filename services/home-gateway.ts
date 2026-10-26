@@ -8,6 +8,7 @@
  * The interface covers homes, rooms, devices, commands, scenarios and settings.
  */
 import type {
+  ActivityEntry,
   Command,
   CreateCommandRequest,
   CreateInvitationRequest,
@@ -81,6 +82,9 @@ export interface HomeGateway {
   deleteScenario(propertyId: string, scenarioId: string): Promise<void>;
   /** Runs a themed scenario now: one command per action. */
   runScenario(propertyId: string, scenarioId: string): Promise<ScenarioRunResponse>;
+
+  /** The last 24 hours of commands in the home, newest first, with who asked. */
+  listActivity(propertyId: string): Promise<ActivityEntry[]>;
 
   /** The user's display preferences (language, calendar, temperature unit). */
   getSettings(): Promise<UserSettings>;
