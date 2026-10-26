@@ -10,7 +10,7 @@ Status: in progress (started 2026-10-26).
 |------|------|
 | 5A | Home members (done): invitations by mobile number, accepting and declining, roles, removing and leaving; a Members section; the demo shows all of it. |
 | 5B | The real SMS provider: FarazSMS / IranPayamak (done): login codes reach real phones (tested 2026-10-26 with the approved pattern). The invitation SMS waits for its pattern to be approved; until then invitations show in the app only. Sending limits come with deployment (Phase 9). |
-| 5C | Live updates in the browser instead of 15-second refreshes. |
+| 5C | Live updates (done): database notices → API Server-Sent Events → the page re-reads; a board report shows on every open page in well under a second (0.3 s in the browser test). The demo updates live between tabs. |
 | 5D | Security and Activity for real homes (they are sample data in the demo only today). |
 
 ## 5A decisions (2026-10-26)
@@ -31,3 +31,10 @@ Where: `supabase/migrations/202610270001_home_members.sql`, `backend/src/http/me
 - An invitation also sends an SMS (best effort: the invitation stands if it fails).
 - Patterns to submit in the panel: login `M2smart / کد ورود شما: %code% / این کد را به کسی ندهید.`; invitation `%name% شما را به خانه‌ی «%home%» در M2smart دعوت کرد. برای پذیرفتن، با همین شماره وارد شوید.`
 - The API key lives only in `backend/.env.local` (production: the server's environment).
+
+## 5C decisions (2026-10-26)
+
+- Notices carry only the home's id, never data: pages re-read through the normal routes, so access rules stay in one place.
+- Database triggers send them (devices, reported states, a board going online or offline, a command's progress), so every writer is covered: board reports, scenarios, the API.
+- One stream per open page; it ends every 10 minutes and the browser reconnects, which checks the session and membership again.
+- The 15-second refresh became a 60-second fallback.

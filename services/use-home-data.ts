@@ -8,9 +8,9 @@
  * command until the ESP32 reports it (applied) or it fails. It waits as long as the command itself
  * allows (its expiresAt: seconds for a light, minutes for a parking door) plus a margin for a slow
  * connection, and tolerates failed status requests in between. Only then does the control fall
- * back to the last reported value. The device list is refreshed every 15 seconds while the page is
- * visible, which picks up wall-switch presses and sensor changes, and every 5 seconds while any
- * device is offline, so a board that comes online shows up quickly.
+ * back to the last reported value. Changes that happen elsewhere (a wall switch, a sensor, a board
+ * going offline, another member's command) arrive as live updates (gateway.watchHome), and the
+ * device list is re-read then; a slow refresh while the page is visible covers a lost connection.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CapabilityName, CapabilityValue, Command, CommandStatus, Device, Property, Room } from "@m2smart/contracts";
@@ -18,9 +18,8 @@ import { isFinalStatus } from "@/services/api-gateway";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const POLL_MS = 1_000;
-const REFRESH_MS = 15_000;
-/** While a device is offline (e.g. a board that was just added), look again this often. */
-const OFFLINE_REFRESH_MS = 5_000;
+/** Fallback only: live updates normally refresh the list as soon as something changes. */
+const REFRESH_MS = 60_000;
 /** Extra wait past a command's deadline before giving up on hearing its result. */
 const DEADLINE_MARGIN_MS = 10_000;
 
@@ -105,25 +104,21 @@ export function useHomeData(gateway: HomeGateway, requestedPropertyId: string | 
     };
   }, [gateway, propertyId]);
 
-  // Periodic refresh while visible (reports that arrive without a command).
+  // Live updates, plus a slow refresh while visible in case the live connection is down.
   useEffect(() => {
     if (!propertyId) return;
-    let last = Date.now();
+    const stopWatching = gateway.watchHome(propertyId, () => void refreshDevices());
     const refreshIfVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      last = Date.now();
-      void refreshDevices();
+      if (document.visibilityState === "visible") void refreshDevices();
     };
-    const timer = window.setInterval(() => {
-      const due = devicesRef.current.some((device) => !device.online) ? OFFLINE_REFRESH_MS : REFRESH_MS;
-      if (Date.now() - last >= due) refreshIfVisible();
-    }, OFFLINE_REFRESH_MS);
+    const timer = window.setInterval(refreshIfVisible, REFRESH_MS);
     document.addEventListener("visibilitychange", refreshIfVisible);
     return () => {
+      stopWatching();
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [propertyId, refreshDevices]);
+  }, [gateway, propertyId, refreshDevices]);
 
   const finish = useCallback((key: string, entry: PendingCommand, status: CommandStatus) => {
     setPending((current) => {

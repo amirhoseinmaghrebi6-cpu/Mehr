@@ -137,6 +137,18 @@ export function createDemoGateway(userId: string): HomeGateway {
   }
 
   return {
+    // Live updates in the demo: another tab of the same demo (e.g. one on a phone-sized window)
+    // saves its changes to this browser's storage; this tab takes them over and refreshes.
+    watchHome(_propertyId, onChange) {
+      const onStorage = (event: StorageEvent) => {
+        if (event.key !== key) return;
+        data = load();
+        onChange();
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    },
+
     async listProperties() {
       return clone(data.properties);
     },

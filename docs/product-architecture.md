@@ -27,7 +27,7 @@ As the product grows, split domain owners into `features/homes`, `rooms`, `devic
 
 Route state identifies the active home and section (`/homes/:homeId/:section`). Homes, rooms and devices come from the M2smart API through `HomeGateway` (`services/api-gateway.ts`): same-origin `/api/v1`, request timeouts, user-safe errors in English and Persian. The demo account uses the same interface with sample data kept in its browser (`services/demo-gateway.ts`). Local component state is limited to transient controls and presentation preferences (language, theme).
 
-Device commands are requests, not facts. A control shows the target at once, marked as sending, then in progress once the ESP32 has started (e.g. a door motor is running), and keeps the value only when the ESP32 reports it. Each command has a deadline set by the database: 30 s for the network plus the hardware's own time (a parking door gets minutes, a light seconds). The client waits until that deadline and falls back to the last reported value if nothing is confirmed. Commands are retried on a lost connection with the same idempotency key, so a command never runs twice. Parking doors and the alarm ask for confirmation first. Device lists refresh every 15 seconds, which picks up wall switches and sensors until realtime push exists (`services/use-home-data.ts`).
+Device commands are requests, not facts. A control shows the target at once, marked as sending, then in progress once the ESP32 has started (e.g. a door motor is running), and keeps the value only when the ESP32 reports it. Each command has a deadline set by the database: 30 s for the network plus the hardware's own time (a parking door gets minutes, a light seconds). The client waits until that deadline and falls back to the last reported value if nothing is confirmed. Commands are retried on a lost connection with the same idempotency key, so a command never runs twice. Parking doors and the alarm ask for confirmation first. Changes made elsewhere (a wall switch, a sensor, a board going offline, another member's command) reach open pages as live updates: the database sends a notice on each change, the API passes "changed" to that home's open pages over Server-Sent Events (`GET /v1/properties/:id/events`), and the page re-reads its devices. A refresh every 60 seconds covers a lost connection (`services/use-home-data.ts`, `backend/src/realtime/home-events.ts`).
 
 Inject a production `RealtimeClient` behind the declared port. It should subscribe only to the active property, coalesce high-frequency sensor events, expose connection state, retry with backoff, and release subscriptions on scope changes. Realtime payloads are hints to refresh authoritative state, never proof of authorization.
 
@@ -89,7 +89,6 @@ Home members (Phase 5A): owners and admins invite people by mobile number; the i
 
 Still to be implemented:
 - firmware;
-- realtime push;
 - administration;
 - the real SMS provider;
 - deployment on servers in Iran, with TLS and our own certificate authority for the boards.

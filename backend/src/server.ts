@@ -25,6 +25,8 @@ import { registerHealthRoutes } from "./http/health";
 import { registerHomeRoutes } from "./http/homes";
 import { registerMemberRoutes } from "./http/members";
 import { registerSmsRoute } from "./http/sms";
+import { registerEventRoutes } from "./http/events";
+import { startHomeEvents, type HomeEvents } from "./realtime/home-events";
 import { createSmsSender, type SmsSender } from "./sms/sms";
 import { registerMeRoute } from "./http/me";
 import { registerScenarioRoutes } from "./http/scenarios";
@@ -40,6 +42,8 @@ export type ServerServices = {
   broker?: () => Broker | null;
   /** Sends login codes and invitations; null when no provider is configured. */
   sms?: SmsSender | null;
+  /** Live updates for open pages; without it the events route answers 503. */
+  homeEvents?: HomeEvents | null;
 };
 
 export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
@@ -81,6 +85,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerDeviceRoutes(app, pool, services.sessionVerifier);
     registerSettingsRoutes(app, pool, services.sessionVerifier);
     registerScenarioRoutes(app, pool, services.sessionVerifier);
+    registerEventRoutes(app, pool, services.sessionVerifier, services.homeEvents ?? null);
   }
   registerBoardRoutes(app, pool, services.sessionVerifier, services.broker ?? (() => null));
   if (config.kratosWebhookSecret) {
@@ -114,7 +119,9 @@ async function main(): Promise<void> {
   // The boards' broker, once connected (below).
   let broker: Broker | null = null;
   const sms = createSmsSender(config.sms, config.devRoutes);
-  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms });
+  // Live updates hold one database connection of their own.
+  let homeEvents: HomeEvents | null = null;
+  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms, homeEvents: { subscribe: (id, onChange) => homeEvents?.subscribe(id, onChange) ?? (() => undefined), stop: async () => undefined } });
   logTarget = app;
 
   try {
@@ -130,6 +137,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  homeEvents = startHomeEvents(pool, app.log);
   const stopExpiry = startCommandExpiry(pool, app.log);
   const stopCleanup = startCleanup(pool, app.log);
   const stopScenarios = startScenarioRunner(pool, app.log);
@@ -168,6 +176,7 @@ async function main(): Promise<void> {
     if (brokerRetry) clearTimeout(brokerRetry);
     try {
       await simulator?.stop();
+      await homeEvents?.stop();
       await broker?.close();
       await app.close();
       await pool.end();

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const unsetWhenEmpty = <T extends z.ZodType>(schema: T) => z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_HOST: z.string().min(1).default("127.0.0.1"),
@@ -24,10 +26,11 @@ const configSchema = z.object({
   // Text messages through FarazSMS / IranPayamak. Without SMS_API_KEY, development only logs them
   // and production cannot send login codes. Pattern codes come from the provider once approved.
   SMS_API_URL: z.url({ protocol: /^https$/, error: "must be an https URL" }).default("https://api.iranpayamak.com"),
-  SMS_API_KEY: z.string().min(8, { error: "is too short" }).optional(),
-  SMS_SENDER: z.string().regex(/^\d{4,15}$/, { error: "must be the sender line, e.g. 90008361" }).optional(),
-  SMS_PATTERN_CODE: z.string().min(1).optional(),
-  SMS_PATTERN_INVITATION: z.string().min(1).optional(),
+  // An empty line in the env file (`SMS_API_KEY=`) counts as not set.
+  SMS_API_KEY: unsetWhenEmpty(z.string().min(8, { error: "is too short" })),
+  SMS_SENDER: unsetWhenEmpty(z.string().regex(/^\d{4,15}$/, { error: "must be the sender line, e.g. 90008361" })),
+  SMS_PATTERN_CODE: unsetWhenEmpty(z.string()),
+  SMS_PATTERN_INVITATION: unsetWhenEmpty(z.string()),
 });
 
 export type Config = {

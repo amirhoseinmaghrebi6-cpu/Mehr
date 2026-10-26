@@ -98,6 +98,13 @@ export interface HomeGateway {
   /** Removes a board with all its devices; the board must be paired again to be used. */
   removeBoard(propertyId: string, boardId: string): Promise<void>;
 
+  /**
+   * Live updates: calls `onChange` whenever something in the home may have changed (a report, a
+   * board going offline, someone else's command), so the page re-reads it. Returns the function
+   * that stops listening.
+   */
+  watchHome(propertyId: string, onChange: () => void): () => void;
+
   /** Demo only: removes one of the demo's original sample devices (they have no board). */
   removeDemoDevice?(propertyId: string, deviceId: string): Promise<void>;
   /** Demo only: the sample QR code of a waiting board's product, to save and upload. */

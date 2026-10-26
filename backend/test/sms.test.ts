@@ -46,6 +46,8 @@ describe("SMS configuration", () => {
   it("has no provider until the key, the sender and the code pattern are all set", () => {
     expect(loadConfig(base).sms).toBeNull();
     expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "90008361" }).sms).toBeNull();
+    // Empty lines in the env file are "not set", not errors.
+    expect(loadConfig({ ...base, SMS_API_KEY: "", SMS_SENDER: "", SMS_PATTERN_CODE: "", SMS_PATTERN_INVITATION: "" }).sms).toBeNull();
     expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "90008361", SMS_PATTERN_CODE: "abc" }).sms).toEqual({
       url: "https://api.iranpayamak.com",
       apiKey: "secret-key",

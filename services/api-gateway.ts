@@ -103,6 +103,19 @@ export function createApiGateway(): HomeGateway {
 
     removeBoard: (id, boardId) => request<void>("DELETE", `/properties/${id}/boards/${boardId}`),
 
+    // The browser reconnects by itself after a drop (and every 10 minutes, when the API ends the
+    // stream to check the session again); a refresh after each reconnect catches what was missed.
+    watchHome(id, onChange) {
+      const source = new EventSource(`${BASE}/properties/${id}/events`);
+      let opened = false;
+      source.onmessage = () => onChange();
+      source.onopen = () => {
+        if (opened) onChange();
+        opened = true;
+      };
+      return () => source.close();
+    },
+
     getSettings: () => request<UserSettings>("GET", "/me/settings"),
     updateSettings: (input) => request<UserSettings>("PATCH", "/me/settings", input),
   };
