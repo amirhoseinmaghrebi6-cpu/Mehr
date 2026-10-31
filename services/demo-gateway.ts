@@ -12,6 +12,7 @@ import {
   defaultTimeZone,
   deviceTypeCategory,
   isDeviceType,
+  normalizePhone,
   parsePairingCode,
   type Command,
   type CommandStatus,
@@ -26,6 +27,9 @@ import { nextRun } from "@/lib/scenario-time";
 import { createDemoData, createDemoPeople, createDemoScenarios, demoActivity, demoBoards, demoDevice, demoInvitedHome, type DemoData } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
+/** The demo's number, and the code that confirms a new one (shown on screen in the demo). */
+const DEMO_PHONE = "+989120000000";
+export const DEMO_PHONE_CODE = "123456";
 /** Same deadline rule as the database: 30 s for the network + the hardware's own time. */
 const ACTION_SECONDS: Record<string, number> = { door_opener: 5, garage_door: 120, curtain: 90, cooler: 10, fan: 10 };
 /** Shorter than real hardware, so the demo stays pleasant, but clearly not instant. */
@@ -38,6 +42,7 @@ export function createDemoGateway(userId: string): HomeGateway {
   const key = `${STORAGE_PREFIX}${userId}`;
   let data: DemoData = load();
   const commands = new Map<string, Command & { propertyId: string; idempotencyKey: string }>();
+  let pendingPhone: string | null = null;
 
   function load(): DemoData {
     try {
@@ -401,6 +406,38 @@ export function createDemoGateway(userId: string): HomeGateway {
       scenario.lastRun = { id: newId("run"), trigger: "manual", status: "started", scheduledFor: null, createdAt: new Date().toISOString() };
       save();
       return { run: clone(scenario.lastRun), commandIds };
+    },
+
+    // The demo's number changes in this browser only; the code is always DEMO_PHONE_CODE.
+    async getPhone() {
+      try {
+        return window.localStorage.getItem(`${key}-phone`) ?? DEMO_PHONE;
+      } catch {
+        return DEMO_PHONE;
+      }
+    },
+    async changePhone(input) {
+      const phone = normalizePhone(input);
+      if (!phone || phone === (await this.getPhone())) throw new GatewayError("invalid_request");
+      // The sample people's numbers belong to their (sample) accounts.
+      if (Object.values(people().members).flat().some((member) => !member.you && member.phone === phone)) throw new GatewayError("conflict");
+      await later(500);
+      pendingPhone = phone;
+      return phone;
+    },
+    async confirmPhone(code) {
+      if (!pendingPhone) throw new GatewayError("not_found");
+      if (code !== DEMO_PHONE_CODE) throw new GatewayError("invalid_request");
+      const phone = pendingPhone;
+      pendingPhone = null;
+      try {
+        window.localStorage.setItem(`${key}-phone`, phone);
+      } catch {
+        // It still shows in this tab.
+      }
+      for (const member of Object.values(people().members).flat()) if (member.you) member.phone = phone;
+      save();
+      return phone;
     },
 
     // The demo has no account: its preferences stay in this browser.

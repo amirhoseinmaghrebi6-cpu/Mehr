@@ -29,8 +29,9 @@ export interface MeResponse {
 /**
  * Error body for every error response: 401 (no or invalid session), 403, 404 (also for homes the
  * user may not see, so their existence is never revealed), 400, 409, 500 (never with details) and
- * 503 (auth unavailable).
+ * 503 (auth unavailable). Changing the phone number may also answer 403 reauth_required (sign in
+ * again first) and 429 rate_limited.
  */
 export interface ApiErrorResponse {
-  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "internal_error";
+  error: "unauthenticated" | "auth_unavailable" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "internal_error" | "reauth_required" | "rate_limited";
 }

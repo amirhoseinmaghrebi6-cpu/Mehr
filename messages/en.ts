@@ -456,6 +456,8 @@ export const en = {
     not_found: "That no longer exists. The page will refresh.",
     invalid_request: "Some details aren't valid. Check them and try again.",
     conflict: "That already exists or a limit was reached.",
+    reauth: "For your security, sign in again first.",
+    rate_limited: "Too many tries. Please wait a while and try again.",
   },
 
   admin: {
@@ -499,6 +501,26 @@ export const en = {
     noOwner: "No owner",
     showMore: "Show more",
     shown: (shown: string, total: string) => `${shown} of ${total}`,
+  },
+  account: {
+    overline: "ACCOUNT",
+    title: "Mobile number",
+    text: "You sign in with this number, and sign-in codes and invitations come to it.",
+    change: "Change number",
+    newNumber: "New mobile number",
+    send: "Send code",
+    sentTo: (phone: string) => `We texted a code to ${phone}.`,
+    code: "6-digit code",
+    confirm: "Confirm",
+    resend: "Send a new code",
+    demoCode: (code: string) => `In the demo no SMS is sent: the code is ${code}.`,
+    reauthText: "For your security, changing your number needs a sign-in in the last 15 minutes.",
+    reauthButton: "Sign in again",
+    invalidPhone: "Enter a valid mobile number that is not your current one.",
+    taken: "This number already has an M2smart account.",
+    wrongCode: "That code isn’t right. Check the SMS and try again.",
+    expired: "That code has expired or was tried too often. Request a new one.",
+    changed: (phone: string) => `Your number is now ${phone}. Sign in with it from now on.`,
   },
   members: {
     title: (home: string) => `People of ${home}`,
@@ -612,7 +634,7 @@ export const en = {
     today: (date: string) => `Today: ${date}`,
     timeNote: "Times are always shown in 24-hour format, in each home's own time.",
     saveFailed: "Your preferences couldn’t be saved to your account; they apply on this device for now.",
-    moreSoon: "Account, security and notification settings are coming soon.",
+    moreSoon: "Notification settings are coming soon.",
   },
 
   auth: {
@@ -684,6 +706,7 @@ export const en = {
     notices: {
       "signed-out": "You’ve signed out securely.",
       reauth: "For your security, sign in again with an SMS code to set your password.",
+      "reauth-phone": "For your security, sign in again with an SMS code to change your number.",
     } as Record<string, string>,
   },
 };

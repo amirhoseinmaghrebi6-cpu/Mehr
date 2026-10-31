@@ -1109,3 +1109,16 @@ a.profile-menu { color: var(--muted); }
   .admin-user { flex-wrap: wrap; padding: 8px 0; }
   .admin-actions, .admin-confirm { width: 100%; max-width: none; padding-inline-start: 40px; }
 }
+
+/* Settings → account (mobile number). */
+.settings-layout { gap: 14px; }
+.account-phone { display: flex; min-height: 50px; align-items: center; gap: 10px; padding: 8px 0; }
+.account-phone-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); }
+.account-phone strong { flex: 1; font-size: 13px; font-weight: 600; }
+.account-form { display: grid; max-width: 420px; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-error { margin: 0; color: var(--danger); font-size: 10px; }
+.account-demo-code { margin: 0; padding: 8px 10px; border-radius: 5px; background: var(--accent-pale); color: var(--accent-deep); font-size: 10px; font-weight: 600; }
+.account-reauth { display: grid; max-width: 420px; gap: 10px; margin-top: 8px; padding: 12px; border: 1px solid var(--warning-soft); border-radius: 6px; background: color-mix(in srgb, var(--warning-soft) 45%, var(--surface)); }
+.account-reauth p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
+.account-reauth .button-primary { justify-self: start; }

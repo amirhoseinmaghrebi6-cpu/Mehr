@@ -34,7 +34,7 @@ import type {
   UserSettings,
 } from "@m2smart/contracts";
 
-export type GatewayErrorCode = "network" | "timeout" | "unauthenticated" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "unavailable";
+export type GatewayErrorCode = "network" | "timeout" | "unauthenticated" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "unavailable" | "reauth" | "rate_limited";
 
 export class GatewayError extends Error {
   constructor(readonly code: GatewayErrorCode) {
@@ -89,6 +89,13 @@ export interface HomeGateway {
   /** The user's display preferences (language, calendar, temperature unit). */
   getSettings(): Promise<UserSettings>;
   updateSettings(input: UpdateSettingsRequest): Promise<UserSettings>;
+
+  /** The account's mobile number (E.164). */
+  getPhone(): Promise<string>;
+  /** Sends a code to the new number; resolves to it (E.164). Needs a recent sign-in ("reauth"). */
+  changePhone(phone: string): Promise<string>;
+  /** With the code from that SMS, the account moves to the new number; resolves to it. */
+  confirmPhone(code: string): Promise<string>;
 
   /** The products (board models) a home can add, by category. */
   listProducts(): Promise<HardwareProduct[]>;

@@ -28,6 +28,7 @@ import { registerSmsRoute } from "./http/sms";
 import { registerEventRoutes } from "./http/events";
 import { registerActivityRoutes } from "./http/activity";
 import { refuseBlocked, registerAdminRoutes } from "./http/admin";
+import { registerPhoneRoutes } from "./http/phone";
 import { createKratosAdmin, type IdentityAdmin } from "./auth/kratos-admin";
 import { startHomeEvents, type HomeEvents } from "./realtime/home-events";
 import { createSmsSender, type SmsSender } from "./sms/sms";
@@ -47,7 +48,7 @@ export type ServerServices = {
   sms?: SmsSender | null;
   /** Live updates for open pages; without it the events route answers 503. */
   homeEvents?: HomeEvents | null;
-  /** Kratos's admin API, for the operator's panel to block and delete accounts; null without it. */
+  /** Kratos's admin API: the operator's panel (block, delete) and changing a phone number; null without it. */
   identityAdmin?: IdentityAdmin | null;
   /** Shown in the operator's panel: whether SMS codes can really be sent. */
   smsReady?: boolean;
@@ -97,6 +98,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerScenarioRoutes(app, pool, sessionVerifier);
     registerEventRoutes(app, pool, sessionVerifier, services.homeEvents ?? null);
     registerActivityRoutes(app, pool, sessionVerifier);
+    registerPhoneRoutes(app, pool, sessionVerifier, services.identityAdmin ?? null, services.sms ?? null);
     registerAdminRoutes(app, pool, sessionVerifier, { admins, identityAdmin: services.identityAdmin ?? null, broker: services.broker ?? (() => null), smsReady: services.smsReady ?? false });
   }
   registerBoardRoutes(app, pool, sessionVerifier, services.broker ?? (() => null));

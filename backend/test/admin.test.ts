@@ -40,6 +40,9 @@ const identityAdmin: IdentityAdmin = {
     if (kratosDown) throw new IdentityAdminError("down");
     kratosCalls.push(`${blocked ? "block" : "unblock"} ${id}`);
   },
+  async setPhone() {
+    return true;
+  },
   async delete(id) {
     if (kratosDown) throw new IdentityAdminError("down");
     kratosCalls.push(`delete ${id}`);
@@ -171,7 +174,7 @@ describe("operator settings and the Kratos admin client", () => {
     expect(() => loadConfig({ ...base, PLATFORM_ADMIN_PHONES: "0912, nope" })).toThrow(/PLATFORM_ADMIN_PHONES/);
   });
 
-  it("blocks by making the identity inactive and ending its sessions; deletes it", async () => {
+  it("blocks by making the identity inactive and ending its sessions; moves the phone; deletes it", async () => {
     const calls: Array<[string, string, unknown]> = [];
     const fetchImpl = (async (url: string, init: RequestInit) => {
       calls.push([init.method!, url, init.body ? JSON.parse(init.body as string) : null]);
@@ -187,6 +190,12 @@ describe("operator settings and the Kratos admin client", () => {
       ["PATCH", "http://kratos:4434/admin/identities/id-1", [{ op: "replace", path: "/state", value: "active" }]],
       ["DELETE", "http://kratos:4434/admin/identities/id-1", null],
     ]);
+    // A new phone number moves the trait; 409 means another identity has that number.
+    calls.length = 0;
+    expect(await kratos.setPhone("id-1", "+989120000999")).toBe(true);
+    expect(calls).toEqual([["PATCH", "http://kratos:4434/admin/identities/id-1", [{ op: "replace", path: "/traits/phone", value: "+989120000999" }]]]);
+    const taken = createKratosAdmin("http://kratos:4434", (async () => new Response(null, { status: 409 })) as unknown as typeof fetch);
+    expect(await taken.setPhone("id-1", "+989120000999")).toBe(false);
     const refusing = createKratosAdmin("http://kratos:4434", (async () => new Response(null, { status: 500 })) as unknown as typeof fetch);
     await expect(refusing.delete("id-1")).rejects.toBeInstanceOf(IdentityAdminError);
   });

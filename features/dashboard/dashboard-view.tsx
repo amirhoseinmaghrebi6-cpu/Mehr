@@ -35,6 +35,8 @@ type Props = {
   property: Property;
   /** The Members section (it loads its own data). */
   membersPanel?: React.ReactNode;
+  /** Settings → the account (mobile number). */
+  accountPanel?: React.ReactNode;
   /** The last 24 hours of commands, for Activity. */
   loadActivity: () => Promise<ActivityEntry[]>;
   displayName: string;
@@ -301,7 +303,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   const safety = { devices: props.devices, valueOf: props.valueOf, nameOf: props.nameOf, onOpenDevice: props.onOpenDevice };
   if (section === "notifications") return <ActivitySection {...safety} loadActivity={props.loadActivity} timeZone={homeTimeZone(props.property)} />;
-  if (section === "settings") return <SettingsSection demo={demo} property={props.property} />;
+  if (section === "settings") return <SettingsSection demo={demo} property={props.property} accountPanel={props.accountPanel} />;
   if (section === "members") return <>{props.membersPanel}</>;
   if (section === "scenes") {
     return (
@@ -324,7 +326,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   return null;
 }
 
-function SettingsSection({ demo, property }: { demo: boolean; property: Property }) {
+function SettingsSection({ demo, property, accountPanel }: { demo: boolean; property: Property; accountPanel?: React.ReactNode }) {
   const { locale, m, calendar, temperatureUnit, palette, setPreferences } = useI18n();
   const t = m.settings;
   const choice = <T extends string>(label: string, options: readonly T[], value: T, name: (option: T) => string, onPick: (option: T) => void) => (
@@ -361,6 +363,7 @@ function SettingsSection({ demo, property }: { demo: boolean; property: Property
         <p className="form-note">{t.timeNote}</p>
         <p className="form-note">{t.moreSoon}</p>
       </div>
+      {accountPanel}
     </section>
   );
 }

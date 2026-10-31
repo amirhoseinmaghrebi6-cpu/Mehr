@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ActivityEntry, ApiErrorResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
+import type { ActivityEntry, ApiErrorResponse, MeResponse, PhoneChangeResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -21,6 +21,8 @@ const errorCodes: Record<ApiErrorResponse["error"], GatewayErrorCode> = {
   invalid_request: "invalid_request",
   conflict: "conflict",
   internal_error: "unavailable",
+  reauth_required: "reauth",
+  rate_limited: "rate_limited",
 };
 
 /** One request to the API under /api/v1, with a timeout; errors become GatewayErrors. */
@@ -118,6 +120,10 @@ export function createApiGateway(): HomeGateway {
     },
 
     listActivity: async (id) => (await request<{ entries: ActivityEntry[] }>("GET", `/properties/${id}/activity`)).entries,
+
+    getPhone: async () => (await request<MeResponse>("GET", "/me")).user.phone ?? "",
+    changePhone: async (phone) => (await request<PhoneChangeResponse>("POST", "/me/phone", { phone })).phone,
+    confirmPhone: async (code) => (await request<PhoneChangeResponse>("POST", "/me/phone/verify", { code })).phone,
 
     getSettings: () => request<UserSettings>("GET", "/me/settings"),
     updateSettings: (input) => request<UserSettings>("PATCH", "/me/settings", input),

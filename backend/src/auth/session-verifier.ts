@@ -18,6 +18,8 @@ export type VerifiedSession = {
   userId: string;
   sessionId: string;
   expiresAt: Date;
+  /** When the user last proved who they are (signed in); sensitive changes need a recent one. */
+  authenticatedAt?: Date;
   /** Methods used to authenticate this session, e.g. ["code"] or ["password"]. */
   authMethods: string[];
   identity: { phone: string | null; email: string | null; name: string | null };

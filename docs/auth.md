@@ -25,6 +25,13 @@ App code imports only `@/lib/auth` (the `AuthGateway`). The adapters in `lib/aut
 - **Forgot password:** sign in with an SMS code, then choose a new password at `/update-password`.
   - This page needs a signed-in user.
   - If Kratos asks for a fresh sign-in, the user is signed out and sent back through the SMS code.
+- **Changing the mobile number** (Settings → Mobile number):
+  - A 6-digit code goes to the new number (the approved login-code SMS pattern). With it, the API moves the Kratos identity to the new number through the admin API, so both the SMS code and the password sign in with it. The old number no longer signs in.
+  - It needs a sign-in in the last 15 minutes; otherwise the user signs in again and comes back to Settings.
+  - A number that already has an account is refused.
+  - A code lasts 10 minutes and allows 5 tries. A user gets at most 5 codes an hour. Pending codes live only in the API's memory.
+  - Routes: `POST /v1/me/phone`, `POST /v1/me/phone/verify` (`backend/src/http/phone.ts`).
+  - The demo changes its number in the browser; the code is always 123456 and is shown on screen.
 - **Sign-out:** ends the Kratos session and clears its cookie.
 
 Error messages are shown in English and Persian. Kratos or the API being unreachable is shown as "try again shortly", never as wrong credentials.

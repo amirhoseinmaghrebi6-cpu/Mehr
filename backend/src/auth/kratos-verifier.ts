@@ -11,6 +11,7 @@ const whoamiSchema = z.object({
   id: z.string().min(1),
   active: z.boolean(),
   expires_at: z.string().min(1),
+  authenticated_at: z.string().optional(),
   authentication_methods: z.array(z.object({ method: z.string() })).optional(),
   identity: z.object({
     id: z.uuid(),
@@ -55,6 +56,7 @@ export function createKratosVerifier(publicUrl: string, fetchImpl: typeof fetch 
         userId: session.identity.id,
         sessionId: session.id,
         expiresAt,
+        ...(session.authenticated_at && { authenticatedAt: new Date(session.authenticated_at) }),
         authMethods: session.authentication_methods?.map((entry) => entry.method) ?? [],
         identity: {
           phone: session.identity.traits.phone ?? null,

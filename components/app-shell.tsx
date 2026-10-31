@@ -36,6 +36,7 @@ import {
 import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type Scenario, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
 import { DashboardView, homeTimeZone, type DashboardSection } from "@/features/dashboard/dashboard-view";
 import { InvitationBanner, MembersSection } from "@/features/members/members";
+import { AccountSection } from "@/features/account/account";
 import { ScenarioEditorDialog } from "@/features/scenarios/scenarios";
 import { DeviceSheet } from "@/components/device-sheet";
 import { useI18n } from "@/components/i18n-provider";
@@ -385,6 +386,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
               property={property}
               loadActivity={loadActivity}
               membersPanel={<MembersSection gateway={gateway} property={property} nameOf={nameOf} onToast={showToast} onLeft={() => { const remaining = (properties ?? []).filter((item) => item.id !== property.id); home.setProperties(remaining); if (remaining[0]) changeProperty(remaining[0].id); else router.push("/dashboard"); }} />}
+              accountPanel={<AccountSection gateway={gateway} demo={demoMode} onToast={showToast} />}
               displayName={displayName}
               rooms={rooms}
               devices={visibleDevices}

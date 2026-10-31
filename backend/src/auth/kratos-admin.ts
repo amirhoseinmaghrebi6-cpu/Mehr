@@ -1,7 +1,10 @@
 /**
- * The few Kratos admin API calls the operator's panel needs (http/admin.ts): block or unblock an
- * identity, and delete one. Blocking sets the identity's state to "inactive", so Kratos refuses
- * its sign-ins and sessions, and ends the sessions it has now.
+ * The few Kratos admin API calls the API needs: block, unblock and delete an identity (the
+ * operator's panel, http/admin.ts), and move one to a new phone number (http/phone.ts).
+ *
+ * Blocking sets the identity's state to "inactive", so Kratos refuses its sign-ins and sessions,
+ * and ends the sessions it has now. Changing the phone trait moves both sign-in methods (code and
+ * password) to the new number; the old one no longer signs in.
  *
  * The admin API is never reachable from outside: KRATOS_ADMIN_URL points at the compose network
  * in production and at 127.0.0.1 in development.
@@ -12,6 +15,8 @@ export class IdentityAdminError extends Error {}
 
 export interface IdentityAdmin {
   setBlocked(identityId: string, blocked: boolean): Promise<void>;
+  /** Moves sign-in (code and password) to a new number; false if another identity has it. */
+  setPhone(identityId: string, phone: string): Promise<boolean>;
   /** Deletes the identity with its sessions; an identity that is already gone is fine. */
   delete(identityId: string): Promise<void>;
 }
@@ -41,6 +46,12 @@ export function createKratosAdmin(baseUrl: string, fetchImpl: typeof fetch = fet
       expect(await call("PATCH", identity(id), [{ op: "replace", path: "/state", value: blocked ? "inactive" : "active" }]), [200], "changing the state");
       // 404: the identity has no sessions.
       if (blocked) expect(await call("DELETE", `${identity(id)}/sessions`, undefined), [204, 404], "ending the sessions");
+    },
+    async setPhone(id, phone) {
+      const status = await call("PATCH", identity(id), [{ op: "replace", path: "/traits/phone", value: phone }]);
+      if (status === 409) return false;
+      expect(status, [200], "changing the phone number");
+      return true;
     },
     async delete(id) {
       expect(await call("DELETE", identity(id)), [204, 404], "deleting the identity");

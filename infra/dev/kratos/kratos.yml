@@ -32,8 +32,8 @@ selfservice:
         haveibeenpwned_enabled: false
         min_password_length: 12
         identifier_similarity_check_enabled: true
-    # Off: it would let a signed-in user change their phone number without an SMS check.
-    # A verified phone-change flow comes later.
+    # Off: it would let a signed-in user change their phone number without an SMS check. The
+    # number is changed through the API instead, after an SMS code to the new number (docs/auth.md).
     profile:
       enabled: false
 
