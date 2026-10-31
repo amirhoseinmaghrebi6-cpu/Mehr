@@ -9,7 +9,7 @@ Status: in progress (started 2026-10-26).
 | Step | What |
 |------|------|
 | 5A | Home members (done): invitations by mobile number, accepting and declining, roles, removing and leaving; a Members section; the demo shows all of it. |
-| 5B | The real SMS provider: FarazSMS / IranPayamak (done): login codes reach real phones (tested 2026-10-26 with the approved pattern). The invitation SMS waits for its pattern to be approved; until then invitations show in the app only. Sending limits come with deployment (Phase 9). |
+| 5B | The real SMS provider: FarazSMS / IranPayamak (done): login codes reach real phones (tested 2026-10-26 with the approved pattern). The invitation pattern was approved too (seen 2026-11-01), so an invitation also sends an SMS. Sending limits came with Phase 9A. |
 | 5C | Live updates (done): database notices → API Server-Sent Events → the page re-reads; a board report shows on every open page in well under a second (0.3 s in the browser test). The demo updates live between tabs. |
 | 5D | Security, Cameras and Activity for real homes (done): built from the devices' current states plus the last 24 hours of commands; the demo uses the same screens with its sample devices. |
 
