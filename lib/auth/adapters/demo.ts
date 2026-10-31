@@ -53,7 +53,7 @@ export const demoAdapter = {
     const cookieStore = await cookies();
     const session = await verifyDemoSessionToken(cookieStore.get(DEMO_COOKIE_NAME)?.value);
     if (!session) return null;
-    return { userId: session.userId, sessionId: null, displayName: "M2smart Demo", authMethod: "demo", issuer: "cloud" };
+    return { userId: session.userId, sessionId: null, displayName: "M2smart Demo", authMethod: "demo", platformAdmin: false, issuer: "cloud" };
   },
 
   /** Middleware variant: reads the cookie from the incoming request. */

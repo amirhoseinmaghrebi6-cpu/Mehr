@@ -1062,3 +1062,56 @@ button.activity-row:hover { background: var(--surface-soft); }
 /* Right-to-left: icons that point a way (arrows, chevrons, sign-out) are mirrored; every other
    icon (a check, a warning, play) keeps its shape. Components always use the LTR icon. */
 [dir="rtl"] :is(.lucide-arrow-left, .lucide-arrow-right, .lucide-arrow-up-left, .lucide-arrow-up-right, .lucide-chevron-left, .lucide-chevron-right, .lucide-log-out, .lucide-log-in) { transform: scaleX(-1); }
+
+/* Operator's panel (/admin). */
+.mobile-more-menu > a { display: grid; min-height: 62px; justify-items: center; align-content: center; gap: 6px; border-radius: 6px; color: var(--ink-soft); font-size: 9px; text-decoration: none; }
+.mobile-more-menu > a:hover { background: var(--accent-soft); color: var(--accent); }
+a.profile-menu { color: var(--muted); }
+.admin-page { min-height: 100vh; background: var(--page); color: var(--ink); }
+.admin-header { position: sticky; z-index: 5; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--page) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.admin-back { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-soft); font-size: 10px; font-weight: 600; text-decoration: none; }
+.admin-back:hover { color: var(--accent); }
+.admin-main { display: grid; width: min(100%, 980px); gap: 14px; margin: 0 auto; padding: 26px 24px 60px; }
+.admin-main .panel-intro h1 { margin: 8px 0 4px; font-family: var(--font-display); font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
+.admin-main .panel-intro { padding-bottom: 4px; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-tabs > button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-soft); cursor: pointer; font-size: 10px; font-weight: 600; }
+.admin-tabs > button.is-active { border-color: var(--brand); background: var(--brand); color: var(--on-brand); }
+.admin-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.admin-counts > li { display: grid; gap: 4px; }
+.admin-counts strong { font-family: var(--font-display); font-size: 26px; font-weight: 600; letter-spacing: -.6px; }
+.admin-counts span { color: var(--muted); font-size: 10px; }
+.admin-services ul { display: grid; margin: 8px 0 0; padding: 0; list-style: none; }
+.admin-services li { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); font-size: 11px; }
+.admin-services li:first-child { border-top: 0; }
+.admin-status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; font-size: 9px; font-weight: 600; white-space: nowrap; }
+.admin-status.is-ok { background: var(--positive-soft); color: var(--positive); }
+.admin-status.is-off { background: var(--warning-soft); color: var(--warning); }
+.admin-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; }
+.admin-dot.is-ok { background: var(--positive); }
+.admin-dot.is-off { background: var(--line-strong); }
+.admin-search { display: flex; min-height: 40px; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--muted); }
+.admin-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 11px; }
+.admin-note { display: flex; align-items: center; gap: 7px; margin: 10px 0 0; color: var(--muted); font-size: 10px; }
+.admin-empty { margin: 16px 0 6px; color: var(--muted); font-size: 11px; }
+.admin-list-panel .member-list { margin-top: 10px; }
+.admin-user .member-copy strong { display: flex; align-items: center; gap: 6px; }
+.admin-user .member-copy small { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.admin-user.is-blocked .member-avatar { background: var(--warning-soft); color: var(--warning); }
+.admin-blocked-badge { background: var(--warning-soft); color: var(--warning); }
+.admin-actions { display: inline-flex; align-items: center; gap: 6px; }
+.admin-actions .button-subtle { min-height: 32px; }
+.admin-confirm { display: grid; max-width: 330px; gap: 6px; padding: 8px 0; }
+.admin-confirm > small { color: var(--ink-soft); font-size: 9px; line-height: 1.6; }
+.admin-confirm > span { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-board-state { display: grid; justify-items: end; gap: 4px; text-align: end; }
+.admin-board-state small { color: var(--muted); font-size: 9px; }
+.admin-more { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); }
+.admin-more small { font-size: 9px; }
+@media (max-width: 700px) {
+  .admin-header { padding: 10px 16px; }
+  .admin-main { padding: 18px 16px 48px; }
+  .admin-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-user { flex-wrap: wrap; padding: 8px 0; }
+  .admin-actions, .admin-confirm { width: 100%; max-width: none; padding-inline-start: 40px; }
+}

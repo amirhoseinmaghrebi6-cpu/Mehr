@@ -23,7 +23,8 @@ const errorCodes: Record<ApiErrorResponse["error"], GatewayErrorCode> = {
   internal_error: "unavailable",
 };
 
-async function request<T>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
+/** One request to the API under /api/v1, with a timeout; errors become GatewayErrors. */
+export async function request<T>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response: Response;

@@ -72,7 +72,7 @@ describe("GET /v1/me", () => {
     const response = await me({ cookie: "ory_kratos_session=new" });
     expect(response.statusCode).toBe(200);
     const body = response.json<MeResponse>();
-    expect(body.user).toEqual({ id: NEW_USER, displayName: "Me Test", phone: "+989120000021", email: null });
+    expect(body.user).toEqual({ id: NEW_USER, displayName: "Me Test", phone: "+989120000021", email: null, platformAdmin: false });
     expect(body.organizations).toHaveLength(1);
     expect(body.organizations[0]).toMatchObject({ name: "Me Test's home", role: "owner" });
     expect(body.session.authMethods).toEqual(["code"]);

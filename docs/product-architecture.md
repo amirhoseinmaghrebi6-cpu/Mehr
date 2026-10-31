@@ -87,7 +87,8 @@ Security, Cameras and Activity are built from the devices' current states and th
 
 Home members (Phase 5A): owners and admins invite people by mobile number; the invited person sees the invitation after signing in with that number and accepts or declines it. An owner manages admins and members, an admin manages members only, and anyone but the owner may leave. An invitation stays until it is accepted, declined or cancelled, and is then deleted. See `docs/plans/phase-5.md`.
 
+The operator's panel (`/admin`, for the numbers in `PLATFORM_ADMIN_PHONES`): counts, the health of the services, people and boards, and blocking or deleting an account; nothing from inside a home. See `docs/plans/admin-panel.md`.
+
 Still to be implemented:
 - firmware;
-- administration;
 - installing on the real server in Iran (the stack is ready and tested: `infra/prod/README.md`, `docs/plans/phase-9.md`).

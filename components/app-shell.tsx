@@ -13,6 +13,7 @@ import {
   ChevronDown,
   CircleHelp,
   Command,
+  Gauge,
   House,
   LayoutDashboard,
   Lightbulb,
@@ -73,12 +74,14 @@ type AppShellProps = {
   userId: string;
   displayName: string;
   demoMode?: boolean;
+  /** An operator: show the link to the admin panel. */
+  platformAdmin?: boolean;
   children?: React.ReactNode;
 };
 
 type Confirmation = { device: Device; capability: CapabilityName; target: CapabilityValue };
 
-export function AppShell({ userId, displayName, demoMode = false }: AppShellProps) {
+export function AppShell({ userId, displayName, demoMode = false, platformAdmin = false }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { locale, m, rtl, calendar, temperatureUnit, palette, setPreferences } = useI18n();
@@ -344,7 +347,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
 
         <div className="sidebar-bottom">
           <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpRight size={14} /></button>
-          <div className="profile-row"><span className="profile-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{displayName}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span><button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
+          <div className="profile-row"><span className="profile-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{displayName}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span>{platformAdmin && <a className="profile-menu" href="/admin" aria-label={m.admin.open} title={m.admin.open}><Gauge size={18} /></a>}<button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
         </div>
       </aside>
 
@@ -422,6 +425,7 @@ export function AppShell({ userId, displayName, demoMode = false }: AppShellProp
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
           {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {platformAdmin && <a href="/admin"><Gauge size={18} /><span>{m.admin.open}</span></a>}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>

@@ -102,8 +102,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      # Public API only. The admin API (4434) is never published.
       - "127.0.0.1:${KRATOS_PUBLIC_HOST_PORT:-4433}:4433"
+      # The admin API, for the operator's panel (block and delete accounts): this machine only.
+      - "127.0.0.1:${KRATOS_ADMIN_HOST_PORT:-4434}:4434"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4434/admin/health/ready"]
       interval: 5s

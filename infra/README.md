@@ -116,7 +116,7 @@ Kratos keeps users, sessions and login flows in its own `kratos` database in the
 
 1. `kratos-db-init` creates the `kratos` role and database if missing (`infra/postgres/kratos-db.sql`), then exits.
 2. `kratos-migrate` runs `kratos migrate sql` (Kratos's own schema), then exits. Both show as "Exited (0)", which is expected.
-3. `kratos` serves the public API on `127.0.0.1:4433`. The admin API (4434) is never published to the host.
+3. `kratos` serves the public API on `127.0.0.1:4433` and the admin API on `127.0.0.1:4434` (this machine only; the API uses it for the operator's panel). In production the admin API stays inside the compose network.
 
 Configuration is in `infra/dev/kratos/` (`kratos.yml`, `identity.schema.json`, `courier-sms.jsonnet`); background and test results are in `docs/spikes/kratos-2d2.md`. Users sign in with a mobile number and an SMS code; a password is optional.
 

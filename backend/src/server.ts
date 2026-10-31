@@ -27,6 +27,8 @@ import { registerMemberRoutes } from "./http/members";
 import { registerSmsRoute } from "./http/sms";
 import { registerEventRoutes } from "./http/events";
 import { registerActivityRoutes } from "./http/activity";
+import { refuseBlocked, registerAdminRoutes } from "./http/admin";
+import { createKratosAdmin, type IdentityAdmin } from "./auth/kratos-admin";
 import { startHomeEvents, type HomeEvents } from "./realtime/home-events";
 import { createSmsSender, type SmsSender } from "./sms/sms";
 import { registerMeRoute } from "./http/me";
@@ -35,7 +37,7 @@ import { registerSettingsRoutes } from "./http/settings";
 import { startScenarioRunner } from "./scenarios/run";
 import { startCleanup } from "./maintenance/cleanup";
 
-export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret">>;
+export type ServerConfig = Pick<Config, "logLevel"> & Partial<Pick<Config, "devRoutes" | "kratosWebhookSecret" | "platformAdmins">>;
 export type ServerServices = {
   /** Required for authenticated routes (/v1/*); omitted in tests that only need health. */
   sessionVerifier?: SessionVerifier;
@@ -45,6 +47,10 @@ export type ServerServices = {
   sms?: SmsSender | null;
   /** Live updates for open pages; without it the events route answers 503. */
   homeEvents?: HomeEvents | null;
+  /** Kratos's admin API, for the operator's panel to block and delete accounts; null without it. */
+  identityAdmin?: IdentityAdmin | null;
+  /** Shown in the operator's panel: whether SMS codes can really be sent. */
+  smsReady?: boolean;
 };
 
 export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
@@ -79,20 +85,24 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
   app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: "not_found" } satisfies ApiErrorResponse));
 
   registerHealthRoutes(app, pool);
-  if (services.sessionVerifier) {
-    registerMeRoute(app, pool, services.sessionVerifier);
-    registerHomeRoutes(app, pool, services.sessionVerifier);
-    registerMemberRoutes(app, pool, services.sessionVerifier, services.sms ?? null);
-    registerDeviceRoutes(app, pool, services.sessionVerifier);
-    registerSettingsRoutes(app, pool, services.sessionVerifier);
-    registerScenarioRoutes(app, pool, services.sessionVerifier);
-    registerEventRoutes(app, pool, services.sessionVerifier, services.homeEvents ?? null);
-    registerActivityRoutes(app, pool, services.sessionVerifier);
+  // A blocked user has no session anywhere in the API.
+  const sessionVerifier = services.sessionVerifier && refuseBlocked(services.sessionVerifier, pool);
+  const admins = config.platformAdmins ?? [];
+  if (sessionVerifier) {
+    registerMeRoute(app, pool, sessionVerifier, admins);
+    registerHomeRoutes(app, pool, sessionVerifier);
+    registerMemberRoutes(app, pool, sessionVerifier, services.sms ?? null);
+    registerDeviceRoutes(app, pool, sessionVerifier);
+    registerSettingsRoutes(app, pool, sessionVerifier);
+    registerScenarioRoutes(app, pool, sessionVerifier);
+    registerEventRoutes(app, pool, sessionVerifier, services.homeEvents ?? null);
+    registerActivityRoutes(app, pool, sessionVerifier);
+    registerAdminRoutes(app, pool, sessionVerifier, { admins, identityAdmin: services.identityAdmin ?? null, broker: services.broker ?? (() => null), smsReady: services.smsReady ?? false });
   }
-  registerBoardRoutes(app, pool, services.sessionVerifier, services.broker ?? (() => null));
+  registerBoardRoutes(app, pool, sessionVerifier, services.broker ?? (() => null));
   if (config.kratosWebhookSecret) {
     registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
-    registerSmsRoute(app, services.sms ?? null);
+    registerSmsRoute(app, pool, services.sms ?? null);
   }
   if (config.devRoutes) {
     registerDevReportRoute(app, pool);
@@ -123,7 +133,8 @@ async function main(): Promise<void> {
   const sms = createSmsSender(config.sms, config.devRoutes);
   // Live updates hold one database connection of their own.
   let homeEvents: HomeEvents | null = null;
-  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms, homeEvents: { subscribe: (id, onChange) => homeEvents?.subscribe(id, onChange) ?? (() => undefined), stop: async () => undefined } });
+  const identityAdmin = config.kratosAdminUrl ? createKratosAdmin(config.kratosAdminUrl) : null;
+  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms, identityAdmin, smsReady: config.sms !== null, homeEvents: { subscribe: (id, onChange) => homeEvents?.subscribe(id, onChange) ?? (() => undefined), stop: async () => undefined } });
   logTarget = app;
 
   try {
@@ -131,6 +142,7 @@ async function main(): Promise<void> {
     app.log.info({ role }, "Database role verified");
     if (!config.kratosWebhookSecret) app.log.warn("KRATOS_WEBHOOK_SECRET not set: identity webhook disabled; /v1/me still creates missing users.");
     if (config.devRoutes) app.log.warn("Development routes enabled. Never enable in production.");
+    if (config.platformAdmins.length && !identityAdmin) app.log.warn("KRATOS_ADMIN_URL not set: the admin panel cannot block or delete accounts.");
     if (!config.sms) app.log.warn(`SMS provider not ready (SMS_API_KEY, SMS_SENDER and SMS_PATTERN_CODE are all needed): ${config.devRoutes ? "messages are only logged (development)" : "login codes cannot be sent"}.`);
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;

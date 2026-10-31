@@ -26,6 +26,8 @@ const fail = (error: AuthErrorCode): Failure => ({ ok: false, error });
 
 /** Maps a failed Kratos flow submission to the screen's error code. */
 function failureFrom(response: KratosResponse, stage: "send" | "verify" | "password" | "settings"): Failure {
+  // An operator blocked the account (Kratos identity state "inactive").
+  if (JSON.stringify(response.body ?? {}).includes("identity is disabled")) return fail("blocked");
   if (response.status === 404 || response.status === 410) return fail("flow-expired");
   if (response.status === 403) return fail(stage === "settings" ? "reauth-required" : "flow-expired");
 
@@ -90,6 +92,7 @@ export const kratosAdapter = {
       sessionId: null,
       displayName: me.user.displayName,
       authMethod: me.session.authMethods.includes("password") ? "password" : "sms_code",
+      platformAdmin: me.user.platformAdmin === true,
       issuer: "cloud",
     };
   },

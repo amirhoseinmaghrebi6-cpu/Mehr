@@ -8,6 +8,8 @@ export type Principal = {
   sessionId: string | null;
   displayName: string;
   authMethod: AuthMethod;
+  /** One of the operators (PLATFORM_ADMIN_PHONES on the API): may open the admin panel. */
+  platformAdmin: boolean;
   /** Who vouches for this session. A LAN hub-issued session will be "hub" later. */
   issuer: "cloud";
 };
@@ -35,7 +37,8 @@ export type AuthErrorCode =
   | "code-invalid"
   | "code-attempts"
   | "flow-expired"
-  | "reauth-required";
+  | "reauth-required"
+  | "blocked";
 
 export type Failure = { ok: false; error: AuthErrorCode };
 

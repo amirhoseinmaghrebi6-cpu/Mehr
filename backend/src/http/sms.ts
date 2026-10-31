@@ -9,9 +9,12 @@
  *
  * Each SMS costs money and anyone can ask for a code, so a phone number gets at most
  * CODES_PER_HOUR codes an hour; more are dropped (answered 204, so the courier does not retry).
+ * Codes to a blocked account are dropped too: Kratos would refuse its sign-in anyway.
  * nginx also limits the sign-in pages per address (infra/prod/nginx/nginx.conf).
  */
 import type { FastifyInstance } from "fastify";
+import type { Pool } from "pg";
+import { withSystemTx } from "../db/tx";
 import { z } from "zod";
 import type { SmsSender } from "../sms/sms";
 
@@ -26,7 +29,7 @@ const smsSchema = z.object({
   code: z.string().regex(/^\d{4,10}$/).nullish(),
 });
 
-export function registerSmsRoute(app: FastifyInstance, sms: SmsSender | null): void {
+export function registerSmsRoute(app: FastifyInstance, pool: Pool, sms: SmsSender | null): void {
   // ponytail: in memory, so a restart forgets it and it holds for one API process only; move it to
   // the database if the API ever runs more than one copy.
   const sentAt = new Map<string, number[]>();
@@ -42,6 +45,13 @@ export function registerSmsRoute(app: FastifyInstance, sms: SmsSender | null): v
     if (!sms) {
       request.log.error("No SMS provider configured (SMS_API_KEY): the code was not sent");
       return reply.code(503).send({ error: "auth_unavailable" });
+    }
+    const { rows: blocked } = await withSystemTx(pool, (tx) =>
+      tx.query("select 1 from auth.users as person join public.profiles as profile on profile.user_id = person.id where person.phone = $1 and profile.blocked_at is not null", [to]),
+    );
+    if (blocked.length) {
+      request.log.warn({ template }, "SMS dropped: the account is blocked");
+      return reply.code(204).send();
     }
     const now = Date.now();
     const recent = (sentAt.get(to) ?? []).filter((time) => now - time < HOUR_MS);

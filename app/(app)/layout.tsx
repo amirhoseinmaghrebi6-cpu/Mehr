@@ -10,7 +10,7 @@ export default async function AuthenticatedAppLayout({ children }: Readonly<{ ch
   }
 
   return (
-    <AppShell userId={principal.userId} displayName={principal.displayName} demoMode={principal.authMethod === "demo"}>
+    <AppShell userId={principal.userId} displayName={principal.displayName} demoMode={principal.authMethod === "demo"} platformAdmin={principal.platformAdmin}>
       {children}
     </AppShell>
   );

@@ -9,6 +9,8 @@ export interface MeResponse {
     displayName: string;
     phone: string | null;
     email: string | null;
+    /** One of the operators (PLATFORM_ADMIN_PHONES): the app shows the admin panel. */
+    platformAdmin: boolean;
   };
   organizations: Array<{
     id: string;

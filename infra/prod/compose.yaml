@@ -134,7 +134,9 @@ services:
     environment:
       DATABASE_URL: postgres://m2_api:${M2_API_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       KRATOS_PUBLIC_URL: http://kratos:4433
+      KRATOS_ADMIN_URL: http://kratos:4434
       KRATOS_WEBHOOK_SECRET: ${KRATOS_WEBHOOK_SECRET}
+      PLATFORM_ADMIN_PHONES: ${PLATFORM_ADMIN_PHONES:-}
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_USERNAME: ${MQTT_API_USERNAME}
       MQTT_PASSWORD: ${MQTT_API_PASSWORD}

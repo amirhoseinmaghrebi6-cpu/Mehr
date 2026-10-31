@@ -9,3 +9,4 @@ export * from "./scenarios.js";
 export * from "./board-protocol.js";
 export * from "./phone.js";
 export * from "./members.js";
+export * from "./admin.js";

@@ -39,7 +39,8 @@ mkdir m2smart && cd m2smart
 tar xzf ~/m2smart-release.tar.gz
 gunzip -c infra/prod/images.tar.gz | docker load && rm infra/prod/images.tar.gz
 cp infra/prod/.env.example infra/prod/.env
-nano infra/prod/.env                       # set every value (see the comments in the file)
+nano infra/prod/.env                       # set every value (see the comments in the file),
+                                           # including your own number in PLATFORM_ADMIN_PHONES
 sh infra/prod/certs.sh m2smart.ir          # board CA, MQTT certificate, stand-in HTTPS certificate
 ```
 

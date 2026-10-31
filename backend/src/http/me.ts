@@ -31,7 +31,7 @@ export async function requireSession(
   return session;
 }
 
-export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: SessionVerifier): void {
+export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: SessionVerifier, platformAdmins: string[] = []): void {
   app.get("/v1/me", async (request, reply) => {
     const session = await requireSession(request, reply, verifier);
     if (!session) return reply;
@@ -66,6 +66,7 @@ export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: Sess
           displayName: profile.rows[0]?.full_name || session.identity.name || session.identity.phone || "M2smart user",
           phone: session.identity.phone,
           email: session.identity.email,
+          platformAdmin: session.identity.phone !== null && platformAdmins.includes(session.identity.phone),
         },
         organizations: organizations.rows,
         settings: {

@@ -1,9 +1,9 @@
 import type { FastifyBaseLogger } from "fastify";
-import { Pool } from "pg";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../src/config";
 import { buildServer } from "../src/server";
 import { createSmsSender, SmsError, type SmsSender } from "../src/sms/sms";
+import { createApiPool } from "./fixtures";
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as FastifyBaseLogger;
 const provider = { url: "https://api.iranpayamak.test", apiKey: "test-key-123", sender: "90008361", patterns: { code: "PCODE", invitation: "PINVITE" } };
@@ -59,7 +59,8 @@ describe("SMS configuration", () => {
 
 describe("POST /internal/kratos/sms", () => {
   const secret = "s".repeat(40);
-  const pool = new Pool({ connectionString: "postgres://m2_api:unused@127.0.0.1:1/m2smart" });
+  // The route reads the database (blocked accounts): the dev database.
+  const pool = createApiPool();
   const sent: Array<[string, string]> = [];
   const sender: SmsSender = { sendCode: async (to, code) => void sent.push([to, code]), sendInvitation: async () => undefined };
   const app = buildServer({ logLevel: "silent", kratosWebhookSecret: secret }, pool, { sms: sender });
