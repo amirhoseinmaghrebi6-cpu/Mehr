@@ -9,3 +9,8 @@ coverage/
 .env*
 !.env.example
 .vercel/
+# Production certificates, keys and database backups never go into git.
+infra/prod/certs/
+infra/prod/backups/
+m2smart-release.tar.gz
+infra/prod/images.tar.gz

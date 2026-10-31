@@ -90,5 +90,4 @@ Home members (Phase 5A): owners and admins invite people by mobile number; the i
 Still to be implemented:
 - firmware;
 - administration;
-- the real SMS provider;
-- deployment on servers in Iran, with TLS and our own certificate authority for the boards.
+- installing on the real server in Iran (the stack is ready and tested: `infra/prod/README.md`, `docs/plans/phase-9.md`).

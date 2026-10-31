@@ -1,22 +1,18 @@
-// Production build of the API: type-check with tsc, then bundle src/server.ts into dist/server.js
-// with esbuild. Workspace packages (@m2smart/contracts, published as TypeScript sources) are
-// bundled in; npm dependencies stay external and are loaded from node_modules at runtime.
-import { readFileSync } from "node:fs";
+// Production build of the API: type-check with tsc, then bundle with esbuild src/server.ts into
+// dist/server.js and the migration tool into dist/db/migrate.js (which, as from src/db, finds the
+// SQL files three folders up). Everything is bundled in, npm packages too, so a server needs no
+// node_modules.
 import { build } from "esbuild";
 
-const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const external = Object.entries(pkg.dependencies ?? {})
-  .filter(([, version]) => !String(version).startsWith("workspace:"))
-  .map(([name]) => name);
-
 await build({
-  entryPoints: ["src/server.ts"],
-  outfile: "dist/server.js",
+  entryPoints: { server: "src/server.ts", "db/migrate": "src/db/migrate.ts" },
+  outdir: "dist",
   bundle: true,
   platform: "node",
   target: "node20",
   format: "cjs",
   sourcemap: true,
-  external,
+  // pg's optional native driver is never used.
+  external: ["pg-native"],
   logLevel: "info",
 });

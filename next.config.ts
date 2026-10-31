@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The public preview builds into its own folder, so it never clashes with `next dev` (.next).
   distDir: process.env.M2SMART_DIST_DIR || ".next",
+  // The production image (Dockerfile) runs the self-contained server Next.js writes for this.
+  output: process.env.M2SMART_STANDALONE === "true" ? "standalone" : undefined,
   // Published as TypeScript sources (packages/contracts); Next.js compiles them with the app.
   transpilePackages: ["@m2smart/contracts"],
   // The contracts package imports its own files as "./x.js" (NodeNext style, as the API needs);

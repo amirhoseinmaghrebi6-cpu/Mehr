@@ -93,4 +93,13 @@ describe("POST /internal/kratos/sms", () => {
     expect((await post(noProvider, { to: "+989121234567", code: "123456" })).statusCode).toBe(503);
     expect((await post(failing, { to: "+989121234567", code: "123456" })).statusCode).toBe(502);
   });
+
+  it("sends a number at most 5 codes an hour, and drops the rest without a retry", async () => {
+    sent.length = 0;
+    for (let i = 0; i < 7; i++) expect((await post(app, { to: "+989129999999", code: "111111" })).statusCode).toBe(204);
+    expect(sent).toHaveLength(5);
+    // Another number is not affected.
+    expect((await post(app, { to: "+989129999998", code: "222222" })).statusCode).toBe(204);
+    expect(sent).toHaveLength(6);
+  });
 });

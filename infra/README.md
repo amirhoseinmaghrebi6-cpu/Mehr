@@ -1,5 +1,7 @@
 # M2smart infrastructure
 
+Production (one server in Iran): see [prod/README.md](prod/README.md). The rest of this page is the local development stack.
+
 ## Local development stack (`infra/dev`)
 
 One command brings up the self-hosted services M2smart needs for local development:

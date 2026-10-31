@@ -1,0 +1,195 @@
+# M2smart production stack: one server inside Iran runs all of it (infra/prod/README.md).
+# Values come from infra/prod/.env (copy .env.example); certificates from infra/prod/certs
+# (certs.sh). Only nginx (80, 443) and the boards' MQTT over TLS (8883) are reachable from outside.
+#
+#   docker compose -f infra/prod/compose.yaml --env-file infra/prod/.env up -d --wait --pull never
+#
+# Images are named by exact tag, not digest: the server never pulls, it runs the images bundle.sh
+# packed (whose digests match the ones pinned in infra/dev/compose.yaml), and a digest-only name
+# would not survive docker save and load.
+
+name: m2smart
+
+x-postgres-image: &postgres-image postgres:17.11-alpine3.24
+x-kratos-image: &kratos-image oryd/kratos:v25.4.0
+x-restart: &restart
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+
+services:
+  postgres:
+    <<: *restart
+    image: *postgres-image
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: the app's roles, schema and migrations (supabase/migrations), then exits.
+  migrate:
+    image: m2smart-api:${M2SMART_VERSION:-local}
+    build: { context: ../.., target: api }
+    depends_on: { postgres: { condition: service_healthy } }
+    environment:
+      DATABASE_ADMIN_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      M2_API_DB_PASSWORD: ${M2_API_DB_PASSWORD:?}
+      M2_MIGRATOR_DB_PASSWORD: ${M2_MIGRATOR_DB_PASSWORD:?}
+    command: ["node", "backend/dist/db/migrate.js"]
+
+  # One-shot: the kratos role and database (idempotent), then exits.
+  kratos-db-init:
+    image: *postgres-image
+    depends_on: { postgres: { condition: service_healthy } }
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      KRATOS_DB_PASSWORD: ${KRATOS_DB_PASSWORD:?}
+    command: ["sh", "-c", "psql -q -v kratos_password=\"$$KRATOS_DB_PASSWORD\" -f /sql/kratos-db.sql"]
+    volumes:
+      - ../postgres/kratos-db.sql:/sql/kratos-db.sql:ro
+
+  # One-shot: Kratos's own schema migrations, then exits.
+  kratos-migrate:
+    image: *kratos-image
+    depends_on: { kratos-db-init: { condition: service_completed_successfully } }
+    environment: &kratos-env
+      DSN: postgres://kratos:${KRATOS_DB_PASSWORD}@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+      # Ory's anonymous telemetry calls a foreign host; always off.
+      SQA_OPT_OUT: "true"
+      SECRETS_COOKIE_0: ${KRATOS_SECRETS_COOKIE:?}
+      SECRETS_CIPHER_0: ${KRATOS_SECRETS_CIPHER:?}
+    command: ["migrate", "sql", "--read-from-env", "--yes"]
+
+  kratos:
+    <<: *restart
+    image: *kratos-image
+    depends_on: { kratos-migrate: { condition: service_completed_successfully } }
+    environment:
+      <<: *kratos-env
+      M2SMART_DOMAIN: ${M2SMART_DOMAIN:?}
+      SELFSERVICE_FLOWS_REGISTRATION_AFTER_CODE_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?}
+      SELFSERVICE_FLOWS_REGISTRATION_AFTER_PASSWORD_HOOKS_0_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?}
+      COURIER_CHANNELS_0_REQUEST_CONFIG_AUTH_CONFIG_VALUE: ${KRATOS_WEBHOOK_SECRET:?}
+    # The config with the domain filled in; the rest of the files are shared with development.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sed "s/__DOMAIN__/$$M2SMART_DOMAIN/g" /etc/config/kratos/kratos.yml > /tmp/kratos.yml
+        exec kratos serve --config /tmp/kratos.yml --watch-courier
+    volumes:
+      - ./kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+      - ../dev/kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ../dev/kratos/courier-sms.jsonnet:/etc/config/kratos/courier-sms.jsonnet:ro
+      - ../dev/kratos/webhook-identity.jsonnet:/etc/config/kratos/webhook-identity.jsonnet:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4434/admin/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mosquitto:
+    <<: *restart
+    image: eclipse-mosquitto:2.0.22
+    environment:
+      MQTT_API_USERNAME: ${MQTT_API_USERNAME:?}
+      MQTT_API_PASSWORD: ${MQTT_API_PASSWORD:?}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /mosquitto/data/dynamic-security.json ]; then
+          mosquitto_ctrl dynsec init /mosquitto/data/dynamic-security.json "$MQTT_API_USERNAME" "$MQTT_API_PASSWORD"
+          chown mosquitto:mosquitto /mosquitto/data/dynamic-security.json
+        fi
+        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+    ports:
+      - "${MQTTS_PORT:-8883}:8883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./certs/mqtt:/mosquitto/certs:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -u \"$MQTT_API_USERNAME\" -P \"$MQTT_API_PASSWORD\" -t m2/health -m 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    <<: *restart
+    image: m2smart-api:${M2SMART_VERSION:-local}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      kratos: { condition: service_healthy }
+      mosquitto: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://m2_api:${M2_API_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      KRATOS_PUBLIC_URL: http://kratos:4433
+      KRATOS_WEBHOOK_SECRET: ${KRATOS_WEBHOOK_SECRET}
+      MQTT_URL: mqtt://mosquitto:1883
+      MQTT_USERNAME: ${MQTT_API_USERNAME}
+      MQTT_PASSWORD: ${MQTT_API_PASSWORD}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER: ${SMS_SENDER:-}
+      SMS_PATTERN_CODE: ${SMS_PATTERN_CODE:-}
+      SMS_PATTERN_INVITATION: ${SMS_PATTERN_INVITATION:-}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4000/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    <<: *restart
+    image: m2smart-web:${M2SMART_VERSION:-local}
+    build: { context: ../.., target: web }
+    depends_on: { api: { condition: service_healthy } }
+    environment:
+      KRATOS_PUBLIC_URL: http://kratos:4433
+      M2SMART_API_INTERNAL_URL: http://api:4000
+      M2SMART_DEMO_ENABLED: "true"
+      M2SMART_DEMO_PRODUCTION_SANDBOX: "true"
+      M2SMART_DEMO_USERNAME: ${M2SMART_DEMO_USERNAME:?}
+      M2SMART_DEMO_PASSWORD: ${M2SMART_DEMO_PASSWORD:?}
+      M2SMART_DEMO_SESSION_SECRET: ${M2SMART_DEMO_SESSION_SECRET:?}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  nginx:
+    <<: *restart
+    image: nginx:1.28.0-alpine
+    depends_on: { web: { condition: service_healthy } }
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/web:/etc/nginx/certs:ro
+
+  backup:
+    <<: *restart
+    image: *postgres-image
+    depends_on: { postgres: { condition: service_healthy } }
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["sh", "/backup.sh"]
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - ./backups:/backups
+
+volumes:
+  postgres-data:
+  mosquitto-data:

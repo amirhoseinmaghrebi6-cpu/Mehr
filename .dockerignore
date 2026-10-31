@@ -1,0 +1,12 @@
+# Only sources go into the image build; never env files, builds or local tooling.
+**/node_modules
+**/.next
+**/.next-public
+**/dist
+**/.env*
+!**/.env.example
+.git
+coverage
+site
+docs
+*.tsbuildinfo

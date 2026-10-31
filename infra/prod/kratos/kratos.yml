@@ -1,0 +1,136 @@
+# Ory Kratos, production. Same as infra/dev/kratos/kratos.yml except the addresses: __DOMAIN__ is
+# replaced with M2SMART_DOMAIN when the container starts (compose.yaml), and the webhooks reach the
+# api service on the internal network. Findings behind these settings: docs/spikes/kratos-2d2.md.
+version: v25.4.0
+
+serve:
+  public:
+    base_url: http://kratos:4433/
+    cors:
+      enabled: false
+  admin:
+    # Reachable only inside the compose network; never published to the host.
+    base_url: http://kratos:4434/
+
+selfservice:
+  default_browser_return_url: https://__DOMAIN__/dashboard
+  allowed_return_urls:
+    - https://__DOMAIN__
+
+  methods:
+    # Decision D1: SMS one-time code is the main login...
+    code:
+      enabled: true
+      passwordless_enabled: true
+      config:
+        lifespan: 10m
+    # ...and a password is optional.
+    password:
+      enabled: true
+      config:
+        # HaveIBeenPwned is a foreign service; off for Iran-only operation.
+        haveibeenpwned_enabled: false
+        min_password_length: 12
+        identifier_similarity_check_enabled: true
+    # Off: it would let a signed-in user change their phone number without an SMS check.
+    # A verified phone-change flow comes later.
+    profile:
+      enabled: false
+
+  flows:
+    error:
+      ui_url: https://__DOMAIN__/login
+    login:
+      ui_url: https://__DOMAIN__/login
+      lifespan: 10m
+    registration:
+      ui_url: https://__DOMAIN__/register
+      lifespan: 10m
+      after:
+        # The webhook secret (auth.config.value) is set from KRATOS_WEBHOOK_SECRET via the
+        # environment in compose.yaml; "set-by-environment" is only a placeholder.
+        code:
+          hooks:
+            # Mirror the new identity into the app database (the API also recovers a missed call).
+            - hook: web_hook
+              config:
+                url: http://api:4000/internal/kratos/identity
+                method: POST
+                body: file:///etc/config/kratos/webhook-identity.jsonnet
+                auth:
+                  type: api_key
+                  config:
+                    name: X-Webhook-Secret
+                    value: set-by-environment
+                    in: header
+            - hook: session
+        password:
+          hooks:
+            # Registration with a password is refused before anything is saved: nobody proved
+            # they own the phone number. Users sign up with an SMS code and add a password later.
+            - hook: web_hook
+              config:
+                url: http://api:4000/internal/kratos/registration/password
+                method: POST
+                body: file:///etc/config/kratos/webhook-identity.jsonnet
+                response:
+                  parse: true
+                auth:
+                  type: api_key
+                  config:
+                    name: X-Webhook-Secret
+                    value: set-by-environment
+                    in: header
+    settings:
+      ui_url: https://__DOMAIN__/dashboard
+      privileged_session_max_age: 15m
+    # Kratos recovers only via email; with D1 a forgotten password is handled by SMS-code login.
+    recovery:
+      enabled: false
+    verification:
+      enabled: false
+    logout:
+      after:
+        default_browser_return_url: https://__DOMAIN__/login
+
+courier:
+  channels:
+    - id: sms
+      type: http
+      request_config:
+        # The API sends the code through the SMS provider (or only logs it in development).
+        url: http://api:4000/internal/kratos/sms
+        method: POST
+        body: file:///etc/config/kratos/courier-sms.jsonnet
+        headers:
+          Content-Type: application/json
+        auth:
+          type: api_key
+          config:
+            name: X-Webhook-Secret
+            value: set-by-environment
+            in: header
+
+identity:
+  default_schema_id: m2smart
+  schemas:
+    - id: m2smart
+      url: file:///etc/config/kratos/identity.schema.json
+
+session:
+  lifespan: 720h
+  cookie:
+    same_site: Lax
+
+ciphers:
+  algorithm: xchacha20-poly1305
+
+hashers:
+  algorithm: bcrypt
+  bcrypt:
+    cost: 10
+
+log:
+  level: info
+  format: json
+  leak_sensitive_values: false
