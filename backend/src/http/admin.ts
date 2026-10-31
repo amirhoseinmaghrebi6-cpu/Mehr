@@ -7,9 +7,10 @@
  * (supabase/migrations/202611010001_platform_admin.sql): the panel spans every home, which no
  * user's RLS allows.
  */
-import { ADMIN_PAGE_SIZE, adminUpdateUserRequest, type AdminBoardListResponse, type AdminOverview, type AdminUserListResponse, type ApiErrorResponse } from "@m2smart/contracts";
+import { ADMIN_PAGE_SIZE, adminUpdateUserRequest, normalizePhone, type AdminBoardListResponse, type AdminOverview, type AdminUserListResponse, type ApiErrorResponse } from "@m2smart/contracts";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
+import { isInternalAddress } from "../auth/identity-webhook";
 import { IdentityAdminError, type IdentityAdmin } from "../auth/kratos-admin";
 import type { SessionVerifier, VerifiedSession } from "../auth/session-verifier";
 import type { Broker } from "../broker/broker";
@@ -36,6 +37,23 @@ export function refuseBlocked(inner: SessionVerifier, pool: Pool): SessionVerifi
       return rows[0]?.blocked ? null : session;
     },
   };
+}
+
+/**
+ * POST /internal/accounts/blocked {phone}: whether that number's account is blocked, so the
+ * sign-in page can say so instead of "code sent" (Kratos still sends codes to a disabled identity;
+ * the SMS route drops them). Only from the internal network (the web server); never proxied.
+ */
+export function registerBlockedCheck(app: FastifyInstance, pool: Pool): void {
+  app.post("/internal/accounts/blocked", async (request, reply) => {
+    if (!isInternalAddress(request.ip)) return send(reply, 403, "forbidden");
+    const phone = normalizePhone(String((request.body as { phone?: unknown } | null)?.phone ?? ""));
+    if (!phone) return send(reply, 400, "invalid_request");
+    const { rows } = await withSystemTx(pool, (tx) =>
+      tx.query("select 1 from auth.users as person join public.profiles as profile on profile.user_id = person.id where person.phone = $1 and profile.blocked_at is not null", [phone]),
+    );
+    return { blocked: rows.length > 0 };
+  });
 }
 
 export const isPlatformAdmin = (session: VerifiedSession, admins: string[]) => session.identity.phone !== null && admins.includes(session.identity.phone);

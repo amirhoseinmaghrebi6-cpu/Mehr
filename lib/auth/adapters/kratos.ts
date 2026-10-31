@@ -44,6 +44,24 @@ function failureFrom(response: KratosResponse, stage: "send" | "verify" | "passw
   return fail(stage === "verify" ? "code-invalid" : "signup-failed");
 }
 
+/** Asks the API whether the number's account is blocked; false when the API cannot tell. */
+async function isBlocked(phone: string): Promise<boolean> {
+  const api = apiInternalUrl();
+  if (!api) return false;
+  try {
+    const response = await fetch(`${api}/internal/accounts/blocked`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ phone }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(3_000),
+    });
+    return response.ok && ((await response.json()) as { blocked?: boolean }).blocked === true;
+  } catch {
+    return false;
+  }
+}
+
 async function createFlow(kind: "login" | "registration" | "settings"): Promise<KratosFlow | null> {
   const response = await kratosRequest(`/self-service/${kind}/browser`);
   return response.status === 200 ? (response.body as unknown as KratosFlow) : null;
@@ -100,6 +118,8 @@ export const kratosAdapter = {
   async sendLoginCode(phoneInput: string): Promise<LoginResult> {
     const phone = normalizePhone(phoneInput);
     if (!phone) return fail("phone-invalid");
+    // Kratos would answer "code sent" for a blocked account (the SMS is then dropped): say so instead.
+    if (await isBlocked(phone)) return fail("blocked");
     const flow = await createFlow("login");
     if (!flow) return fail("unavailable");
     const response = await submit("login", flow, { method: "code", identifier: phone });

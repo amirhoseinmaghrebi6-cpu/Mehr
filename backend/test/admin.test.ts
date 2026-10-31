@@ -142,6 +142,13 @@ describe("operator's panel API", () => {
     expect((await call("member", "GET", `/v1/properties/${home.id}/devices`)).status).toBe(401);
     expect(((await call("operator", "GET", "/v1/admin/users?search=0000104")).body as AdminUserListResponse).users[0].blocked).toBe(true);
     expect(((await call("operator", "GET", "/v1/admin/overview")).body as AdminOverview).blockedUsers).toBeGreaterThanOrEqual(1);
+    // The sign-in page asks whether a number is blocked, from the internal network only.
+    const blockedCheck = (phone: string, remoteAddress = "127.0.0.1") => app.inject({ method: "POST", url: "/internal/accounts/blocked", remoteAddress, payload: { phone } });
+    expect((await blockedCheck("0912 000 0104")).json()).toEqual({ blocked: true });
+    expect((await blockedCheck(USERS.owner[1])).json()).toEqual({ blocked: false });
+    expect((await blockedCheck("+989129999990")).json()).toEqual({ blocked: false });
+    expect((await blockedCheck("nope")).statusCode).toBe(400);
+    expect((await blockedCheck(USERS.member[1], "203.0.113.5")).statusCode).toBe(403);
     // Kratos still asks to send a sign-in code to a disabled identity: it is dropped, not paid for.
     const code = await app.inject({ method: "POST", url: "/internal/kratos/sms", headers: { "x-webhook-secret": SECRET }, payload: { to: USERS.member[1], code: "123456" } });
     expect(code.statusCode).toBe(204);
