@@ -4,8 +4,11 @@
  * The operator's panel (/admin): counts and the health of the services, people with block,
  * unblock and delete, and boards. Only for the numbers in the API's PLATFORM_ADMIN_PHONES; the API
  * checks that on every request. Nothing from inside a home is shown (the API never sends it).
+ *
+ * The demo shows the same panel over sample people and boards in the browser
+ * (services/demo-admin.ts), so it can be shown to customers.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Ban, Check, Cpu, Home, LayoutDashboard, LockOpen, Search, Trash2, TriangleAlert, Users, X } from "lucide-react";
 import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminBoardListResponse, type AdminOverview, type AdminUser, type AdminUserListResponse } from "@m2smart/contracts";
@@ -15,16 +18,35 @@ import { phoneLabel } from "@/features/members/members";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { formatDate, formatNumber, formatTime } from "@/lib/i18n";
 import { request } from "@/services/api-gateway";
+import { createDemoAdminSource } from "@/services/demo-admin";
 import { GatewayError, type GatewayErrorCode } from "@/services/home-gateway";
+
+/** Where the panel's data comes from: the API, or the demo's samples. */
+export type AdminSource = {
+  overview(): Promise<AdminOverview>;
+  users(search: string, offset: number): Promise<AdminUserListResponse>;
+  boards(offset: number): Promise<AdminBoardListResponse>;
+  setBlocked(userId: string, blocked: boolean): Promise<void>;
+  remove(userId: string): Promise<void>;
+};
+
+const apiSource: AdminSource = {
+  overview: () => request<AdminOverview>("GET", "/admin/overview"),
+  users: (search, offset) => request<AdminUserListResponse>("GET", `/admin/users?search=${encodeURIComponent(search)}&offset=${offset}`),
+  boards: (offset) => request<AdminBoardListResponse>("GET", `/admin/boards?offset=${offset}`),
+  setBlocked: (userId, blocked) => request("PATCH", `/admin/users/${userId}`, { blocked }),
+  remove: (userId) => request("DELETE", `/admin/users/${userId}`),
+};
 
 type Tab = "overview" | "users" | "boards";
 type Toast = { message: string; tone: "ok" | "warn" };
 const codeOf = (error: unknown): GatewayErrorCode => (error instanceof GatewayError ? error.code : "network");
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-export function AdminPanel() {
+export function AdminPanel({ demoUserId }: { /** Set for the demo: sample data, nothing reaches the API. */ demoUserId?: string }) {
   const { locale, m } = useI18n();
   const t = m.admin;
+  const source = useMemo(() => (demoUserId ? createDemoAdminSource(demoUserId, locale) : apiSource), [demoUserId, locale]);
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [error, setError] = useState<GatewayErrorCode | null>(null);
@@ -32,12 +54,12 @@ export function AdminPanel() {
 
   const loadOverview = useCallback(async () => {
     try {
-      setOverview(await request<AdminOverview>("GET", "/admin/overview"));
+      setOverview(await source.overview());
       setError(null);
     } catch (caught) {
       setError(codeOf(caught));
     }
-  }, []);
+  }, [source]);
   useEffect(() => void loadOverview(), [loadOverview]);
   useEffect(() => {
     if (!toast) return;
@@ -50,7 +72,7 @@ export function AdminPanel() {
     <div className="admin-page">
       <header className="admin-header">
         <a className="admin-back" href="/dashboard"><ArrowLeft size={16} />{t.back}</a>
-        <span className="m2-mark">M2</span>
+        <span className="admin-brand"><span className="m2-mark">M2</span>{demoUserId && <span className="demo-mode-badge">DEMO</span>}</span>
         <LanguageMenu />
       </header>
       <main className="admin-main">
@@ -62,8 +84,8 @@ export function AdminPanel() {
         </nav>
         {error && !overview && <div className="quiet-panel" role="alert"><h2>{gatewayMessage(error, locale)}</h2><button type="button" className="workspace-quick-add" onClick={() => void loadOverview()}>{m.common.tryAgain}</button></div>}
         {tab === "overview" && overview && <OverviewSection overview={overview} />}
-        {tab === "users" && <UsersSection accounts={overview?.services.accounts ?? false} onToast={setToast} onChanged={() => void loadOverview()} />}
-        {tab === "boards" && <BoardsSection />}
+        {tab === "users" && <UsersSection source={source} accounts={overview?.services.accounts ?? false} onToast={setToast} onChanged={() => void loadOverview()} />}
+        {tab === "boards" && <BoardsSection source={source} />}
       </main>
       <AnimatePresence>{toast && <motion.div className={`toast-message${toast.tone === "warn" ? " toast-warn" : ""}`} role="status" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}><span>{toast.tone === "warn" ? <TriangleAlert size={14} /> : <Check size={14} />}</span>{toast.message}</motion.div>}</AnimatePresence>
     </div>
@@ -91,7 +113,7 @@ function OverviewSection({ overview }: { overview: AdminOverview }) {
   );
 }
 
-function UsersSection({ accounts, onToast, onChanged }: { accounts: boolean; onToast: (toast: Toast) => void; onChanged: () => void }) {
+function UsersSection({ source, accounts, onToast, onChanged }: { source: AdminSource; accounts: boolean; onToast: (toast: Toast) => void; onChanged: () => void }) {
   const { locale, calendar, m } = useI18n();
   const t = m.admin;
   const [search, setSearch] = useState("");
@@ -101,13 +123,13 @@ function UsersSection({ accounts, onToast, onChanged }: { accounts: boolean; onT
 
   const load = useCallback(async (query: string, offset = 0) => {
     try {
-      const page = await request<AdminUserListResponse>("GET", `/admin/users?search=${encodeURIComponent(query)}&offset=${offset}`);
+      const page = await source.users(query, offset);
       setList((previous) => (offset && previous ? { users: [...previous.users, ...page.users], total: page.total } : page));
       setError(null);
     } catch (caught) {
       setError(codeOf(caught));
     }
-  }, []);
+  }, [source]);
   useEffect(() => {
     const timeout = window.setTimeout(() => void load(search), 250);
     return () => window.clearTimeout(timeout);
@@ -126,8 +148,8 @@ function UsersSection({ accounts, onToast, onChanged }: { accounts: boolean; onT
     }
   };
   const setBlocked = (user: AdminUser, blocked: boolean) =>
-    act(() => request("PATCH", `/admin/users/${user.id}`, { blocked }), blocked ? t.toasts.blocked(nameOf(user)) : t.toasts.unblocked(nameOf(user)));
-  const remove = (user: AdminUser) => act(() => request("DELETE", `/admin/users/${user.id}`), t.toasts.deleted(nameOf(user)));
+    act(() => source.setBlocked(user.id, blocked), blocked ? t.toasts.blocked(nameOf(user)) : t.toasts.unblocked(nameOf(user)));
+  const remove = (user: AdminUser) => act(() => source.remove(user.id), t.toasts.deleted(nameOf(user)));
 
   return (
     <section className="surface-panel admin-list-panel">
@@ -168,20 +190,20 @@ function UsersSection({ accounts, onToast, onChanged }: { accounts: boolean; onT
   );
 }
 
-function BoardsSection() {
+function BoardsSection({ source }: { source: AdminSource }) {
   const { locale, calendar, m } = useI18n();
   const t = m.admin;
   const [list, setList] = useState<AdminBoardListResponse | null>(null);
   const [error, setError] = useState<GatewayErrorCode | null>(null);
   const load = useCallback(async (offset = 0) => {
     try {
-      const page = await request<AdminBoardListResponse>("GET", `/admin/boards?offset=${offset}`);
+      const page = await source.boards(offset);
       setList((previous) => (offset && previous ? { boards: [...previous.boards, ...page.boards], total: page.total } : page));
       setError(null);
     } catch (caught) {
       setError(codeOf(caught));
     }
-  }, []);
+  }, [source]);
   useEffect(() => void load(), [load]);
 
   const seen = (board: AdminBoard) => {

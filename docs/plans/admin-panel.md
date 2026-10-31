@@ -11,7 +11,7 @@ Status: done (2026-11-01).
 - **Block and unblock:** Kratos sets the identity to inactive and ends its sessions, so the person is signed out at once and cannot sign in. The API also refuses every request of a blocked user, and codes that Kratos still asks to send to a blocked number are dropped, so they cost nothing. Unblocking reverses all of it.
 - **Delete:** the Kratos identity first, then every home the person owns with everything in it, their own organization, and the user. Their boards lose their broker accounts and can be paired again. Homes they only belonged to stay and lose them as a member. Nothing about the deleted account is kept.
 - An operator is never blocked or deleted from the panel, including by themself.
-- The demo is not an operator, and the panel has no demo version: it is for running the service, not a customer feature.
+- The demo has the panel too, for showing it to customers (decided 2026-11-01). It runs over sample people and boards kept in the browser (`services/demo-admin.ts`), marked DEMO. Blocking, unblocking and deleting work there and persist, but nothing reaches the API and no real account is touched.
 
 Where:
 - `supabase/migrations/202611010001_platform_admin.sql` (the `platform_*` functions, run as `service_role` only)
@@ -20,9 +20,11 @@ Where:
 - `packages/contracts/src/admin.ts`
 - `features/admin/admin-panel.tsx`
 - `app/admin/page.tsx`
+- `services/demo-admin.ts` (the demo's samples)
 
 The Kratos admin API is reached through `KRATOS_ADMIN_URL`: inside the compose network in production, and on `127.0.0.1:4434` in development.
 
 Tests:
 - `backend/test/admin.test.ts`
-- a browser test, which signs a customer up, blocks, unblocks and deletes them, and checks Persian, a phone width and the demo.
+- a browser test, which signs a customer up, blocks, unblocks and deletes them, and checks Persian and a phone width;
+- a demo browser test, which checks the sample counts, blocking, deleting with the person's boards, a reload, Persian names, a phone width, and that no request reaches `/api/v1/admin`.

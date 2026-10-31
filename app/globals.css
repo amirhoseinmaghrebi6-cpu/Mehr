@@ -1115,3 +1115,4 @@ a.profile-menu { color: var(--muted); }
   .admin-user { flex-wrap: wrap; padding: 8px 0; }
   .admin-actions, .admin-confirm { width: 100%; max-width: none; padding-inline-start: 40px; }
 }
+.admin-brand { display: inline-flex; align-items: center; gap: 8px; }
