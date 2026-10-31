@@ -19,7 +19,7 @@ Where:
 - `backend/src/auth/kratos-admin.ts`
 - `packages/contracts/src/admin.ts`
 - `features/admin/admin-panel.tsx`
-- `app/admin/page.tsx`
+- `app/(app)/admin/page.tsx` (inside the app's frame: the same menus, bottom bar, language and saved settings)
 - `services/demo-admin.ts` (the demo's samples)
 
 The Kratos admin API is reached through `KRATOS_ADMIN_URL`: inside the compose network in production, and on `127.0.0.1:4434` in development.

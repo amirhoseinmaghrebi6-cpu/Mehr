@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The operator's panel (/admin): counts and the health of the services, people with block,
+ * The operator's panel (/admin, inside the app's frame: its menus, language and settings): counts and the health of the services, people with block,
  * unblock and delete, and boards. Only for the numbers in the API's PLATFORM_ADMIN_PHONES; the API
  * checks that on every request. Nothing from inside a home is shown (the API never sends it).
  *
@@ -10,10 +10,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Ban, Check, Cpu, Home, LayoutDashboard, LockOpen, Search, Trash2, TriangleAlert, Users, X } from "lucide-react";
+import { Ban, Check, Cpu, Home, LayoutDashboard, LockOpen, Search, Trash2, TriangleAlert, Users, X } from "lucide-react";
 import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminBoardListResponse, type AdminOverview, type AdminUser, type AdminUserListResponse } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
-import { LanguageMenu } from "@/components/language-menu";
 import { phoneLabel } from "@/features/members/members";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { formatDate, formatNumber, formatTime } from "@/lib/i18n";
@@ -69,14 +68,8 @@ export function AdminPanel({ demoUserId }: { /** Set for the demo: sample data, 
 
   const tabs = [["overview", LayoutDashboard], ["users", Users], ["boards", Cpu]] as const;
   return (
-    <div className="admin-page">
-      <header className="admin-header">
-        <a className="admin-back" href="/dashboard"><ArrowLeft size={16} />{t.back}</a>
-        <span className="admin-brand"><span className="m2-mark">M2</span>{demoUserId && <span className="demo-mode-badge">DEMO</span>}</span>
-        <LanguageMenu />
-      </header>
-      <main className="admin-main">
-        <div className="panel-intro"><span className="panel-overline">M2SMART</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+    <section className="admin-main">
+        <div className="panel-intro"><span className="panel-overline">M2SMART{demoUserId && " · DEMO"}</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
         <nav className="admin-tabs" aria-label={t.title}>
           {tabs.map(([id, Icon]) => (
             <button type="button" key={id} className={tab === id ? "is-active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><Icon size={16} />{t.tabs[id]}</button>
@@ -86,9 +79,8 @@ export function AdminPanel({ demoUserId }: { /** Set for the demo: sample data, 
         {tab === "overview" && overview && <OverviewSection overview={overview} />}
         {tab === "users" && <UsersSection source={source} accounts={overview?.services.accounts ?? false} onToast={setToast} onChanged={() => void loadOverview()} />}
         {tab === "boards" && <BoardsSection source={source} />}
-      </main>
       <AnimatePresence>{toast && <motion.div className={`toast-message${toast.tone === "warn" ? " toast-warn" : ""}`} role="status" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}><span>{toast.tone === "warn" ? <TriangleAlert size={14} /> : <Check size={14} />}</span>{toast.message}</motion.div>}</AnimatePresence>
-    </div>
+    </section>
   );
 }
 

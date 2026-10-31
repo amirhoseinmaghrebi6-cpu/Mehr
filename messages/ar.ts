@@ -543,7 +543,6 @@ export const ar: Messages = {
     open: "لوحة الإدارة",
     title: "لوحة الإدارة",
     subtitle: "الخدمة كلها بنظرة واحدة. لا يظهر هنا شيء من داخل منزل أي شخص.",
-    back: "العودة إلى منازلي",
     tabs: { overview: "نظرة عامة", users: "المستخدمون", boards: "اللوحات" },
     counts: { users: "المستخدمون", blockedUsers: "محظورون", homes: "المنازل", boards: "اللوحات", boardsOnline: "لوحات متصلة", commandsToday: "أوامر آخر 24 ساعة" },
     servicesTitle: "الخدمات",

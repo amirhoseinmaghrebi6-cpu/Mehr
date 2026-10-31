@@ -462,7 +462,6 @@ export const en = {
     open: "Admin panel",
     title: "Admin panel",
     subtitle: "The whole service at a glance. Nothing from inside anyone’s home is shown here.",
-    back: "Back to my homes",
     tabs: { overview: "Overview", users: "People", boards: "Boards" },
     counts: { users: "People", blockedUsers: "Blocked", homes: "Homes", boards: "Boards", boardsOnline: "Boards online", commandsToday: "Commands in the last 24 hours" },
     servicesTitle: "Services",

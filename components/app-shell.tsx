@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -81,7 +82,7 @@ type AppShellProps = {
 
 type Confirmation = { device: Device; capability: CapabilityName; target: CapabilityValue };
 
-export function AppShell({ userId, displayName, demoMode = false, platformAdmin = false }: AppShellProps) {
+export function AppShell({ userId, displayName, demoMode = false, platformAdmin = false, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { locale, m, rtl, calendar, temperatureUnit, palette, setPreferences } = useI18n();
@@ -106,6 +107,8 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
   const gateway = useMemo(() => (demoMode ? createDemoGateway(userId) : createApiGateway()), [demoMode, userId]);
   const [routeRoot, routeHome, routeSection] = pathname.split("/").filter(Boolean);
   const requestedPropertyId = routeRoot === "homes" && routeHome ? decodeURIComponent(routeHome) : null;
+  // /admin: the operator's panel (the page's children) inside the same frame, menus and settings.
+  const adminView = routeRoot === "admin";
 
   const localeRef = useRef(locale);
   localeRef.current = locale;
@@ -196,9 +199,9 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
     setSection(routeRoot === "homes" && isDashboardSection(routeSection) ? routeSection : "overview");
   }, [routeRoot, routeSection]);
   useEffect(() => {
-    if (!properties || !propertyId || requestedPropertyId === propertyId) return;
+    if (adminView || !properties || !propertyId || requestedPropertyId === propertyId) return;
     router.replace(`/homes/${propertyId}${section === "overview" ? "" : `/${section}`}`, { scroll: false });
-  }, [properties, propertyId, requestedPropertyId, router, section]);
+  }, [adminView, properties, propertyId, requestedPropertyId, router, section]);
   // A new user is asked for their first home, unless an invitation to one is waiting.
   const [invitationCount, setInvitationCount] = useState<number | null>(null);
   useEffect(() => {
@@ -340,14 +343,14 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
 
         <nav className="sidebar-nav">
           <span className="sidebar-caption nav-caption">{m.nav.yourHome}</span>
-          <div className="nav-group">{primaryLinks.map((item) => <NavigationItem key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}</div>
+          <div className="nav-group">{primaryLinks.map((item) => <NavigationItem key={item.id} item={item} active={!adminView && section === item.id} onClick={() => navigate(item.id)} />)}</div>
           <span className="sidebar-caption nav-caption nav-caption-spaced">{m.nav.homeAndYou}</span>
-          <div className="nav-group">{moreLinks.map((item) => <NavigationItem key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}</div>
+          <div className="nav-group">{moreLinks.map((item) => <NavigationItem key={item.id} item={item} active={!adminView && section === item.id} onClick={() => navigate(item.id)} />)}</div>
         </nav>
 
         <div className="sidebar-bottom">
           <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpRight size={14} /></button>
-          <div className="profile-row"><span className="profile-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{displayName}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span>{platformAdmin && <a className="profile-menu" href="/admin" aria-label={m.admin.open} title={m.admin.open}><Gauge size={18} /></a>}<button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
+          <div className="profile-row"><span className="profile-avatar">{displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{displayName}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span>{platformAdmin && <Link className={`profile-menu${adminView ? " is-active" : ""}`} href="/admin" aria-label={m.admin.open} title={m.admin.open} aria-current={adminView ? "page" : undefined}><Gauge size={18} /></Link>}<button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
         </div>
       </aside>
 
@@ -369,8 +372,8 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
         </header>
 
         <div className="scroll-area" key={propertyId ?? "none"}>
-          <InvitationBanner gateway={gateway} nameOf={nameOf} onCount={setInvitationCount} onAccepted={(joined) => { home.setProperties((current) => [...(current ?? []).filter((item) => item.id !== joined.id), joined]); changeProperty(joined.id); showToast(m.members.toasts.joined(nameOf(joined.name))); }} />
-          {home.loadError && !properties ? (
+          {!adminView && <InvitationBanner gateway={gateway} nameOf={nameOf} onCount={setInvitationCount} onAccepted={(joined) => { home.setProperties((current) => [...(current ?? []).filter((item) => item.id !== joined.id), joined]); changeProperty(joined.id); showToast(m.members.toasts.joined(nameOf(joined.name))); }} />}
+          {adminView ? children : home.loadError && !properties ? (
             <div className="quiet-panel" role="alert"><span className="quiet-icon"><TriangleAlert size={24} strokeWidth={1.6} /></span><h2>{m.shell.loadErrorTitle}</h2><p>{gatewayMessage(home.loadError, locale)}</p><button type="button" className="workspace-quick-add" onClick={() => void home.reloadProperties()}><RefreshCw size={14} />{m.common.tryAgain}</button></div>
           ) : !properties ? (
             <div className="quiet-panel" role="status"><span className="quiet-icon"><House size={24} strokeWidth={1.6} /></span><h2>{m.shell.preparing}</h2></div>
@@ -415,17 +418,17 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
       </main>
 
       <nav className="mobile-nav" aria-label={m.nav.bottomNavigation}>
-        <MobileNavigationItem id="overview" icon={LayoutDashboard} active={section === "overview"} onClick={() => navigate("overview")} />
-        <MobileNavigationItem id="rooms" icon={BedDouble} active={section === "rooms"} onClick={() => navigate("rooms")} />
-        <MobileNavigationItem id="devices" icon={Lightbulb} active={section === "devices"} onClick={() => navigate("devices")} />
-        <MobileNavigationItem id="scenes" icon={Sunset} active={section === "scenes"} onClick={() => navigate("scenes")} />
+        <MobileNavigationItem id="overview" icon={LayoutDashboard} active={!adminView && section === "overview"} onClick={() => navigate("overview")} />
+        <MobileNavigationItem id="rooms" icon={BedDouble} active={!adminView && section === "rooms"} onClick={() => navigate("rooms")} />
+        <MobileNavigationItem id="devices" icon={Lightbulb} active={!adminView && section === "devices"} onClick={() => navigate("devices")} />
+        <MobileNavigationItem id="scenes" icon={Sunset} active={!adminView && section === "scenes"} onClick={() => navigate("scenes")} />
         <button type="button" className={`mobile-nav-item${mobileMoreOpen ? " is-active" : ""}`} onClick={() => setMobileMoreOpen((open) => !open)} aria-expanded={mobileMoreOpen}><MoreHorizontal size={20} /><span>{m.nav.more}</span></button>
       </nav>
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
           {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
-          {platformAdmin && <a href="/admin"><Gauge size={18} /><span>{m.admin.open}</span></a>}
+          {platformAdmin && <Link href="/admin" onClick={() => setMobileMoreOpen(false)}><Gauge size={18} /><span>{m.admin.open}</span></Link>}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
           <form action={signOutAction}><button type="submit"><LogOut size={18} /><span>{m.shell.signOut}</span></button></form>

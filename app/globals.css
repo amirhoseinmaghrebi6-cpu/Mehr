@@ -1067,11 +1067,7 @@ button.activity-row:hover { background: var(--surface-soft); }
 .mobile-more-menu > a { display: grid; min-height: 62px; justify-items: center; align-content: center; gap: 6px; border-radius: 6px; color: var(--ink-soft); font-size: 9px; text-decoration: none; }
 .mobile-more-menu > a:hover { background: var(--accent-soft); color: var(--accent); }
 a.profile-menu { color: var(--muted); }
-.admin-page { min-height: 100vh; background: var(--page); color: var(--ink); }
-.admin-header { position: sticky; z-index: 5; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--page) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-.admin-back { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-soft); font-size: 10px; font-weight: 600; text-decoration: none; }
-.admin-back:hover { color: var(--accent); }
-.admin-main { display: grid; width: min(100%, 980px); gap: 14px; margin: 0 auto; padding: 26px 24px 60px; }
+.admin-main { display: grid; min-width: 0; gap: 14px; }
 .admin-main .panel-intro h1 { margin: 8px 0 4px; font-family: var(--font-display); font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
 .admin-main .panel-intro { padding-bottom: 4px; }
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1109,10 +1105,7 @@ a.profile-menu { color: var(--muted); }
 .admin-more { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); }
 .admin-more small { font-size: 9px; }
 @media (max-width: 700px) {
-  .admin-header { padding: 10px 16px; }
-  .admin-main { padding: 18px 16px 48px; }
   .admin-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-user { flex-wrap: wrap; padding: 8px 0; }
   .admin-actions, .admin-confirm { width: 100%; max-width: none; padding-inline-start: 40px; }
 }
-.admin-brand { display: inline-flex; align-items: center; gap: 8px; }

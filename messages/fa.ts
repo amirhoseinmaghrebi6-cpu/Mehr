@@ -543,7 +543,6 @@ export const fa: Messages = {
     open: "پنل مدیریت",
     title: "پنل مدیریت",
     subtitle: "کل سرویس در یک نگاه. هیچ چیزی از داخل خانه‌ی کسی این‌جا نشان داده نمی‌شود.",
-    back: "بازگشت به خانه‌های من",
     tabs: { overview: "نمای کلی", users: "کاربران", boards: "بُردها" },
     counts: { users: "کاربران", blockedUsers: "مسدود", homes: "خانه‌ها", boards: "بُردها", boardsOnline: "بُردهای آنلاین", commandsToday: "دستورهای ۲۴ ساعت اخیر" },
     servicesTitle: "سرویس‌ها",
