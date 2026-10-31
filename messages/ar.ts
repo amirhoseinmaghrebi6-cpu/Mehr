@@ -166,6 +166,7 @@ export const ar: Messages = {
   demo: {
     names: {
       "You": "أنت",
+      "M2smart Demo": "حساب تجريبي",
       "Sara Ahmadi": "سارا أحمدي",
       "Reza Karimi": "رضا كريمي",
       "Maryam Rahimi": "مريم رحيمي",

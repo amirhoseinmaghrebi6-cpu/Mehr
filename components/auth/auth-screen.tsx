@@ -99,7 +99,7 @@ export function AuthScreen({
         <div className="auth-brand"><span className="m2-mark">M2</span><span>M2smart</span><span className="auth-brand-caption">HOME</span></div>
         <div className="auth-visual-copy"><span className="auth-overline"><span />{copy.visualOverline}</span><h2>{copy.visualTitle}</h2><p>{copy.visualSubtitle}</p></div>
         <div className="auth-feature-list"><span><House size={15} />{copy.featureHome}</span><span><ShieldCheck size={15} />{copy.featureSecurity}</span><span><Sparkles size={15} />{copy.featureControl}</span></div>
-        <span className="auth-image-credit">M2SMART · PRIVATE RESIDENCE</span>
+        <span className="auth-image-credit">M2SMART · {m.shell.residence}</span>
       </aside>
 
       <section className="auth-panel">

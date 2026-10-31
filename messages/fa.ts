@@ -166,6 +166,7 @@ export const fa: Messages = {
   demo: {
     names: {
       "You": "شما",
+      "M2smart Demo": "حساب دمو",
       "Sara Ahmadi": "سارا احمدی",
       "Reza Karimi": "رضا کریمی",
       "Maryam Rahimi": "مریم رحیمی",
