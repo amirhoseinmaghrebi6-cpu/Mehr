@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Building2, Check, ChevronRight, Pencil, Plus, QrCode, Trash2, X } from "lucide-react";
+import { Building2, Check, ChevronRight, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { can, defaultTimeZone, propertyTypes, type Device, type PhotoPreset, type Property, type PropertyType, type Room } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { AddBoard } from "@/features/boards/add-board";
@@ -281,7 +281,7 @@ export function AddDeviceDialog(props: Parameters<typeof AddBoard>[0]) {
     <div className="modal-backdrop workspace-backdrop" onMouseDown={(event) => event.target === event.currentTarget && props.onClose()}>
       <section className="workspace-dialog add-board-dialog" role="dialog" aria-modal="true" aria-labelledby="add-device-title" dir={rtl ? "rtl" : "ltr"}>
         <button type="button" className="dialog-close" onClick={props.onClose} aria-label={m.common.close}><X size={18} /></button>
-        <span className="workspace-dialog-icon">{props.waiting ? <QrCode size={19} /> : <Plus size={19} />}</span><span className="panel-overline">{d.devicesOverline}</span>
+        <span className="workspace-dialog-icon">{props.waiting ? <Link2 size={19} /> : <Plus size={19} />}</span><span className="panel-overline">{d.devicesOverline}</span>
         <h2 id="add-device-title">{props.waiting ? d.pairBoardTitle : d.addDevice}</h2>
         <AddBoard {...props} />
       </section>

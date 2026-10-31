@@ -23,7 +23,6 @@
   "dependencies": {
     "@m2smart/contracts": "workspace:*",
     "framer-motion": "^12.23.12",
-    "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",
     "next": "^15.5.9",
     "react": "^19.1.1",

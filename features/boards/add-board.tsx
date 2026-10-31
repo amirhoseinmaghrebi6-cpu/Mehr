@@ -5,40 +5,21 @@
  * 1. pick the product (a board model) from the catalog, by category;
  * 2. name its channels (1 to 20 inputs and outputs) and put them in rooms: they join the home
  *    at once, waiting for pairing;
- * 3. pair: upload the QR code the real board showed on its own setup page (or paste its text),
- *    now or later (docs/board-protocol.md, "Pairing").
+ * 3. pair, now or later: the app gives a setup code, and the real board, in pairing mode, takes it
+ *    on its own setup page (a link opens that page with the code filled in, or it is typed). The
+ *    board then joins on its own; the devices stop waiting, and this step says so
+ *    (docs/board-protocol.md, "Pairing").
  *
- * The real board must be the product that was picked. The QR image is read in the browser by a
- * library bundled with the app; nothing is sent anywhere but our own API.
+ * The real board must be the product that was picked. In the demo, a button plays the board.
  */
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { ArrowLeft, Check, ChevronRight, Fingerprint, Hourglass, QrCode, Upload, Wifi } from "lucide-react";
-import { parsePairingCode, productCategories, type Device, type HardwareProduct, type Room } from "@m2smart/contracts";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, Check, ChevronRight, CircleCheck, ExternalLink, Fingerprint, Hourglass, LoaderCircle, RefreshCw, Sparkles, Wifi } from "lucide-react";
+import { productCategories, type Device, type HardwareProduct, type Room, type SetupCodeResponse } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceTypeInfo, typeLabel } from "@/lib/device-ui";
-import { formatNumber } from "@/lib/i18n";
+import { formatNumber, formatTime } from "@/lib/i18n";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { GatewayError } from "@/services/home-gateway";
-
-/** The text of the QR code in an image file, or null if none can be read. */
-async function readQrCode(file: File): Promise<string | null> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    // Phone photos are large; a smaller copy reads just as well and much faster.
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const image = context.getImageData(0, 0, canvas.width, canvas.height);
-    const { default: jsQR } = await import("jsqr");
-    return jsQR(image.data, image.width, image.height)?.data ?? null;
-  } catch {
-    return null;
-  }
-}
 
 /** A board that is in the home and waits for pairing. */
 export type WaitingBoard = { boardId: string; boardName: string };
@@ -53,20 +34,22 @@ type Props = {
   loadProducts: () => Promise<HardwareProduct[]>;
   /** Adds the product to the home; its devices then wait for pairing. */
   onAdd: (product: HardwareProduct, channels: Array<{ key: string; name: string; roomId: string | null }>) => Promise<WaitingBoard>;
-  onPair: (board: WaitingBoard, pairingCode: string) => Promise<void>;
-  /** Demo only: the sample QR code of a waiting board's product, to save and upload. */
-  sampleQr?: (boardId: string) => { label: string; image: string } | null;
+  /** A setup code for the waiting board (a new one ends the earlier). */
+  createSetupCode: (board: WaitingBoard) => Promise<SetupCodeResponse>;
+  /** Whether the real board has joined (its devices no longer wait); the home's live updates tell. */
+  isPaired: (boardId: string) => boolean;
+  /** Demo only: plays the real board using the code. */
+  simulateBoard?: (board: WaitingBoard) => Promise<void>;
   onClose: () => void;
 };
 
-export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd, onPair, sampleQr, onClose }: Props) {
+export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd, createSetupCode, isPaired, simulateBoard, onClose }: Props) {
   const { locale, m, rtl } = useI18n();
   const d = m.dialogs;
   const [products, setProducts] = useState<HardwareProduct[] | null>(null);
   const [product, setProduct] = useState<HardwareProduct | null>(null);
   const [forms, setForms] = useState<Record<string, { name: string; roomId: string }>>({});
   const [board, setBoard] = useState<WaitingBoard | null>(waiting ?? null);
-  const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -107,71 +90,15 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
     }
   };
 
-  const pair = async (code: string) => {
-    if (!board) return;
-    if (!parsePairingCode(code)) return setError(d.pairingInvalid);
-    setBusy(true);
-    setError("");
-    try {
-      await onPair(board, code.trim());
-      onClose();
-    } catch (caught) {
-      fail(caught, { not_found: d.pairingNotFound, conflict: d.pairingWrongProduct });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const upload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setError("");
-    const code = await readQrCode(file);
-    if (!code) return setError(d.qrUnreadable);
-    setText(code);
-    await pair(code);
-  };
-
   // --- Step 3: pairing ---------------------------------------------------------------------------
   if (board) {
-    const sample = sampleQr?.(board.boardId);
-    return (
+    return canPair ? (
+      <Pairing board={board} nameOf={nameOf} createSetupCode={createSetupCode} isPaired={isPaired} simulateBoard={simulateBoard} onClose={onClose} />
+    ) : (
       <>
         <p className="workspace-dialog-description">{d.pairBoardText(nameOf(board.boardName))}</p>
-        <ol className="pairing-steps">
-          <li><Fingerprint size={15} />{d.pairingSteps[0]}</li>
-          <li><Wifi size={15} />{d.pairingSteps[1]}</li>
-          <li><QrCode size={15} />{d.pairingSteps[2]}</li>
-        </ol>
-        {sample && (
-          <div className="sample-boards">
-            <span>{d.demoSampleBoards}</span>
-            <div>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a small static QR image; the user saves the file itself */}
-              <a href={sample.image} download title={sample.label}><img src={sample.image} alt="" width={54} height={54} /><span>{sample.label}</span></a>
-            </div>
-          </div>
-        )}
-        {canPair ? (
-          <form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void pair(text); }}>
-            <label className={`qr-upload${busy ? " is-busy" : ""}`}>
-              <Upload size={16} /><span>{d.uploadQr}</span>
-              <input type="file" accept="image/*" onChange={(event) => void upload(event)} disabled={busy} />
-            </label>
-            <label className="form-field"><span>{d.orPasteCode}</span><input dir="ltr" value={text} onChange={(event) => setText(event.target.value)} placeholder="M2P1:…" maxLength={200} autoComplete="off" spellCheck={false} /></label>
-            {error && <p className="form-error" role="alert">{error}</p>}
-            <div className="workspace-form-actions">
-              <button type="button" className="button-subtle" onClick={onClose}><Hourglass size={14} />{d.pairLater}</button>
-              <button type="submit" className="button-primary" disabled={busy || !text.trim()}><Check size={15} />{d.pairNow}</button>
-            </div>
-          </form>
-        ) : (
-          <>
-            <p className="form-note">{d.membersCannotPair}</p>
-            <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{m.common.gotIt}</button></div>
-          </>
-        )}
+        <p className="form-note">{d.membersCannotPair}</p>
+        <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{m.common.gotIt}</button></div>
       </>
     );
   }
@@ -245,6 +172,99 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
           <div className="workspace-form-actions single-action"><button type="button" className="button-subtle" onClick={onClose}>{m.common.cancel}</button></div>
         </>
       )}
+    </>
+  );
+}
+
+/** Step 3: the setup code, the way to the board's page, and waiting until the board has joined. */
+function Pairing({ board, nameOf, createSetupCode, isPaired, simulateBoard, onClose }: Pick<Props, "nameOf" | "createSetupCode" | "isPaired" | "simulateBoard" | "onClose"> & { board: WaitingBoard }) {
+  const { locale, m } = useI18n();
+  const d = m.dialogs;
+  const [setup, setSetup] = useState<SetupCodeResponse | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const paired = isPaired(board.boardId);
+  const message = (caught: unknown) => gatewayMessage(caught instanceof GatewayError ? caught.code : "network", locale);
+
+  // One request at a time: each new code ends the earlier one, so two at once could leave the
+  // screen showing a code that no longer works.
+  const requesting = useRef(false);
+  const create = useRef(createSetupCode);
+  create.current = createSetupCode;
+  const newCode = useCallback(async () => {
+    if (requesting.current) return;
+    requesting.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      setSetup(await create.current(board));
+    } catch (caught) {
+      setError(gatewayMessage(caught instanceof GatewayError ? caught.code : "network", locale));
+    } finally {
+      requesting.current = false;
+      setBusy(false);
+    }
+  }, [board, locale]);
+  // The first code, once per board (not again when the language changes).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => void newCode(), [board.boardId]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 10_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (paired) {
+    return (
+      <div className="pairing-done" role="status">
+        <CircleCheck size={34} />
+        <strong>{d.boardPairedTitle}</strong>
+        <p>{d.boardPairedText}</p>
+        <div className="workspace-form-actions single-action"><button type="button" className="button-primary" onClick={onClose}><Check size={15} />{m.common.gotIt}</button></div>
+      </div>
+    );
+  }
+
+  const expired = setup !== null && new Date(setup.expiresAt).getTime() <= now;
+  const simulate = async () => {
+    if (!simulateBoard) return;
+    setBusy(true);
+    try {
+      await simulateBoard(board);
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <p className="workspace-dialog-description">{d.pairBoardText(nameOf(board.boardName))}</p>
+      <ol className="pairing-steps">
+        <li><Fingerprint size={15} />{d.pairingSteps[0]}</li>
+        <li><Wifi size={15} />{d.pairingSteps[1]}</li>
+        <li><ExternalLink size={15} />{d.pairingSteps[2]}</li>
+      </ol>
+      <div className={`setup-code-box${expired ? " is-expired" : ""}`}>
+        <span className="panel-overline">{d.setupCode}</span>
+        <strong dir="ltr">{setup?.code ?? "····-····-····"}</strong>
+        {setup && <small>{expired ? d.codeExpired : d.setupCodeValid(formatTime(new Date(setup.expiresAt), locale, Intl.DateTimeFormat().resolvedOptions().timeZone))}</small>}
+        {!simulateBoard && <small>{d.typeCodeNote}</small>}
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {simulateBoard ? (
+        <>
+          <p className="form-note">{d.demoSetupNote}</p>
+          <button type="button" className="button-primary pairing-open" disabled={busy || !setup || expired} onClick={() => void simulate()}><Sparkles size={15} />{d.demoSimulate}</button>
+        </>
+      ) : (
+        setup && !expired && <a className="button-primary pairing-open" href={setup.setupUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />{d.openBoardPage}</a>
+      )}
+      {setup && !expired && <p className="pairing-waiting" role="status"><LoaderCircle size={14} className="spin" />{d.waitingForBoard}</p>}
+      <div className="workspace-form-actions">
+        <button type="button" className="button-subtle" onClick={onClose}><Hourglass size={14} />{d.pairLater}</button>
+        <button type="button" className="button-subtle" onClick={() => void newCode()} disabled={busy}><RefreshCw size={14} />{d.newCode}</button>
+      </div>
     </>
   );
 }

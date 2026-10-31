@@ -2,20 +2,17 @@
  * Pairing and removing boards (docs/board-protocol.md, "Pairing" and "Factory reset").
  *
  * A board joins a home only when all three hold:
- * - someone holds it: only a board in pairing mode makes a pairing code;
+ * - an owner or admin of the home added the product and asked for a setup code for it;
+ * - someone holds the board: only a board in pairing mode (its setup button) takes a code;
  * - it is genuine: it proves itself with its factory secret (the registry of manufactured boards
- *   holds the secret's hash);
- * - an owner or admin of the home uploads that code.
+ *   holds the secret's hash), and it is the product that waits in the home.
  *
- * A board can also be added first and paired later: the product is picked and its channels are
- * named in the app, and the board waits (no hardware id) until a real board of the same product is
- * paired with it.
- *
- * The server stores only hashes of factory secrets and pairing codes. Removing a board (a factory
+ * The server stores only hashes of factory secrets and setup codes. Removing a board (a factory
  * reset, or pairing it with another home) leaves nothing of it behind: its devices, their states,
- * commands, scenario actions and energy totals go with it, and so does its broker account.
+ * commands and scenario actions go with it, and so does its broker account.
  */
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { formatSetupCode, normalizeSetupCode, SETUP_CODE_ALPHABET, SETUP_CODE_LENGTH, SETUP_CODE_MINUTES } from "@m2smart/contracts";
 import type { Pool } from "pg";
 import type { Broker } from "../broker/broker";
 import { withSystemTx, type TxClient } from "../db/tx";
@@ -30,61 +27,14 @@ async function isGenuine(tx: TxClient, hardwareUid: string, secret: string): Pro
   return timingSafeEqual(expected, Buffer.from(sha256(secret), "hex")) && rows.length === 1;
 }
 
-/** The board is in pairing mode and online: remember (only the hash of) its fresh pairing code. */
-export async function announceBoard(pool: Pool, hardwareUid: string, secret: string, codeHash: string): Promise<boolean> {
-  return withSystemTx(pool, async (tx) => {
-    if (!(await isGenuine(tx, hardwareUid, secret))) return false;
-    // Entering pairing mode again replaces the earlier code, used or not.
-    await tx.query(
-      `insert into public.board_pairings (hardware_uid, code_hash) values ($1, $2)
-       on conflict (hardware_uid) do update set code_hash = excluded.code_hash, controller_id = null, expires_at = now() + interval '24 hours', created_at = now()`,
-      [hardwareUid, codeHash],
-    );
-    return true;
-  });
-}
-
 /** Deletes a board and everything that belongs to it, and its broker account. */
 export async function removeBoard(pool: Pool, broker: Broker, boardId: string): Promise<boolean> {
   const removed = await withSystemTx(pool, async (tx) => {
-    const { rows } = await tx.query<{ hardware_uid: string }>("delete from public.controllers where id = $1 returning hardware_uid", [boardId]);
-    if (rows.length) await tx.query("delete from public.board_pairings where hardware_uid = $1 and controller_id is null", [rows[0].hardware_uid]);
-    return rows.length > 0;
+    const { rowCount } = await tx.query("delete from public.controllers where id = $1", [boardId]);
+    return Boolean(rowCount);
   });
   if (removed) await broker.removeBoard(boardId);
   return removed;
-}
-
-export type PairedBoard = { boardId: string; boardName: string };
-
-/**
- * Adds the board whose pairing code is `code` to the home. The caller has checked that the user
- * is an owner or admin of that home. Null if the code is unknown, used or expired.
- */
-export async function pairBoard(pool: Pool, broker: Broker, propertyId: string, hardwareUid: string, code: string): Promise<PairedBoard | null> {
-  const paired = await withSystemTx(pool, async (tx) => {
-    const { rows: pending } = await tx.query<{ model_code: string; model_name: string }>(
-      `select model.code as model_code, model.name as model_name
-       from public.board_pairings as pairing
-       join public.manufactured_boards as board on board.hardware_uid = pairing.hardware_uid
-       join public.hardware_models as model on model.id = board.model_id
-       where pairing.hardware_uid = $1 and pairing.code_hash = $2 and pairing.controller_id is null and pairing.expires_at > now()
-       for update of pairing`,
-      [hardwareUid, sha256(code)],
-    );
-    if (!pending.length) return null;
-
-    // A board is in one home at most: pairing it again removes it from where it was.
-    const { rows: previous } = await tx.query<{ id: string }>("delete from public.controllers where hardware_uid = $1 returning id", [hardwareUid]);
-
-    const boardName = pending[0].model_name.slice(0, 60);
-    const { rows } = await tx.query<{ id: string }>("select public.provision_controller($1, $2, $3, $4) as id", [await cloudHub(tx, propertyId), pending[0].model_code, hardwareUid, boardName]);
-    await tx.query("update public.board_pairings set controller_id = $2 where hardware_uid = $1", [hardwareUid, rows[0].id]);
-    return { boardId: rows[0].id, boardName, previous: previous.map((row) => row.id) };
-  });
-  if (!paired) return null;
-  for (const boardId of paired.previous) await broker.removeBoard(boardId);
-  return { boardId: paired.boardId, boardName: paired.boardName };
 }
 
 /** The home's internal hub row stands for its cloud connection (there is no physical hub). */
@@ -105,7 +55,7 @@ export async function addPendingBoard(
   propertyId: string,
   modelCode: string,
   channels: Array<{ key: string; name: string; roomId: string | null }>,
-): Promise<PairedBoard | "invalid" | null> {
+): Promise<{ boardId: string; boardName: string } | "invalid" | null> {
   return withSystemTx(pool, async (tx) => {
     const { rows: models } = await tx.query<{ name: string }>(
       `select model.name from public.hardware_models as model
@@ -134,57 +84,64 @@ export async function addPendingBoard(
 class InvalidBoardInput extends Error {}
 
 /**
- * Pairs a board that waits in the home with the real board whose pairing code is `code`. Null if
- * the code is unknown, used or expired, or the board is not waiting in this home; "mismatch" if the
- * real board is a different product.
+ * A fresh setup code for a board that waits in the home (any earlier code for it stops working).
+ * The caller has checked that the user is an owner or admin. Null if no such board waits there.
  */
-export async function pairPendingBoard(pool: Pool, broker: Broker, propertyId: string, boardId: string, hardwareUid: string, code: string): Promise<PairedBoard | "mismatch" | null> {
-  const paired = await withSystemTx(pool, async (tx) => {
-    const { rows: pending } = await tx.query<{ model_id: string }>(
-      `select board.model_id
-       from public.board_pairings as pairing
-       join public.manufactured_boards as board on board.hardware_uid = pairing.hardware_uid
-       where pairing.hardware_uid = $1 and pairing.code_hash = $2 and pairing.controller_id is null and pairing.expires_at > now()
-       for update of pairing`,
-      [hardwareUid, sha256(code)],
+export async function createSetupCode(pool: Pool, propertyId: string, boardId: string): Promise<{ code: string; expiresAt: Date } | null> {
+  return withSystemTx(pool, async (tx) => {
+    const { rows } = await tx.query("select 1 from public.controllers where id = $1 and property_id = $2 and hardware_uid is null", [boardId, propertyId]);
+    if (!rows.length) return null;
+    // Two waiting codes are never the same: a code already in use is drawn again (with 32^12 codes
+    // this all but never happens), and the unique hash guards against a race.
+    let code: string;
+    do code = Array.from({ length: SETUP_CODE_LENGTH }, () => SETUP_CODE_ALPHABET[randomInt(SETUP_CODE_ALPHABET.length)]).join("");
+    while ((await tx.query("select 1 from public.board_setup_codes where code_hash = $1", [sha256(code)])).rows.length);
+    const { rows: saved } = await tx.query<{ expires_at: Date }>(
+      `insert into public.board_setup_codes (controller_id, code_hash, expires_at) values ($1, $2, now() + make_interval(mins => $3))
+       on conflict (controller_id) do update set code_hash = excluded.code_hash, expires_at = excluded.expires_at, hardware_uid = null, created_at = now()
+       returning expires_at`,
+      [boardId, sha256(code), SETUP_CODE_MINUTES],
     );
-    const { rows: waiting } = await tx.query<{ model_id: string; name: string }>(
-      "select model_id, name from public.controllers where id = $1 and property_id = $2 and hardware_uid is null for update",
-      [boardId, propertyId],
-    );
-    if (!pending.length || !waiting.length) return null;
-    if (pending[0].model_id !== waiting[0].model_id) return "mismatch" as const;
-
-    // A board is in one home at most: pairing it again removes it from where it was.
-    const { rows: previous } = await tx.query<{ id: string }>("delete from public.controllers where hardware_uid = $1 returning id", [hardwareUid]);
-    await tx.query("update public.controllers set hardware_uid = $2 where id = $1", [boardId, hardwareUid]);
-    await tx.query("update public.devices set external_id = $2 || ':' || channel_key where controller_id = $1", [boardId, hardwareUid]);
-    await tx.query("update public.board_pairings set controller_id = $2 where hardware_uid = $1", [hardwareUid, boardId]);
-    return { boardId, boardName: waiting[0].name, previous: previous.map((row) => row.id) };
+    return { code: formatSetupCode(code), expiresAt: saved[0].expires_at };
   });
-  if (!paired || paired === "mismatch") return paired;
-  for (const previous of paired.previous) await broker.removeBoard(previous);
-  return { boardId: paired.boardId, boardName: paired.boardName };
 }
 
 /**
- * The board asks for its broker account. "refused": not a genuine board or not its code;
- * "waiting": nobody uploaded the code yet; otherwise a fresh secret (any earlier one stops working).
+ * The board uses a setup code: with its factory secret, a code that waits for its product, it joins
+ * that home (leaving any other) and gets a fresh broker secret. Using the same code again (its
+ * answer was lost) gives a new secret and ends the earlier one. "refused": not genuine, or not a
+ * waiting code (or another board's); "mismatch": the code waits for another product.
  */
-export async function issueCredentials(pool: Pool, broker: Broker, hardwareUid: string, secret: string, code: string): Promise<"refused" | "waiting" | { boardId: string; brokerSecret: string }> {
-  const pairing = await withSystemTx(pool, async (tx) => {
-    if (!(await isGenuine(tx, hardwareUid, secret))) return null;
-    const { rows } = await tx.query<{ controller_id: string | null }>(
-      "select controller_id from public.board_pairings where hardware_uid = $1 and code_hash = $2 and expires_at > now()",
-      [hardwareUid, sha256(code)],
+export async function claimBoard(pool: Pool, broker: Broker, hardwareUid: string, secret: string, typedCode: string): Promise<"refused" | "mismatch" | { boardId: string; brokerSecret: string }> {
+  const code = normalizeSetupCode(typedCode);
+  const claimed = await withSystemTx(pool, async (tx) => {
+    if (!(await isGenuine(tx, hardwareUid, secret)) || !code) return "refused" as const;
+    const { rows } = await tx.query<{ controller_id: string; claimed_by: string | null; same_product: boolean }>(
+      `select setup.controller_id, setup.hardware_uid as claimed_by, board.model_id = made.model_id as same_product
+       from public.board_setup_codes as setup
+       join public.controllers as board on board.id = setup.controller_id
+       join public.manufactured_boards as made on made.hardware_uid = $2
+       where setup.code_hash = $1 and setup.expires_at > now()
+       for update of setup`,
+      [sha256(code), hardwareUid],
     );
-    return rows[0] ?? null;
+    const setup = rows[0];
+    if (!setup || (setup.claimed_by && setup.claimed_by !== hardwareUid)) return "refused" as const;
+    if (setup.claimed_by) return { boardId: setup.controller_id, previous: [] as string[] };
+    if (!setup.same_product) return "mismatch" as const;
+
+    // A board is in one home at most: pairing it again removes it from where it was.
+    const { rows: previous } = await tx.query<{ id: string }>("delete from public.controllers where hardware_uid = $1 returning id", [hardwareUid]);
+    await tx.query("update public.controllers set hardware_uid = $2 where id = $1", [setup.controller_id, hardwareUid]);
+    await tx.query("update public.devices set external_id = $2 || ':' || channel_key where controller_id = $1", [setup.controller_id, hardwareUid]);
+    await tx.query("update public.board_setup_codes set hardware_uid = $2 where controller_id = $1", [setup.controller_id, hardwareUid]);
+    return { boardId: setup.controller_id, previous: previous.map((row) => row.id) };
   });
-  if (!pairing) return "refused";
-  if (!pairing.controller_id) return "waiting";
+  if (typeof claimed === "string") return claimed;
+  for (const boardId of claimed.previous) await broker.removeBoard(boardId);
   const brokerSecret = randomBytes(32).toString("base64url");
-  await broker.setBoardSecret(pairing.controller_id, brokerSecret);
-  return { boardId: pairing.controller_id, brokerSecret };
+  await broker.setBoardSecret(claimed.boardId, brokerSecret);
+  return { boardId: claimed.boardId, brokerSecret };
 }
 
 /** A board that is being factory-reset says goodbye: remove it completely. */

@@ -577,7 +577,6 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
         canPair={property ? can(property.role, "board.pair") : false}
         waiting={addDevice === "new" ? undefined : addDevice}
         loadProducts={gateway.listProducts}
-        sampleQr={gateway.demoPairingSample}
         onClose={() => setAddDevice(null)}
         onAdd={async (product, channels) => {
           const added = await gateway.addBoard(propertyId, { modelCode: product.code, channels });
@@ -585,11 +584,14 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
           showToast(m.shell.toasts.boardAdded);
           return { boardId: added.boardId, boardName: added.boardName };
         }}
-        onPair={async (board, pairingCode) => {
-          const paired = await gateway.pairBoard(propertyId, board.boardId, pairingCode);
+        createSetupCode={(board) => gateway.createSetupCode(propertyId, board.boardId)}
+        // The real board joins on its own; live updates bring its devices, no longer waiting.
+        isPaired={(boardId) => devices.some((device) => device.boardId === boardId) && devices.every((device) => device.boardId !== boardId || !device.pending)}
+        simulateBoard={gateway.simulateBoard ? async (board) => {
+          const paired = await gateway.simulateBoard!(propertyId, board.boardId);
           home.setDevices((current) => [...current.filter((device) => device.boardId !== paired.boardId), ...paired.devices]);
           showToast(m.shell.toasts.boardPaired);
-        }}
+        } : undefined}
       />}
 
       {pendingRemoveDevice && propertyId && <div className="modal-backdrop lock-confirm-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPendingRemoveDevice(null)}>

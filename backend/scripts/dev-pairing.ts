@@ -1,51 +1,44 @@
 /**
- * Plays a brand-new board in pairing mode, for local development: the board is added to the
- * registry of manufactured boards, "announces" itself, and its pairing code is printed. Paste
- * that code (or upload it as a QR image) under "Add a device" in the app; the dev board simulator
- * then connects the board, as the real firmware will (docs/board-protocol.md).
+ * Plays a brand-new board in pairing mode, for local development: give it the setup code the app
+ * shows for a waiting board. It adds a board of that product to the registry of manufactured
+ * boards and uses the code through the API's real route (POST /v1/boards/claim), as the firmware
+ * will (docs/board-protocol.md). The dev board simulator then connects the board.
  *
- * Usage: pnpm dev:pairing <model-code>
- *        pnpm dev:pairing                    (lists models)
+ * Usage: pnpm dev:pairing <setup code>       (e.g. K7M4-Q9X2-PD8W)
  *
- * Refuses to run when NODE_ENV=production.
+ * Needs the API running (pnpm api:dev). Refuses to run when NODE_ENV=production.
  */
-import { createHash, randomBytes, randomInt } from "node:crypto";
-import { formatPairingCode } from "@m2smart/contracts";
+import { createHash, randomBytes } from "node:crypto";
+import { normalizeSetupCode } from "@m2smart/contracts";
 import { connectAdmin, runTool, ToolError } from "../src/db/admin";
 
-const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
-async function startPairing(): Promise<void> {
+async function playBoard(): Promise<void> {
   if (process.env.NODE_ENV === "production") throw new ToolError("dev:pairing never runs with NODE_ENV=production.");
-  const [modelCode] = process.argv.slice(2);
+  const code = normalizeSetupCode(process.argv.slice(2).join(""));
+  if (!code) throw new ToolError("Usage: pnpm dev:pairing <setup code>   (the code the app shows, e.g. K7M4-Q9X2-PD8W)");
+
+  const hardwareUid = `DEV-${randomBytes(4).toString("hex").toUpperCase()}`;
+  const secret = randomBytes(32).toString("base64url");
   const client = await connectAdmin();
   try {
-    if (!modelCode) {
-      const models = await client.query<{ code: string; name: string }>(
-        "select code, name from public.hardware_models as model where exists (select 1 from public.hardware_model_pins as pin where pin.model_id = model.id and pin.function = 'setup_button') order by code",
-      );
-      console.log(["Usage: pnpm dev:pairing <model-code>", "", "Models:", ...models.rows.map((model) => `  ${model.code}  ${model.name}`)].join("\n"));
-      return;
-    }
-    const model = await client.query<{ id: string }>("select id from public.hardware_models where code = $1", [modelCode]);
-    if (!model.rows.length) throw new ToolError(`No hardware model ${modelCode}. Run pnpm dev:pairing without arguments to list models.`);
-
-    const hardwareUid = `DEV-${randomBytes(4).toString("hex").toUpperCase()}`;
-    const code = Array.from({ length: 26 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
-    await client.query("begin");
-    await client.query("insert into public.manufactured_boards (hardware_uid, model_id, factory_secret_hash) values ($1, $2, $3)", [
-      hardwareUid, model.rows[0].id, sha256(randomBytes(32).toString("base64url")),
-    ]);
-    await client.query("insert into public.board_pairings (hardware_uid, code_hash) values ($1, $2)", [hardwareUid, sha256(code)]);
-    await client.query("commit");
-    console.log(`Board ${hardwareUid} (${modelCode}) is in pairing mode. Its pairing code, valid once and for 24 hours:\n\n${formatPairingCode(hardwareUid, code)}\n`);
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
+    // The product the code waits for: the board played here is one of those.
+    const { rows } = await client.query<{ model_id: string }>(
+      `select board.model_id from public.board_setup_codes as setup join public.controllers as board on board.id = setup.controller_id
+       where setup.code_hash = $1 and setup.expires_at > now()`,
+      [sha256(code)],
+    );
+    if (!rows.length) throw new ToolError("No waiting board has this setup code (it may have expired: ask the app for a new one).");
+    await client.query("insert into public.manufactured_boards (hardware_uid, model_id, factory_secret_hash) values ($1, $2, $3)", [hardwareUid, rows[0].model_id, sha256(secret)]);
   } finally {
     await client.end();
   }
+
+  const api = (process.env.M2SMART_API_URL ?? `http://127.0.0.1:${process.env.API_PORT ?? 4000}`).replace(/\/+$/, "");
+  const response = await fetch(`${api}/v1/boards/claim`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hardwareUid, secret, code }) });
+  if (!response.ok) throw new ToolError(`The API refused the board (${response.status}): ${await response.text()}`);
+  console.log(`Board ${hardwareUid} used the setup code and joined the home. The dev board simulator connects it within seconds.`);
 }
 
-runTool(startPairing);
+runTool(playBoard);

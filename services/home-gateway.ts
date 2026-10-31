@@ -26,6 +26,7 @@ import type {
   Scenario,
   ScenarioRequest,
   ScenarioRunResponse,
+  SetupCodeResponse,
   UpdateDeviceRequest,
   UpdateMemberRequest,
   UpdatePropertyRequest,
@@ -102,10 +103,10 @@ export interface HomeGateway {
   /** Adds a product to the home: its channels become devices that wait for pairing. */
   addBoard(propertyId: string, input: { modelCode: string; channels: Array<{ key: string; name: string; roomId: string | null }> }): Promise<PairBoardResponse>;
   /**
-   * Pairs a waiting board with the real board whose pairing code this is (the text of the QR code
-   * its setup page showed). The real board must be the same product.
+   * A setup code for a board that waits in the home: the real board, in pairing mode, takes it on
+   * its own setup page and joins (docs/board-protocol.md). A new code ends the earlier one.
    */
-  pairBoard(propertyId: string, boardId: string, pairingCode: string): Promise<PairBoardResponse>;
+  createSetupCode(propertyId: string, boardId: string): Promise<SetupCodeResponse>;
   /** Removes a board with all its devices; the board must be paired again to be used. */
   removeBoard(propertyId: string, boardId: string): Promise<void>;
 
@@ -118,6 +119,6 @@ export interface HomeGateway {
 
   /** Demo only: removes one of the demo's original sample devices (they have no board). */
   removeDemoDevice?(propertyId: string, deviceId: string): Promise<void>;
-  /** Demo only: the sample QR code of a waiting board's product, to save and upload. */
-  demoPairingSample?(boardId: string): { label: string; image: string } | null;
+  /** Demo only: plays the real board using the setup code, so the waiting board becomes paired. */
+  simulateBoard?(propertyId: string, boardId: string): Promise<PairBoardResponse>;
 }

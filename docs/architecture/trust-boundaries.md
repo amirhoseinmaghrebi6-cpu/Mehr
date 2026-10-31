@@ -71,10 +71,10 @@ The contract is [../board-protocol.md](../board-protocol.md).
 
 - **A board joins a home only when all three hold:**
   - someone holds it (setup button, pairing mode);
-  - an owner or admin uploads its one-time pairing code in the app;
+  - an owner or admin of the home asked for the setup code it uses;
   - the board proves it is genuine with its factory secret.
-- **The registry of manufactured boards and the pending pairings are backend-only.** The server stores only hashes of factory secrets and pairing codes.
-- **A pairing code** is made by the board, fresh on every pairing mode, valid once and for 24 hours.
+- **The registry of manufactured boards and the setup codes are backend-only.** The server stores only hashes of factory secrets and setup codes.
+- **A setup code** is made by the server for one waiting board, valid once and for 10 minutes; a board gets 5 wrong tries an hour.
 - **A broker secret** is replaced at every pairing; the old one stops working.
 - **A factory reset leaves nothing on the server** about the board: no devices, states, commands, audit entry or notification. Removing the board in the app (owners and admins only) does the same and closes its broker account.
 - **Accepted risk:** whoever can hold the button owns the board (owning = holding).

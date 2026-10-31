@@ -6,7 +6,7 @@
  * the activity list is the last 24 hours of commands (the API keeps them that long anyway).
  */
 import { useEffect, useState } from "react";
-import { Camera, CircleCheck, Clock3, CloudFog, DoorOpen, Droplets, Flame, QrCode, ShieldAlert, ShieldCheck, Siren, Sparkles, TriangleAlert, User, Wifi, WifiOff, type LucideIcon } from "lucide-react";
+import { Camera, CircleCheck, Clock3, CloudFog, DoorOpen, Droplets, Flame, Link2, ShieldAlert, ShieldCheck, Siren, Sparkles, TriangleAlert, User, Wifi, WifiOff, type LucideIcon } from "lucide-react";
 import type { ActivityEntry, CapabilityName, CapabilityValue, Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { valueLabel } from "@/lib/device-ui";
@@ -15,7 +15,7 @@ import { formatDate, formatNumber, formatTime } from "@/lib/i18n";
 type ValueOf = (device: Device, capability: CapabilityName) => CapabilityValue | null;
 
 export type HomeAlert = { device: Device; kind: "smoke" | "leak" | "co" | "alarm" | "offline" | "open" | "pairing"; tone: "danger" | "warn" | "info" };
-const alertIcons: Record<HomeAlert["kind"], LucideIcon> = { smoke: Flame, leak: Droplets, co: CloudFog, alarm: Siren, offline: WifiOff, open: DoorOpen, pairing: QrCode };
+const alertIcons: Record<HomeAlert["kind"], LucideIcon> = { smoke: Flame, leak: Droplets, co: CloudFog, alarm: Siren, offline: WifiOff, open: DoorOpen, pairing: Link2 };
 const toneOrder = { danger: 0, warn: 1, info: 2 } as const;
 
 /** What needs attention right now, most urgent first. */

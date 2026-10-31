@@ -3,7 +3,7 @@
  * what is past its time, in small batches so it never holds long locks:
  * - finished commands after 24 hours (their delivery attempts go with them);
  * - events after 1 hour (they exist only to tell open apps about a change);
- * - pairing codes that expired unused;
+ * - setup codes that expired (used or not);
  * - one-time scenarios whose time and validity window have passed (commands they already sent
  *   stay until they finish);
  * - every scenario run except the latest of its scenario.
@@ -18,7 +18,7 @@ const BATCH = 5_000;
 const RULES: Array<[name: string, sql: string]> = [
   ["commands", `delete from public.device_commands where id in (select id from public.device_commands where completed_at < now() - interval '24 hours' limit ${BATCH})`],
   ["events", `delete from public.realtime_events where id in (select id from public.realtime_events where created_at < now() - interval '1 hour' limit ${BATCH})`],
-  ["pairings", "delete from public.board_pairings where expires_at <= now()"],
+  ["setup codes", "delete from public.board_setup_codes where expires_at <= now()"],
   [
     "one-time scenarios",
     `delete from public.scenarios as scenario using public.properties as property

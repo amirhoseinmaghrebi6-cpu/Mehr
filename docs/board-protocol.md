@@ -85,28 +85,31 @@ A wall-switch press or a sensor change is a `state` message without `id`. Sensor
 
 ## Pairing
 
-Nothing is printed on the product. The board makes its own pairing code.
+Nothing is printed on the product, and the board has no screen. The app gives a short setup code and the board takes it, so the user never has to carry a code from the board to the app.
 
-1. **Pairing mode.** The board makes a fresh random pairing code (26 characters from `A–Z` and `2–7`). Any earlier code is forgotten. It opens a temporary Wi-Fi access point with a setup page.
-2. **Setup page** (served by the board, no internet needed):
-   - asks for the home's Wi-Fi name and password;
-   - shows the pairing code as a QR code and as text, for the user to save: `M2P1:{hardware id}:{code}`.
-3. **Announce.** The board joins the home's Wi-Fi and calls `POST /v1/boards/announce` over HTTPS with `{"hardwareUid", "secret", "codeHash"}`: its hardware id, its factory secret and the SHA-256 (hex) of the pairing code. The answer is 204, or 401 for a board the registry does not know. The server now knows a genuine board is waiting; it stores only the hash, for at most 24 hours.
-4. **Confirm.** An owner or admin uploads the QR code (or pastes the text) in the app, for a board that waits in their home.
-   - In the app the product is picked first: its channels are named and placed, and they wait in the home ("awaiting pairing") until this step.
-   - The real board must be the same product as the one waiting; another product is refused.
-   - The waiting devices keep their names, rooms and scenario actions and become real.
-5. **Credentials.** The board calls `POST /v1/boards/credentials` with `{"hardwareUid", "secret", "code"}` every few seconds. Until step 4 has happened the answer is 202 `{"status":"waiting"}`; then it is 200 `{"status":"paired","boardId","brokerSecret"}`. Every such answer carries a fresh broker secret and ends the earlier one, so a board whose answer got lost simply asks again. A wrong secret or code gets 401.
-6. The board stores the credentials, closes the access point and connects to the broker.
+1. **In the app.** An owner or admin picks the product and names and places its channels; they wait in the home ("awaiting pairing"). The app then asks for a setup code (`POST /v1/properties/{home}/boards/{board}/setup-code`) and shows it as `XXXX-XXXX-XXXX`.
+   - 12 characters from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no 0/O or 1/I), about 60 random bits.
+   - Valid once and for 10 minutes, for this waiting board only. Asking again gives a new code and ends the earlier one. No two waiting codes are ever the same. The server stores only the SHA-256.
+2. **Pairing mode.** The user holds the board's setup button for 10–15 seconds. The board opens a temporary Wi-Fi access point named `M2smart-…`, with a setup page at `http://192.168.4.1`.
+3. **Setup page** (served by the board, no internet needed). The user's phone joins the board's Wi-Fi, and the user taps "Open the board's page" in the app. That opens `http://192.168.4.1/?code=XXXXXXXXXXXX`, so the code is filled in already. The page asks for:
+   - the home's Wi-Fi name and password;
+   - the setup code: filled in from the link, or typed. Typing accepts any case, spaces and dashes.
+4. **Claim.** The board joins the home's Wi-Fi and calls `POST /v1/boards/claim` over HTTPS with `{"hardwareUid", "secret", "code"}`: its hardware id, its factory secret and the setup code.
+   - **200** `{"boardId", "brokerSecret"}`: the board is now the waiting board of that home. The waiting devices keep their names, rooms and scenario actions and become real. If it was in another home, it leaves it.
+   - **401**: not a genuine board, or not a waiting code (wrong, used by another board, or expired). The page asks the user to check the code, or to get a new one in the app.
+   - **409**: the code waits for a different product. The page tells the user they picked the wrong product in the app.
+   - **429**: this board had 5 wrong answers in the last hour. It waits, then tries again.
+   - Asking again with the same code (the answer got lost) gives a fresh broker secret and ends the earlier one, until the code expires.
+5. The board stores the credentials, closes the access point and connects to the broker. The app sees the devices stop waiting (live updates) and says the board is paired.
 
-A pairing code works once. After 24 hours unused, it is deleted; holding the button again gives a new one.
+Why it is safe at any scale: a guess has a chance of about one in a billion even with thousands of codes waiting at once. Each board gets 5 wrong tries an hour. A code works for one board of the right product, only for 10 minutes. Only a genuine board (with its factory secret) can use one.
 
 The factory secret is a random value written to the board at production. It proves the board is genuine, and it is the only thing that survives a factory reset.
 
 ## Factory reset
 
 1. If the board is online, it publishes `reset` (best effort).
-2. It erases its broker secret, its Wi-Fi settings and any pairing code. The factory secret and hardware id stay.
+2. It erases its broker secret and its Wi-Fi settings. The factory secret and hardware id stay.
 3. It restarts, like new.
 
 The server then deletes everything about the board: the board, its devices, their states and commands, and the scenario actions that used them. Nothing is kept. If the server never hears of the reset, pairing the board with any home removes it from the old one.

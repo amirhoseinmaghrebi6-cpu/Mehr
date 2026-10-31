@@ -13,7 +13,11 @@ import {
   deviceTypeCategory,
   isDeviceType,
   normalizePhone,
-  parsePairingCode,
+  SETUP_CODE_ALPHABET,
+  SETUP_CODE_LENGTH,
+  SETUP_CODE_MINUTES,
+  boardSetupUrl,
+  formatSetupCode,
   type Command,
   type CommandStatus,
   type Property,
@@ -483,24 +487,26 @@ export function createDemoGateway(userId: string): HomeGateway {
       save();
       return { boardId, boardName: board.name, devices: clone(devices) };
     },
-    async pairBoard(propertyId, boardId, pairingCode) {
+    // Like the API: a fresh code for a waiting board (in the demo no board takes it).
+    async createSetupCode(propertyId, boardId) {
+      home(propertyId);
+      if (!data.waitingBoards?.[boardId]) throw new GatewayError("not_found");
+      await later(300);
+      const code = Array.from({ length: SETUP_CODE_LENGTH }, () => SETUP_CODE_ALPHABET[Math.floor(Math.random() * SETUP_CODE_ALPHABET.length)]).join("");
+      return { code: formatSetupCode(code), expiresAt: new Date(Date.now() + SETUP_CODE_MINUTES * 60_000).toISOString(), setupUrl: boardSetupUrl(code) };
+    },
+    // Plays the real board using its code: the waiting devices become real, like after a claim.
+    async simulateBoard(propertyId, boardId) {
       home(propertyId);
       const product = data.waitingBoards?.[boardId];
-      const parsed = parsePairingCode(pairingCode);
-      if (!product || !parsed || !demoBoards[parsed.hardwareUid]) throw new GatewayError("not_found");
-      // Like the API: the real board must be the product that was picked.
-      if (parsed.hardwareUid !== product) throw new GatewayError("conflict");
-      await later(700);
+      if (!product) throw new GatewayError("not_found");
+      await later(1500);
       const now = new Date().toISOString();
       const devices = (data.devices[propertyId] ?? []).filter((device) => device.boardId === boardId);
       for (const device of devices) Object.assign(device, { pending: false, online: true, lastSeenAt: now });
       delete data.waitingBoards![boardId];
       save();
       return { boardId, boardName: demoBoards[product].name, devices: clone(devices) };
-    },
-    demoPairingSample(boardId) {
-      const product = data.waitingBoards?.[boardId];
-      return product ? { label: demoBoards[product].name, image: demoBoards[product].image } : null;
     },
     async removeBoard(propertyId, boardId) {
       const devices = data.devices[propertyId] ?? [];

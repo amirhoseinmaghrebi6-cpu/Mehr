@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allBoardsTopic, boardAck, boardCommand, boardState, boardStatus, boardTopic, formatPairingCode, parseBoardTopic, parsePairingCode } from "../src/board-protocol.js";
+import { allBoardsTopic, boardAck, boardCommand, boardSetupUrl, boardState, boardStatus, boardTopic, formatSetupCode, normalizeSetupCode, parseBoardTopic } from "../src/board-protocol.js";
 
 const board = "7e570003-0000-4000-8000-00000000000a";
 const command = "7e570004-0000-4000-8000-00000000000b";
@@ -42,10 +42,11 @@ describe("board protocol", () => {
     expect(schema.safeParse(message).success).toBe(false);
   });
 
-  it("formats and parses the pairing code", () => {
-    const code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    expect(parsePairingCode(` ${formatPairingCode("M2-SW2-00A1:7F", code)}\n`)).toEqual({ hardwareUid: "M2-SW2-00A1:7F", code });
-    expect(parsePairingCode("M2P1:M2-SW2-00A1:short")).toBeNull();
-    expect(parsePairingCode(`https://example.com/?c=${code}`)).toBeNull();
+  it("formats and reads setup codes as people type them", () => {
+    expect(formatSetupCode("K7M4Q9X2PD8W")).toBe("K7M4-Q9X2-PD8W");
+    for (const typed of ["K7M4-Q9X2-PD8W", " k7m4 q9x2 pd8w\n", "k7m4q9x2pd8w"]) expect(normalizeSetupCode(typed), typed).toBe("K7M4Q9X2PD8W");
+    // Too short or long, or a look-alike that is not in the alphabet (0, O, 1, I).
+    for (const typed of ["K7M4-Q9X2", "K7M4-Q9X2-PD8W-A", "K7M4-Q9X2-PD80", "K7M4-Q9X2-PDOW", "K7M4-Q9X2-PD1W"]) expect(normalizeSetupCode(typed), typed).toBeNull();
+    expect(boardSetupUrl("K7M4Q9X2PD8W")).toBe("http://192.168.4.1/?code=K7M4Q9X2PD8W");
   });
 });

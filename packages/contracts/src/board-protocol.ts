@@ -80,71 +80,62 @@ export type BoardStatus = z.infer<typeof boardStatus>;
 /** board → server, best effort just before a factory reset erases the board. */
 export const boardReset = z.strictObject({});
 
-/**
- * The pairing code a board in pairing mode shows on its setup page, as a QR code and as text:
- * `M2P1:{hardwareUid}:{code}`. The code is 26 random characters (130 bits), fresh every time the
- * board enters pairing mode, valid once and for 24 hours. The server stores only its SHA-256.
- */
-const PAIRING = /^M2P1:([A-Za-z0-9:_-]{4,64}):([A-Z2-7]{26})$/;
-export const formatPairingCode = (hardwareUid: string, code: string) => `M2P1:${hardwareUid}:${code}`;
-export function parsePairingCode(text: string): { hardwareUid: string; code: string } | null {
-  const match = PAIRING.exec(text.trim());
-  return match ? { hardwareUid: match[1], code: match[2] } : null;
-}
+// --- Pairing by setup code (docs/board-protocol.md, "Pairing") ----------------------------------
 
-// --- Pairing over HTTPS (docs/board-protocol.md) -------------------------------------------------
+/**
+ * A setup code: 12 characters from an alphabet without look-alikes (no 0/O, 1/I), about 60 random
+ * bits. The app shows it as XXXX-XXXX-XXXX; it is valid once and for SETUP_CODE_MINUTES.
+ */
+export const SETUP_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+export const SETUP_CODE_LENGTH = 12;
+export const SETUP_CODE_MINUTES = 10;
+
+/** What someone typed (any case, spaces or dashes) as a setup code, or null if it cannot be one. */
+export function normalizeSetupCode(text: string): string | null {
+  const code = text.toUpperCase().replace(/[\s-]/g, "");
+  return code.length === SETUP_CODE_LENGTH && [...code].every((char) => SETUP_CODE_ALPHABET.includes(char)) ? code : null;
+}
+export const formatSetupCode = (code: string) => code.replace(/(.{4})(?=.)/g, "$1-");
+
+/** The board's own setup page while it is in pairing mode, with the code filled in. */
+export const BOARD_SETUP_ADDRESS = "http://192.168.4.1";
+export const boardSetupUrl = (code: string) => `${BOARD_SETUP_ADDRESS}/?code=${code}`;
+
+/** POST /v1/properties/:propertyId/boards/:boardId/setup-code (owner, admin): a fresh code. */
+export interface SetupCodeResponse {
+  /** XXXX-XXXX-XXXX */
+  code: string;
+  expiresAt: string;
+  /** Opens the board's setup page with the code filled in (the phone must be on the board's Wi-Fi). */
+  setupUrl: string;
+}
 
 const hardwareUid = z.string().regex(/^[A-Za-z0-9:_-]{4,64}$/);
 /** The random secret written to the board at production; it proves the board is genuine. */
 const factorySecret = z.string().min(32).max(128);
-const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
-
-/** POST /v1/boards/announce — a board in pairing mode is online and waiting to be paired. */
-export const boardAnnounceRequest = z.strictObject({
-  hardwareUid,
-  secret: factorySecret,
-  /** SHA-256 (hex) of the pairing code the board shows; the server never sees the code from the board. */
-  codeHash: sha256Hex,
-});
-export type BoardAnnounceRequest = z.infer<typeof boardAnnounceRequest>;
-
-/** POST /v1/boards/credentials — the board asks for its broker account. */
-export const boardCredentialsRequest = z.strictObject({
-  hardwareUid,
-  secret: factorySecret,
-  /** The pairing code itself (26 characters). */
-  code: z.string().regex(/^[A-Z2-7]{26}$/),
-});
-export type BoardCredentialsRequest = z.infer<typeof boardCredentialsRequest>;
-
-/** 202 while no owner or admin has uploaded the code yet; 200 with the account once they have. */
-export type BoardCredentialsResponse = { status: "waiting" } | { status: "paired"; boardId: string; brokerSecret: string };
-
-/** The text of a board's pairing QR code: `M2P1:{hardwareUid}:{code}`. */
-const pairingCode = z.string().max(200);
 
 /**
- * POST /v1/properties/:propertyId/boards/:boardId/pair — an owner or admin pairs a board that was
- * added to the home earlier with the real board whose code they hold. The real board must be the
- * same product.
+ * POST /v1/boards/claim: the board, in pairing mode and on the home's Wi-Fi, uses the setup code
+ * it was given and gets its broker account. Asking again with the same code (the answer was lost)
+ * gives a fresh secret and ends the earlier one.
  */
-export const pairBoardRequest = z.strictObject({ pairingCode });
-export type PairBoardRequest = z.infer<typeof pairBoardRequest>;
+export const boardClaimRequest = z.strictObject({
+  hardwareUid,
+  secret: factorySecret,
+  code: z.string().max(32),
+});
+export type BoardClaimRequest = z.infer<typeof boardClaimRequest>;
+export type BoardClaimResponse = { boardId: string; brokerSecret: string };
 
 /**
- * POST /v1/properties/:propertyId/boards — an owner or admin adds a board to the home:
- * - by product: the product's channels become devices with the given names and rooms, waiting to
- *   be paired later;
- * - by pairing code: the board is added and paired in one step.
+ * POST /v1/properties/:propertyId/boards: an owner or admin adds a product to the home; its
+ * channels become devices with the given names and rooms, waiting for their real board.
  */
-export const addBoardRequest = z.union([
-  z.strictObject({
-    modelCode: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
-    channels: z
-      .array(z.strictObject({ key: z.string().regex(/^[a-z][a-z0-9_]*$/).max(32), name: z.string().trim().min(1).max(60), roomId: z.uuid().nullable() }))
-      .max(32)
-      .default([]),
-  }),
-  pairBoardRequest,
-]);
+export const addBoardRequest = z.strictObject({
+  modelCode: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
+  channels: z
+    .array(z.strictObject({ key: z.string().regex(/^[a-z][a-z0-9_]*$/).max(32), name: z.string().trim().min(1).max(60), roomId: z.uuid().nullable() }))
+    .max(32)
+    .default([]),
+});
 export type AddBoardRequest = z.input<typeof addBoardRequest>;

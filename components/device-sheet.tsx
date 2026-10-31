@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Droplets, LoaderCircle, Pencil, Power, Video, X, QrCode, DoorOpen } from "lucide-react";
+import { Droplets, LoaderCircle, Pencil, Power, Video, X, Link2, DoorOpen } from "lucide-react";
 import { capabilities, type CapabilityName, type CapabilityValue, type Device } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
 import { messages } from "@/lib/i18n";
@@ -90,7 +90,7 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
         {device.pending && (
           <div className="sheet-pending">
             <p>{m.sheet.awaitingPairingText}</p>
-            {onPair && <button type="button" className="button-primary" onClick={onPair}><QrCode size={15} />{m.sheet.pairNow}</button>}
+            {onPair && <button type="button" className="button-primary" onClick={onPair}><Link2 size={15} />{m.sheet.pairNow}</button>}
           </div>
         )}
 

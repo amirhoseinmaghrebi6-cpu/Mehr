@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ActivityEntry, ApiErrorResponse, MeResponse, PhoneChangeResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, UserSettings } from "@m2smart/contracts";
+import type { ActivityEntry, ApiErrorResponse, MeResponse, PhoneChangeResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, SetupCodeResponse, UserSettings } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -101,8 +101,8 @@ export function createApiGateway(): HomeGateway {
 
     listProducts: async () => (await request<{ products: HardwareProduct[] }>("GET", "/hardware-products")).products,
     addBoard: (id, input) => request<PairBoardResponse>("POST", `/properties/${id}/boards`, input),
-    // Not retried: a pairing code works once.
-    pairBoard: (id, boardId, pairingCode) => request<PairBoardResponse>("POST", `/properties/${id}/boards/${boardId}/pair`, { pairingCode }),
+    // Not retried: each call makes a new code and ends the earlier one.
+    createSetupCode: (id, boardId) => request<SetupCodeResponse>("POST", `/properties/${id}/boards/${boardId}/setup-code`),
 
     removeBoard: (id, boardId) => request<void>("DELETE", `/properties/${id}/boards/${boardId}`),
 
