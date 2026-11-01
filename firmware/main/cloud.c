@@ -10,6 +10,7 @@
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "mqtt_client.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -19,6 +20,8 @@ static const char *TAG = "cloud";
 extern const char board_ca_pem_start[] asm("_binary_board_ca_pem_start");
 
 static esp_mqtt_client_handle_t client;
+/** Every value again every 10 minutes, so the server knows a quiet sensor is still there. */
+static esp_timer_handle_t heartbeat;
 static bool connected;
 static char topic_base[96];
 static int refused;
@@ -64,6 +67,10 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_COOLER: cJSON_AddStringToObject(item, "val", SPEEDS[value]); break;
     case M2_CH_CURTAIN:
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
+    case M2_CH_INPUT:
+        if (strcmp(ch->capability, "contact") == 0) cJSON_AddStringToObject(item, "val", POSITIONS[value]);
+        else cJSON_AddBoolToObject(item, "val", value);
+        break;
     }
     if (ch->kind == M2_CH_COOLER) cJSON_AddBoolToObject(value_item(values, ch->key, "pump"), "val", m2_channel_pump(channel));
 }
@@ -100,6 +107,11 @@ static void report_all(void)
     }
     if (cJSON_GetArraySize(values)) publish("state", json, false);
     cJSON_Delete(json);
+}
+
+static void report_all_now(void *arg)
+{
+    if (connected) report_all();
 }
 
 void m2_cloud_report(int channel, const char *command_id)
@@ -141,7 +153,8 @@ static void on_command(const char *data, int len)
     // A cooler's second capability: its pump.
     bool pump = target && target->kind == M2_CH_COOLER && strcmp(cap->valuestring, "pump") == 0;
     int value = target ? decode(target, pump, val) : -1;
-    if (!target || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
+    // A sensor's values are read-only.
+    if (!target || target->kind == M2_CH_INPUT || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
         ack(id->valuestring, "unknown_target");
     } else if (value < 0) {
         ack(id->valuestring, "invalid_value");
@@ -230,6 +243,9 @@ void m2_cloud_start(const char *board_id, const char *broker_secret)
         return;
     }
 #endif
+    esp_timer_create_args_t beat = { .callback = report_all_now, .name = "heartbeat" };
+    esp_timer_create(&beat, &heartbeat);
+    esp_timer_start_periodic(heartbeat, 10LL * 60 * 1000 * 1000);
     client = esp_mqtt_client_init(&config);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, on_event, NULL);
     esp_mqtt_client_start(client);

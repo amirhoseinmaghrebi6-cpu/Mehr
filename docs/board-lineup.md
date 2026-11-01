@@ -206,7 +206,7 @@ Channels: `humidity_sensor`, `light_sensor`, `motion_sensor`.
 | 4 | LD2410 OUT (presence, as a backup to UART) |
 | 5 | setup button |
 
-Channel: `presence_sensor`. Unlike PIR, it sees people who sit still.
+Channel: `presence_sensor`. Unlike PIR, it sees people who sit still. The firmware reads the OUT pin with the radar's factory settings; the UART is wired for tuning its range later.
 
 ### M2-CT: door and window contact (ESP32-C3)
 

@@ -27,6 +27,12 @@ typedef enum {
      * state comes only from the contact `sensor_gpio` (to GND, closed = door closed).
      */
     M2_CH_GARAGE,
+    /**
+     * A sensor on one input, `sensor_gpio`: value 1 while it is active (water, smoke, motion,
+     * presence, a door open). `relay_gpio` may drive a buzzer that sounds while it is active, even
+     * offline; otherwise -1.
+     */
+    M2_CH_INPUT,
 } m2_channel_kind_t;
 
 typedef struct {
@@ -49,6 +55,10 @@ typedef struct {
     bool inhibit_active_high;
     /** Further pins, read only by the kinds that name them above. */
     int relay2_gpio, relay3_gpio, key2_gpio, sensor_gpio;
+    /** Inputs: the sensor is active when its pin reads HIGH (else LOW). */
+    bool sensor_active_high;
+    /** Inputs: the sensor drives its pin (a pull-down keeps a missing one quiet); otherwise it is a contact to GND with a pull-up. */
+    bool sensor_driven;
     /** Curtains: how long the motor runs from one end to the other. */
     int travel_ms;
 } m2_channel_t;

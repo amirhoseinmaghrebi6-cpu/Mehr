@@ -47,9 +47,12 @@ static void output(int gpio)
     relay(gpio, false);
 }
 
-static void input(int gpio)
+/** Contacts to GND get a pull-up; sensors that drive their pin, a pull-down. */
+static void input(int gpio, bool driven)
 {
-    gpio_config_t in = { .pin_bit_mask = 1ULL << gpio, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE };
+    gpio_config_t in = { .pin_bit_mask = 1ULL << gpio, .mode = GPIO_MODE_INPUT };
+    if (driven) in.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    else in.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&in);
 }
 
@@ -89,10 +92,11 @@ static void save(int channel)
     m2_save_channel(channel, (uint8_t)(value[channel] | (pump[channel] ? 0x10 : 0)));
 }
 
-/** A door contact to GND with a pull-up: LOW = closed. */
-static int door_contact(const m2_channel_t *ch)
+/** A parking door's contact (to GND, LOW = closed) or a sensor input: 1 = open or active. */
+static int read_sensor(const m2_channel_t *ch)
 {
-    return gpio_get_level(ch->sensor_gpio) ? 1 : 0;
+    int high = gpio_get_level(ch->sensor_gpio) ? 1 : 0;
+    return ch->kind == M2_CH_INPUT ? high == (ch->sensor_active_high ? 1 : 0) : high;
 }
 
 /** Fan and cooler: break before make, so the motor never gets both windings. */
@@ -135,7 +139,7 @@ void m2_channels_init(void)
     lock = xSemaphoreCreateMutex();
     for (int i = 0; i < m2_board.channel_count && i < MAX_CHANNELS; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
-        output(ch->relay_gpio);
+        if (ch->kind != M2_CH_INPUT) output(ch->relay_gpio);
         if (ch->kind == M2_CH_FAN || ch->kind == M2_CH_COOLER || ch->kind == M2_CH_CURTAIN) output(ch->relay2_gpio);
         if (ch->kind == M2_CH_COOLER) output(ch->relay3_gpio);
         uint8_t saved = m2_load_channel(i);
@@ -143,7 +147,7 @@ void m2_channels_init(void)
         case M2_CH_SWITCH:
             value[i] = saved & 1;
             if (ch->inhibit_gpio >= 0) {
-                input(ch->inhibit_gpio);
+                input(ch->inhibit_gpio, false);
                 if (m2_channel_inhibited(i)) value[i] = 0;
             }
             relay(ch->relay_gpio, value[i]);
@@ -162,8 +166,14 @@ void m2_channels_init(void)
             value[i] = saved & 1;
             break;
         case M2_CH_GARAGE:
-            input(ch->sensor_gpio);
-            value[i] = door_contact(ch);
+            input(ch->sensor_gpio, false);
+            value[i] = read_sensor(ch);
+            break;
+        case M2_CH_INPUT:
+            input(ch->sensor_gpio, ch->sensor_driven);
+            if (ch->relay_gpio >= 0) output(ch->relay_gpio);
+            value[i] = read_sensor(ch);
+            if (ch->relay_gpio >= 0) relay(ch->relay_gpio, value[i]);
             break;
         case M2_CH_MOMENTARY:
             // A strike never comes back on after a power cut.
@@ -250,7 +260,7 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
         move_curtain(channel, to, command_id);
         break;
     case M2_CH_GARAGE:
-        if (door_contact(ch) == to) {
+        if (read_sensor(ch) == to) {
             // Already there: nothing to move.
             report(channel, command_id);
             break;
@@ -262,6 +272,9 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
         esp_timer_stop(timers[channel]);
         esp_timer_start_once(timers[channel], (uint64_t)(ch->pulse_ms > 0 ? ch->pulse_ms : 1000) * 1000);
         break;
+    case M2_CH_INPUT:
+        // A sensor takes no commands.
+        return false;
     }
     return true;
 }
@@ -299,18 +312,21 @@ void m2_channel_key(int channel, bool second, bool down)
     give();
 }
 
+
 void m2_channels_poll(void)
 {
     take();
     for (int i = 0; i < m2_board.channel_count; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
         if (value[i] && m2_channel_inhibited(i)) set(i, false, 0, NULL);
-        if (ch->kind != M2_CH_GARAGE) continue;
-        int now = door_contact(ch);
+        if (ch->kind != M2_CH_GARAGE && ch->kind != M2_CH_INPUT) continue;
+        int now = read_sensor(ch);
         contact_count[i] = now != value[i] ? contact_count[i] + 1 : 0;
         if (contact_count[i] < CONTACT_SAMPLES) continue;
         contact_count[i] = 0;
         value[i] = now;
+        // A leak sensor's buzzer sounds while it is wet, with or without internet.
+        if (ch->kind == M2_CH_INPUT && ch->relay_gpio >= 0) relay(ch->relay_gpio, now);
         // The door got where the command asked: that completes it. Otherwise it is a report of its own.
         bool asked = pending[i][0] && now == target[i];
         report(i, asked ? pending[i] : NULL);

@@ -1,6 +1,7 @@
 /*
  * Runs main/channels.c on a PC against stubbed GPIOs and timers, once per motor board
- * (firmware/test/run.sh). Every relay change is checked: a motor's two relays are never on together.
+ * and sensor board (firmware/test/run.sh). Every relay change is checked: a motor's two relays are
+ * never on together.
  */
 #include <assert.h>
 #include <stdio.h>
@@ -121,8 +122,31 @@ int main(void)
     level[ch->sensor_gpio] = 0;  // closed by its own remote: a report of its own
     poll(3);
     assert(m2_channel_value(0) == 0 && reports == 3 && !strcmp(last_id, ""));
+#elif CONFIG_M2_BOARD_LK
+    level[4] = 1;  // dry
+    m2_channels_init();
+    assert(m2_channel_value(0) == 0 && !level[5]);
+    level[4] = 0;  // water
+    poll(3);
+    assert(m2_channel_value(0) == 1 && level[5] && reports == 1);  // the buzzer sounds, offline too
+    assert(!m2_channel_command(0, false, 0, "x"));  // a sensor takes no commands
+    level[4] = 1;
+    poll(3);
+    assert(m2_channel_value(0) == 0 && !level[5] && reports == 2);
+#elif CONFIG_M2_BOARD_CT
+    level[4] = 0;  // the reed is closed: the door is closed
+    m2_channels_init();
+    assert(m2_channel_value(0) == 0);
+    level[4] = 1;
+    poll(1);
+    level[4] = 0;  // a bounce: not counted
+    poll(3);
+    assert(m2_channel_value(0) == 0 && reports == 0);
+    level[4] = 1;
+    poll(3);
+    assert(m2_channel_value(0) == 1 && reports == 1);
 #else
-#error "channels_test covers fn, cl, cu, gd"
+#error "channels_test covers fn, cl, cu, gd, lk, ct"
 #endif
     printf("%s: ok\n", m2_board.model);
     return 0;

@@ -118,6 +118,49 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED 10
 
+#elif CONFIG_M2_BOARD_CT
+/* Door and window contact (ESP32-C3): reed switch 4 to GND (closed = door closed); setup button 5. */
+#define MODEL "m2-ct-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "contact", .kind = M2_CH_INPUT, .capability = "contact", .relay_gpio = -1, .sensor_gpio = 4, .sensor_active_high = true, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 5
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED -1
+
+#elif CONFIG_M2_BOARD_LK
+/* Water leak (ESP32-C3): probe 4 (low = water), buzzer 5 (sounds while wet); setup button 6. */
+#define MODEL "m2-lk-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "leak", .kind = M2_CH_INPUT, .capability = "leak", .relay_gpio = 5, .sensor_gpio = 4, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 6
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED -1
+
+#elif CONFIG_M2_BOARD_SM
+/* Smoke (ESP32-C3): the relay contact of a certified smoke detector on 4 (closed = smoke); setup button 5. */
+#define MODEL "m2-sm-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "smoke", .kind = M2_CH_INPUT, .capability = "smoke", .relay_gpio = -1, .sensor_gpio = 4, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 5
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED -1
+
+#elif CONFIG_M2_BOARD_PR
+/*
+ * Presence, mmWave (ESP32-C3): the LD2410's OUT pin on 4 (high = someone there, also sitting
+ * still); setup button 5. Its UART (6, 7) is wired for later tuning; its factory settings serve.
+ */
+#define MODEL "m2-pr-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "presence", .kind = M2_CH_INPUT, .capability = "presence", .relay_gpio = -1, .sensor_gpio = 4, .sensor_active_high = true, .sensor_driven = true, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 5
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED -1
+
 #elif CONFIG_M2_BOARD_PM
 /* Water pump (ESP32-C3): contactor relay 4; setup button 5; float switch 6 (open = tank empty) guards against running dry. */
 #define MODEL "m2-pm-rev-a"

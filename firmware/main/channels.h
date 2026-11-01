@@ -3,7 +3,8 @@
  * back after a power cut, before there is any internet) and reported to the cloud.
  *
  * A channel's value depends on its kind (board.h): a switch 0/1; a fan or cooler speed 0 off,
- * 1 low, 2 high; a curtain or parking door 0 closed, 1 open. A cooler also has its pump.
+ * 1 low, 2 high; a curtain or parking door 0 closed, 1 open; a sensor input 1 while active. A
+ * cooler also has its pump.
  * Relays of one motor are never on together, whoever asks and from whichever task.
  */
 #pragma once
@@ -31,7 +32,7 @@ bool m2_channel_inhibited(int channel);
 bool m2_channel_command(int channel, bool pump, int value, const char *command_id);
 /** A wall key went down or up; `second` is a curtain's "close" key. */
 void m2_channel_key(int channel, bool second, bool down);
-/** Guards (a pump's float switch) and parking-door contacts; called often (the keys' task). */
+/** Guards (a pump's float switch), parking-door contacts and sensor inputs; called often (the keys' task). */
 void m2_channels_poll(void);
 
 /** Feedback without changing the saved state: a switch channel's light blinks `times` (pairing: 2, reset: 3). */
