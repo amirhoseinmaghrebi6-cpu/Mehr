@@ -1,5 +1,31 @@
 menu "M2smart"
 
+    choice M2_BOARD
+        prompt "Board"
+        default M2_BOARD_DEVKIT
+        help
+            The PCB model this firmware is built for (main/board.c, docs/board-lineup.md).
+            firmware/build.sh <board> chooses it.
+        config M2_BOARD_DEVKIT
+            bool "DevKit test board, 2 channels (ESP32)"
+        config M2_BOARD_T1
+            bool "Touch switch, 1 key (ESP32-C3)"
+        config M2_BOARD_T2
+            bool "Touch switch, 2 keys (ESP32-C3)"
+        config M2_BOARD_T3
+            bool "Touch switch, 3 keys (ESP32-C3)"
+        config M2_BOARD_T4
+            bool "Touch switch, 4 keys (ESP32-C3)"
+        config M2_BOARD_R8
+            bool "8-relay panel board (ESP32)"
+        config M2_BOARD_SK
+            bool "Smart socket (ESP32-C3)"
+        config M2_BOARD_DO
+            bool "Door opener (ESP32-C3)"
+        config M2_BOARD_PM
+            bool "Water pump (ESP32-C3)"
+    endchoice
+
     config M2_API_URL
         string "Server address"
         default "https://m2smart.ir"
@@ -19,7 +45,8 @@ menu "M2smart"
             For a DevKit against the development stack on a PC. Never in production.
 
     choice M2_KEYS
-        prompt "Keys"
+        prompt "DevKit keys"
+        depends on M2_BOARD_DEVKIT
         default M2_KEYS_TTP223
         config M2_KEYS_TTP223
             bool "TTP223 touch keys (output high while touched)"

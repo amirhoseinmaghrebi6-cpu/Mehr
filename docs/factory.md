@@ -11,10 +11,10 @@ The server's registry of manufactured boards keeps only each secret's SHA-256. A
 `main/board.c` has the model's pin table (one build per model). Copy the server's board CA to `firmware/certs/board_ca.pem`, then:
 
 ```sh
-sh firmware/build.sh
+sh firmware/build.sh t2     # the model's board: t1-t4, r8, sk, do, pm
 ```
 
-The flash files land in `firmware/dist/`. Upload the same `m2smart-board.bin` in the admin panel → Firmware, so the boards' later updates start from it.
+The flash files land in `firmware/dist/<board>/`. Upload the same `m2smart-board.bin` in the admin panel → Firmware, so the boards' later updates start from it.
 
 ## 2. Register a batch
 
@@ -45,7 +45,7 @@ This writes a `<id>.bin` next to each `<id>.csv`, using Espressif's tool in Dock
 On the factory PC (Windows, with esptool from the Arduino IDE or `pip install esptool`):
 
 ```powershell
-.\firmware\factory\flash-batch.ps1 -Batch <batch folder> -Port COM5
+.\firmware\factory\flash-batch.ps1 -Batch <batch folder> -Board t2 -Port COM5
 ```
 
 The script works through the batch one board at a time:
@@ -53,7 +53,7 @@ The script works through the batch one board at a time:
 - it writes the firmware and that board's own identity;
 - it records the board in `flashed.csv`.
 
-You can stop and start again: flashed boards are skipped. Label each board with the id the script shows. For ESP32-C3 or -S3 boards, add `-Chip esp32c3` or `-Chip esp32s3`.
+You can stop and start again: flashed boards are skipped. Label each board with the id the script shows. The script picks the chip from the board (ESP32-C3 for t1–t4, sk, do, pm; ESP32 for r8).
 
 ## 5. Delete the batch
 

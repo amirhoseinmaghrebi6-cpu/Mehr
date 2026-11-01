@@ -3,6 +3,7 @@
 #include <string.h>
 #include "setup_mode.h"
 #include "claim.h"
+#include "led.h"
 #include "net.h"
 #include "storage.h"
 #include "cJSON.h"
@@ -120,6 +121,7 @@ void m2_setup_start(const char *board_uid, const char *secret)
     // The network is named after the last 4 characters of the hardware id.
     snprintf(name, sizeof(name), "M2smart-%.4s", len > 4 ? uid + len - 4 : uid);
     m2_net_start_ap(name);
+    m2_led_set(M2_LED_BLINK);
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;

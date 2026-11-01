@@ -1,6 +1,7 @@
 /*
  * The board this firmware is built for: its channels and pins. One table per PCB model, the same
- * pin map as its hardware catalog entry (docs/board-lineup.md). Users never change it.
+ * pin map as its hardware catalog entry (docs/board-lineup.md), chosen at build time
+ * (`sh firmware/build.sh <board>`). Users never change it.
  */
 #pragma once
 
@@ -25,6 +26,13 @@ typedef struct {
     int key_gpio;
     /** Momentary channels: how long a release from the app lasts. */
     int pulse_ms;
+    /**
+     * An input that keeps the channel off while it is active, or -1: a pump's float switch (open
+     * when the tank is empty) stops it and refuses to start it, even with no internet.
+     */
+    int inhibit_gpio;
+    /** The inhibit input is active when HIGH (a float switch to GND with a pull-up: open = HIGH). */
+    bool inhibit_active_high;
 } m2_channel_t;
 
 typedef struct {
@@ -36,6 +44,10 @@ typedef struct {
     int setup_gpio;
     /** A GPIO HIGH turns a relay on (through a ULN2803). */
     bool relay_active_high;
+    /** Keys read HIGH while pressed (TTP223 touch keys) or LOW (push buttons to GND). */
+    bool keys_active_high;
+    /** A status LED (steady: connected; slow blink: pairing mode), or -1. */
+    int status_led_gpio;
 } m2_board_t;
 
 extern const m2_board_t m2_board;

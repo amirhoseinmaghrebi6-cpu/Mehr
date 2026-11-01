@@ -33,6 +33,11 @@ void m2_channels_init(void)
         gpio_config(&out);
         // A momentary channel never comes back on after a power cut.
         state[i] = ch->kind == M2_CH_SWITCH && m2_load_channel(i);
+        if (ch->inhibit_gpio >= 0) {
+            gpio_config_t in = { .pin_bit_mask = 1ULL << ch->inhibit_gpio, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE };
+            gpio_config(&in);
+            if (m2_channel_inhibited(i)) state[i] = false;
+        }
         drive(i, state[i]);
         if (ch->kind == M2_CH_MOMENTARY) {
             esp_timer_create_args_t args = { .callback = pulse_done, .arg = (void *)(intptr_t)i, .name = "pulse" };
@@ -51,13 +56,28 @@ bool m2_channel_is_on(int channel)
     return state[channel];
 }
 
-void m2_channel_set(int channel, bool on, const char *command_id)
+bool m2_channel_inhibited(int channel)
 {
-    if (channel < 0 || channel >= m2_board.channel_count) return;
+    const m2_channel_t *ch = &m2_board.channels[channel];
+    return ch->inhibit_gpio >= 0 && gpio_get_level(ch->inhibit_gpio) == (ch->inhibit_active_high ? 1 : 0);
+}
+
+void m2_channels_poll_guards(void)
+{
+    for (int i = 0; i < m2_board.channel_count; i++) {
+        if (state[i] && m2_channel_inhibited(i)) m2_channel_set(i, false, NULL);
+    }
+}
+
+bool m2_channel_set(int channel, bool on, const char *command_id)
+{
+    if (channel < 0 || channel >= m2_board.channel_count) return false;
+    if (on && m2_channel_inhibited(channel)) return false;
     state[channel] = on;
     drive(channel, on);
     if (m2_board.channels[channel].kind == M2_CH_SWITCH) m2_save_channel(channel, on);
     if (listener) listener(channel, on, command_id);
+    return true;
 }
 
 void m2_channel_toggle(int channel)

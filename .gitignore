@@ -28,3 +28,4 @@ firmware/.last-build
 # Factory batches: they hold boards' secrets until flashed (docs/factory.md).
 /factory/
 /backend/factory/
+firmware/sdkconfig.board

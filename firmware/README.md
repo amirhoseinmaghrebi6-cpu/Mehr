@@ -33,9 +33,11 @@ cp infra/prod/certs/ca/ca.crt firmware/certs/board_ca.pem
 ```
 
 ```sh
-sh firmware/build.sh          # production: m2smart.ir
-sh firmware/build.sh dev      # a DevKit against the dev stack on your PC
+sh firmware/build.sh t2          # one board, for production (m2smart.ir)
+sh firmware/build.sh devkit dev  # the DevKit against the dev stack on your PC
 ```
+
+Boards: `devkit`, `t1`–`t4` (touch switches), `r8` (8-relay panel), `sk` (socket), `do` (door opener), `pm` (water pump). Each has its own chip, pin table (`main/board.c`) and output folder, `firmware/dist/<board>/`.
 
 For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC's address on the home network in it.
 
@@ -45,14 +47,14 @@ For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC
    - an LED with a 220 Ω resistor from GPIO 16 to GND (relay 1), and another from GPIO 17 (relay 2);
    - push buttons from GPIO 32 (key 1, also the setup key) and GPIO 33 (key 2) to GND.
    - TTP223 modules instead of buttons: output to GPIO 32/33, VCC to 3.3 V, GND to GND, and `CONFIG_M2_KEYS_TTP223=y` in `sdkconfig.dev`.
-2. **Give it a factory identity:** `pnpm dev:devkit` registers a new board (`KIT-…`) and writes `firmware/provision/KIT-….csv`. The next `sh firmware/build.sh dev` turns it into `KIT-….bin`.
+2. **Give it a factory identity:** `pnpm dev:devkit` registers a new board (`KIT-…`) and writes `firmware/provision/KIT-….csv`. The next `sh firmware/build.sh devkit dev` turns it into `KIT-….bin`.
 3. **Flash it** from Windows: Docker cannot reach the USB port, so this step runs outside Docker.
    - **esptool** comes with the Arduino IDE's ESP32 package: `%LOCALAPPDATA%\Arduino15\packages\esp32\tools\esptool_py\4.5.1\esptool.exe`. A `pip install esptool` works too.
    - **The USB driver** (CP210x or CH340) is there already if the Arduino IDE has uploaded to this DevKit.
-   - From `firmware/dist`, with your COM port (the Arduino IDE shows it under Tools → Port):
+   - From `firmware/dist/devkit`, with your COM port (the Arduino IDE shows it under Tools → Port):
 
    ```bat
-   "%LOCALAPPDATA%\Arduino15\packages\esp32\tools\esptool_py\4.5.1\esptool.exe" --chip esp32 -p COM5 -b 460800 write_flash @flash_args 0xF000 ..\provision\KIT-XXXX.bin
+   "%LOCALAPPDATA%\Arduino15\packages\esp32\tools\esptool_py\4.5.1\esptool.exe" --chip esp32 -p COM5 -b 460800 write_flash @flash_args 0xF000 ..\..\provision\KIT-XXXX.bin
    ```
 
    The first flash writes the factory partition (`0xF000 …bin`). Later flashes leave it out: the board keeps its identity, Wi-Fi and pairing.
@@ -65,8 +67,8 @@ Factory batches (an identity per board) and flashing them one after another: [do
 ## Releasing a new version
 
 1. Raise `PROJECT_VER` in `firmware/CMakeLists.txt`, for example `0.1.0` → `0.2.0`.
-2. Run `sh firmware/build.sh` for production.
-3. In the admin panel → Firmware, pick the board model, upload `firmware/dist/m2smart-board.bin` and publish it. The panel reads the version and the model from the file.
+2. Run `sh firmware/build.sh <board>` for production, once per board model.
+3. In the admin panel → Firmware, pick the board model, upload `firmware/dist/<board>/m2smart-board.bin` and publish it. The panel reads the version and the model from the file.
 
 ## Try it with the dev stack
 

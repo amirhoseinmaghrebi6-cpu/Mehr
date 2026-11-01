@@ -1,12 +1,12 @@
 #include "keys.h"
 #include "board.h"
 #include "channels.h"
+#include "led.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "sdkconfig.h"
 
 #define POLL_MS 20
 #define PAIRING_FROM_MS 7000
@@ -21,22 +21,19 @@ static m2_key_action_t reset_action;
 
 static bool pressed(int gpio)
 {
-#if CONFIG_M2_KEYS_BUTTON
-    return gpio_get_level(gpio) == 0;
-#else
-    return gpio_get_level(gpio) == 1;
-#endif
+    return gpio_get_level(gpio) == (m2_board.keys_active_high ? 1 : 0);
 }
 
 static void configure(int gpio)
 {
     gpio_config_t in = { .pin_bit_mask = 1ULL << gpio, .mode = GPIO_MODE_INPUT };
-#if CONFIG_M2_KEYS_BUTTON
-    in.pull_up_en = GPIO_PULLUP_ENABLE;
-#else
-    // TTP223 drives its output; a pull-down keeps a missing module from reading as a touch.
-    in.pull_down_en = GPIO_PULLDOWN_ENABLE;
-#endif
+    // Input-only pins (ESP32 GPIO 34-39) have no pull resistors: those are on the PCB.
+    if (GPIO_IS_VALID_OUTPUT_GPIO(gpio)) {
+        // A push button pulls to GND; a TTP223 drives its output, and the pull-down keeps a
+        // missing module from reading as a touch.
+        if (m2_board.keys_active_high) in.pull_down_en = GPIO_PULLDOWN_ENABLE;
+        else in.pull_up_en = GPIO_PULLUP_ENABLE;
+    }
     gpio_config(&in);
 }
 
@@ -92,7 +89,7 @@ static void watch(void *arg)
                     int64_t held_ms = (now - key->since) / 1000;
                     if (key->setup && held_ms >= PAIRING_FROM_MS && held_ms < PAIRING_TO_MS) {
                         ESP_LOGI(TAG, "Setup key held %lld ms: pairing mode", held_ms);
-                        m2_channel_blink(key->channel >= 0 ? key->channel : 0, 2);
+                        m2_feedback(2);
                         if (pairing_action) pairing_action();
                     }
                 }
@@ -102,13 +99,14 @@ static void watch(void *arg)
                 key->reset_done = true;
                 if (now < RESET_WINDOW_US) {
                     ESP_LOGW(TAG, "Setup key held over 15 s after power-up: factory reset");
-                    m2_channel_blink(key->channel >= 0 ? key->channel : 0, 3);
+                    m2_feedback(3);
                     if (reset_action) reset_action();
                 } else {
                     ESP_LOGI(TAG, "Factory reset ignored: only within 3 minutes after power-up");
                 }
             }
         }
+        m2_channels_poll_guards();
         vTaskDelay(pdMS_TO_TICKS(POLL_MS));
     }
 }

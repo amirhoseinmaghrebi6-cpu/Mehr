@@ -4,6 +4,7 @@
 #include "cloud.h"
 #include "board.h"
 #include "channels.h"
+#include "led.h"
 #include "ota.h"
 #include "storage.h"
 #include "cJSON.h"
@@ -98,6 +99,9 @@ static void on_command(const char *data, int len)
     const m2_channel_t *target = channel >= 0 ? &m2_board.channels[channel] : NULL;
     if (!target || strcmp(target->capability, cap->valuestring) != 0) {
         ack(id->valuestring, "unknown_target");
+    } else if (target->kind == M2_CH_SWITCH && cJSON_IsBool(val) && cJSON_IsTrue(val) && m2_channel_inhibited(channel)) {
+        // e.g. a pump whose tank is empty: it must not run dry.
+        ack(id->valuestring, "blocked_by_sensor");
     } else if (target->kind == M2_CH_SWITCH && cJSON_IsBool(val)) {
         ack(id->valuestring, NULL);
         m2_channel_set(channel, cJSON_IsTrue(val), id->valuestring);
@@ -118,6 +122,7 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     case MQTT_EVENT_CONNECTED: {
         connected = true;
         refused = 0;
+        m2_led_set(M2_LED_ON);
         ESP_LOGI(TAG, "Connected to the broker");
         topic(name, sizeof(name), "cmd");
         esp_mqtt_client_subscribe(client, name, 1);
@@ -135,6 +140,7 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     }
     case MQTT_EVENT_DISCONNECTED:
         connected = false;
+        m2_led_set(M2_LED_OFF);
         break;
     case MQTT_EVENT_DATA:
         topic(name, sizeof(name), "cmd");

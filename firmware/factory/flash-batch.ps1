@@ -1,19 +1,20 @@
 <#
   Flashes a factory batch, one board after another (docs/factory.md). For each board of the
   batch's manifest that is not flashed yet: connect it, press Enter; it gets the production
-  firmware (firmware/dist) and its own factory partition, and is written to flashed.csv.
+  firmware (firmware/dist/<board>) and its own factory partition, and is written to flashed.csv.
 
-  .\firmware\factory\flash-batch.ps1 -Batch <batch folder> -Port COM5
+  .\firmware\factory\flash-batch.ps1 -Batch <batch folder> -Board t2 -Port COM5
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Batch,
+  [Parameter(Mandatory = $true)][ValidateSet("devkit", "t1", "t2", "t3", "t4", "r8", "sk", "do", "pm")][string]$Board,
   [Parameter(Mandatory = $true)][string]$Port,
-  [string]$Esptool = "$env:LOCALAPPDATA\Arduino15\packages\esp32\tools\esptool_py\4.5.1\esptool.exe",
-  [string]$Chip = "esp32"
+  [string]$Esptool = "$env:LOCALAPPDATA\Arduino15\packages\esp32\tools\esptool_py\4.5.1\esptool.exe"
 )
 $ErrorActionPreference = "Stop"
-$dist = Join-Path $PSScriptRoot "..\dist"
-if (-not (Test-Path (Join-Path $dist "flash_args"))) { throw "Build the production firmware first: sh firmware/build.sh" }
+$Chip = if ($Board -in @("devkit", "r8")) { "esp32" } else { "esp32c3" }
+$dist = Join-Path $PSScriptRoot "..\dist\$Board"
+if (-not (Test-Path (Join-Path $dist "flash_args"))) { throw "Build the production firmware first: sh firmware/build.sh $Board" }
 if (-not (Test-Path $Esptool)) { throw "esptool not found at $Esptool (pass -Esptool)" }
 $flashed = Join-Path $Batch "flashed.csv"
 $done = @{}

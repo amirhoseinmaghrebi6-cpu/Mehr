@@ -9,6 +9,7 @@
 #include "channels.h"
 #include "cloud.h"
 #include "keys.h"
+#include "led.h"
 #include "net.h"
 #include "ota.h"
 #include "setup_mode.h"
@@ -40,6 +41,7 @@ void app_main(void)
 {
     ESP_ERROR_CHECK(m2_storage_init());
     m2_channels_init();
+    m2_led_init();
     m2_channels_listen(m2_cloud_report);
     m2_keys_start(on_pairing, on_factory_reset);
 

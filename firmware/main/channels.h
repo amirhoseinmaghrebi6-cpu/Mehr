@@ -14,7 +14,12 @@ void m2_channels_init(void);
 void m2_channels_listen(m2_channel_listener_t listener);
 
 bool m2_channel_is_on(int channel);
-void m2_channel_set(int channel, bool on, const char *command_id);
+/** False if the channel may not come on now (its guard input is active, e.g. a pump's tank is empty). */
+bool m2_channel_set(int channel, bool on, const char *command_id);
+/** Whether a guard input keeps the channel off right now. */
+bool m2_channel_inhibited(int channel);
+/** Switches off every channel whose guard input became active; called often (the keys' task). */
+void m2_channels_poll_guards(void);
 void m2_channel_toggle(int channel);
 /** Momentary channels: on for `ms`, then off again. */
 void m2_channel_pulse(int channel, int ms, const char *command_id);

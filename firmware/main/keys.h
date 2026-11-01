@@ -2,8 +2,8 @@
  * Wall keys (TTP223 touch keys in momentary mode, or push buttons) and the setup key
  * (docs/board-protocol.md, "The setup key"):
  * - a touch switches its channel at once (a momentary channel is on while the key is held);
- * - the setup key held 7–10 s and released: pairing mode (its light blinks twice);
- * - held over 15 s within 3 minutes after power-up: factory reset (its light blinks 3 times).
+ * - the setup key held 7–10 s and released: pairing mode (2 blinks, see led.h);
+ * - held over 15 s within 3 minutes after power-up: factory reset (3 blinks).
  * Keys work with no Wi-Fi and no server.
  */
 #pragma once
