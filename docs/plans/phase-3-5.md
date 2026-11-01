@@ -32,6 +32,8 @@ This part defines the contract that Phase 4 (hub), the firmware and the database
 
 ### The setup button
 
+> Replaced on 2026-11-01: 7–10 s pairs, over 15 s resets only within 3 minutes after power-up, and touch-switch boards use their first touch key. See [../board-protocol.md](../board-protocol.md), "The setup key".
+
 | Held for | What the board does | Feedback |
 |----------|---------------------|----------|
 | < 10 s | nothing (normal press is ignored) | — |

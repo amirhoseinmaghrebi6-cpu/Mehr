@@ -74,14 +74,31 @@ A board carries out the commands of one channel one after another, in the order 
 A wall-switch press or a sensor change is a `state` message without `id`. Sensors report when the value changes meaningfully, and at least every 10 minutes while connected.
 
 
-## The setup button
+## The setup key
 
-| Held for | The board |
-|----------|-----------|
-| under 10 s | does nothing |
-| 10–15 s, then released | enters **pairing mode** for 5 minutes (status LED blinks slowly) |
-| 15–20 s | does nothing, so pairing never turns into a reset by accident (LED steady) |
-| over 20 s | does a **factory reset** as soon as 20 s is reached (LED blinks fast, then restart) |
+Boards with touch keys (TTP223, momentary mode) use their **first key** as the setup key; the
+other keys only switch. Boards without touch keys (sockets, sensors) have a setup button. Both
+behave the same:
+
+| Touch or press | The board |
+|----------------|-----------|
+| short (under 7 s) | switches the key's channel on or off, at the touch (touch keys only) |
+| 7–10 s, then released | enters **pairing mode** for 5 minutes; the channel's light blinks twice |
+| 10–15 s | does nothing, so pairing never turns into a reset by accident |
+| over 15 s, **within 3 minutes after power-up** | does a **factory reset** as soon as 15 s is reached; the light blinks 3 times, then the board restarts |
+| over 15 s, later | does nothing |
+
+The 3-minute window makes an accidental reset (water on a touch key, cleaning, a child leaning
+on the switch) impossible: to reset, turn the circuit breaker off and on, then hold the key. The
+key's LED is wired to its relay, so the board shows these steps by blinking the light itself.
+
+## Power and connection
+
+- The board saves each channel's state in its flash whenever it changes.
+- **Power comes back:** the board applies the saved states at once, even with no internet (the
+  modem may start later). Touch keys work from the first second.
+- **Connected again** (after power or internet was lost): the board takes the last state the user
+  or a scenario set on the server, applies it, and reports.
 
 ## Pairing
 
@@ -90,7 +107,7 @@ Nothing is printed on the product, and the board has no screen. The app gives a 
 1. **In the app.** An owner or admin picks the product and names and places its channels; they wait in the home ("awaiting pairing"). The app then asks for a setup code (`POST /v1/properties/{home}/boards/{board}/setup-code`) and shows it as `XXXX-XXXX-XXXX`.
    - 12 characters from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no 0/O or 1/I), about 60 random bits.
    - Valid once and for 10 minutes, for this waiting board only. Asking again gives a new code and ends the earlier one. No two waiting codes are ever the same. The server stores only the SHA-256.
-2. **Pairing mode.** The user holds the board's setup button for 10–15 seconds. The board opens a temporary Wi-Fi access point named `M2smart-…`, with a setup page at `http://192.168.4.1`.
+2. **Pairing mode.** The user holds the board's setup key for 7–10 seconds. The board opens a temporary Wi-Fi access point named `M2smart-…`, with a setup page at `http://192.168.4.1`.
 3. **Setup page** (served by the board, no internet needed). The user's phone joins the board's Wi-Fi, and the user taps "Open the board's page" in the app. That opens `http://192.168.4.1/?code=XXXXXXXXXXXX`, so the code is filled in already. The page asks for:
    - the home's Wi-Fi name and password;
    - the setup code: filled in from the link, or typed. Typing accepts any case, spaces and dashes.

@@ -317,7 +317,7 @@ export const en = {
     keepBoard: "Keep it",
     addDevice: "Add a device",
     pairingSteps: [
-      "Hold the board’s setup button for 10–15 seconds, until its light blinks slowly.",
+      "Hold the board’s setup key (on a touch switch: its first key) for 7–10 seconds and let go, when the light blinks twice.",
       "On this phone, open the Wi-Fi settings and join the network whose name starts with “M2smart”.",
       "Come back here and tap “Open the board’s page”. Enter your home Wi-Fi name and password there: the code is filled in already.",
     ],

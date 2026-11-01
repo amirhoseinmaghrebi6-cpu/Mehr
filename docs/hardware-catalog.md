@@ -43,10 +43,11 @@ Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins
 
 ### Setup button
 
-- **Exactly one per model.** Every board has one push button on a GPIO, function `setup_button`, used by the firmware:
-  - held 10–15 s: pairing mode for 5 minutes;
-  - held 15–20 s: nothing;
-  - held over 20 s: factory reset.
+- **Exactly one per model.** Every board has one setup key on a GPIO, function `setup_button`, used by the firmware (timings in [board-protocol.md](board-protocol.md), "The setup key"):
+  - held 7–10 s: pairing mode for 5 minutes;
+  - held 10–15 s: nothing;
+  - held over 15 s within 3 minutes after power-up: factory reset.
+- **On touch-switch boards** the setup key is the first touch key (TTP223), which also switches its channel. The catalog will record that pin as both (to be added with the first real touch-switch model).
 - **Required to join a home.** A model without one cannot be added to a home, and a second one is rejected.
 - **Not on GPIO 0:** that pin is the dev kit's BOOT button, and holding it during power-up starts the flasher.
 - **The full rules** for ownership (whoever holds the board owns it), pairing and reset are in [plans/phase-3-5.md](plans/phase-3-5.md), section A.

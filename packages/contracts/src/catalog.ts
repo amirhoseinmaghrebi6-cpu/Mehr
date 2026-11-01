@@ -155,7 +155,8 @@ export function capabilityValueError(definition: CapabilityDefinition, value: un
 
 /**
  * Functions a board pin can have in the hardware catalog. Every board has exactly one
- * "setup_button": held 10–15 s it starts pairing, held over 20 s it factory-resets the board.
+ * "setup_button" (or, on touch-switch boards, its first touch key): held 7–10 s it starts pairing,
+ * held over 15 s within 3 minutes after power-up it factory-resets the board.
  */
 export const pinFunctions = ["relay", "triac_gate", "zero_cross", "digital_in", "pulse_in", "i2c_sda", "i2c_scl", "uart_rx", "uart_tx", "adc", "setup_button"] as const;
 export type PinFunction = (typeof pinFunctions)[number];
