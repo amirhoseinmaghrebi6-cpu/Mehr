@@ -19,6 +19,7 @@ import type { SessionVerifier } from "../auth/session-verifier";
 import { withSystemTx } from "../db/tx";
 import type { SmsSender } from "../sms/sms";
 import { requireSession } from "./me";
+import { RecentCounter } from "./recent";
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_TRIES = 5;
@@ -33,7 +34,7 @@ export function registerPhoneRoutes(app: FastifyInstance, pool: Pool, verifier: 
   // ponytail: in memory, so a restart forgets pending codes (the user asks for a new one) and it
   // holds for one API process only; move it to the database if the API ever runs more than one copy.
   const pending = new Map<string, Pending>();
-  const sentAt = new Map<string, number[]>();
+  const sentAt = new RecentCounter(HOUR_MS);
 
   /** The session, if it may change the number now; otherwise replies and returns null. */
   const recentSession = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -64,8 +65,7 @@ export function registerPhoneRoutes(app: FastifyInstance, pool: Pool, verifier: 
     if (await takenByOther(phone, session.userId)) return send(reply, 409, "conflict");
 
     const now = Date.now();
-    const recent = (sentAt.get(session.userId) ?? []).filter((time) => now - time < HOUR_MS);
-    if (recent.length >= CODES_PER_HOUR) return send(reply, 429, "rate_limited");
+    if (sentAt.count(session.userId) >= CODES_PER_HOUR) return send(reply, 429, "rate_limited");
 
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     try {
@@ -74,7 +74,7 @@ export function registerPhoneRoutes(app: FastifyInstance, pool: Pool, verifier: 
       request.log.error({ err: { message: (error as Error).message } }, "Phone change code not sent");
       return send(reply, 503, "auth_unavailable");
     }
-    sentAt.set(session.userId, [...recent, now]);
+    sentAt.add(session.userId);
     pending.set(session.userId, { phone, codeHash: hash(code), expiresAt: now + CODE_TTL_MS, tries: 0 });
     return reply.code(202).send({ phone } satisfies PhoneChangeResponse);
   });

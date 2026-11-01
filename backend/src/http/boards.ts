@@ -36,6 +36,7 @@ import { addPendingBoard, claimBoard, createSetupCode, removeBoard } from "../bo
 import { withSystemTx } from "../db/tx";
 import type { Broker } from "../broker/broker";
 import { listDevices } from "./devices";
+import { RecentCounter } from "./recent";
 import { createHandler, HttpError, invalidRequest, notFound, parse, requireAction, requireUuid } from "./route-helpers";
 
 const CLAIM_TRIES_PER_HOUR = 5;
@@ -46,20 +47,19 @@ export function registerBoardRoutes(app: FastifyInstance, pool: Pool, verifier: 
   const unavailable = { error: "internal_error" } as const;
 
   // ponytail: wrong tries are counted in memory, per API process and forgotten on a restart;
-  // move them to the database if the API ever runs more than one copy.
-  const wrongTries = new Map<string, number[]>();
+  // move them to the database if the API ever runs more than one copy. Anyone can post made-up
+  // board ids here, so the counter forgets the oldest ids past its ceiling instead of growing.
+  const wrongTries = new RecentCounter(HOUR_MS);
   app.post("/v1/boards/claim", async (request, reply) => {
     const body = boardClaimRequest.safeParse(request.body);
     if (!body.success) return reply.code(400).send({ error: "invalid_request" });
     const { hardwareUid, secret, code } = body.data;
-    const now = Date.now();
-    const recent = (wrongTries.get(hardwareUid) ?? []).filter((time) => now - time < HOUR_MS);
-    if (recent.length >= CLAIM_TRIES_PER_HOUR) return reply.code(429).send({ error: "rate_limited" });
+    if (wrongTries.count(hardwareUid) >= CLAIM_TRIES_PER_HOUR) return reply.code(429).send({ error: "rate_limited" });
     const broker = getBroker();
     if (!broker) return reply.code(503).send(unavailable);
     const result = await claimBoard(pool, broker, hardwareUid, secret, code);
     if (result === "refused") {
-      wrongTries.set(hardwareUid, [...recent, now]);
+      wrongTries.add(hardwareUid);
       return reply.code(401).send(refused);
     }
     // The code waits for another product: the user picked the wrong one in the app.

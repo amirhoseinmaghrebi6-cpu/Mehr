@@ -16,7 +16,8 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { withSystemTx } from "../db/tx";
 import { z } from "zod";
-import type { SmsSender } from "../sms/sms";
+import { SmsLimitError, type SmsSender } from "../sms/sms";
+import { RecentCounter } from "./recent";
 
 const CODES_PER_HOUR = 5;
 const HOUR_MS = 60 * 60 * 1000;
@@ -32,7 +33,7 @@ const smsSchema = z.object({
 export function registerSmsRoute(app: FastifyInstance, pool: Pool, sms: SmsSender | null): void {
   // ponytail: in memory, so a restart forgets it and it holds for one API process only; move it to
   // the database if the API ever runs more than one copy.
-  const sentAt = new Map<string, number[]>();
+  const sentAt = new RecentCounter(HOUR_MS);
   app.post("/internal/kratos/sms", async (request, reply) => {
     const parsed = smsSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
@@ -53,17 +54,17 @@ export function registerSmsRoute(app: FastifyInstance, pool: Pool, sms: SmsSende
       request.log.warn({ template }, "SMS dropped: the account is blocked");
       return reply.code(204).send();
     }
-    const now = Date.now();
-    const recent = (sentAt.get(to) ?? []).filter((time) => now - time < HOUR_MS);
-    if (recent.length >= CODES_PER_HOUR) {
+    if (sentAt.count(to) >= CODES_PER_HOUR) {
       request.log.warn({ template }, "SMS dropped: this number had too many codes in the last hour");
       return reply.code(204).send();
     }
     try {
       await sms.sendCode(to, code, request.log);
-      sentAt.set(to, [...recent, now]);
+      sentAt.add(to);
       return reply.code(204).send();
     } catch (error) {
+      // Over the hourly ceiling: dropped, so the courier does not keep trying.
+      if (error instanceof SmsLimitError) return reply.code(204).send();
       request.log.error({ err: error, template }, "SMS not sent");
       return reply.code(502).send({ error: "auth_unavailable" });
     }

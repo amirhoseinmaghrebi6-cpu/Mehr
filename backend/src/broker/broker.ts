@@ -11,6 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { allBoardsTopic, boardTopic, parseBoardTopic, type BoardMessageKind, type ServerMessageKind } from "@m2smart/contracts";
 import mqtt, { type MqttClient } from "mqtt";
+import { RecentCounter } from "../http/recent";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
@@ -18,6 +19,11 @@ const CONTROL = "$CONTROL/dynamic-security/v1";
 const boardRole = (boardId: string) => `m2-board-${boardId}`;
 const API_ROLE = "m2-api-bridge";
 const CONTROL_TIMEOUT_MS = 5_000;
+/**
+ * Messages a board may send a second. A real board sends a few (a key press, a report); anyone who
+ * pulled the secret out of their own board could otherwise flood the database through it.
+ */
+const BOARD_MESSAGES_PER_SECOND = 20;
 
 /** Messages boards send; `cmd` and `update` only go the other way. */
 export type InboundKind = Exclude<BoardMessageKind, ServerMessageKind>;
@@ -50,12 +56,15 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
   });
   const handlers = new Map<InboundKind, Array<(boardId: string, payload: unknown) => void>>();
   const waiting = new Map<string, { resolve: () => void; reject: (error: Error) => void; ignore: RegExp | null }>();
+  const perBoard = new RecentCounter(1000, 200_000);
 
   client.on("error", (error) => log.error({ err: { message: error.message } }, "MQTT broker connection error"));
   client.on("message", (topic, message) => {
     if (topic === `${CONTROL}/response`) return onControlResponse(message.toString());
     const parsed = parseBoardTopic(topic);
     if (!parsed || parsed.kind === "cmd" || parsed.kind === "update") return;
+    if (perBoard.count(parsed.boardId) >= BOARD_MESSAGES_PER_SECOND) return;
+    perBoard.add(parsed.boardId);
     let payload: unknown;
     try {
       // An empty retained message is how a board's status is cleared.

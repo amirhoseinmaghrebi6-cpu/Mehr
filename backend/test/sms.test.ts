@@ -2,11 +2,11 @@ import type { FastifyBaseLogger } from "fastify";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../src/config";
 import { buildServer } from "../src/server";
-import { createSmsSender, SmsError, type SmsSender } from "../src/sms/sms";
+import { createSmsSender, SmsError, SmsLimitError, type SmsSender } from "../src/sms/sms";
 import { createApiPool } from "./fixtures";
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as FastifyBaseLogger;
-const provider = { url: "https://api.iranpayamak.test", apiKey: "test-key-123", sender: "90008361", patterns: { code: "PCODE", invitation: "PINVITE" } };
+const provider = { url: "https://api.iranpayamak.test", apiKey: "test-key-123", sender: "90008361", patterns: { code: "PCODE", invitation: "PINVITE" }, hourlyLimit: 300 };
 const ok = () => new Response(JSON.stringify({ status: "success", message: "", data: {} }), { status: 200 });
 
 describe("SMS through FarazSMS / IranPayamak", () => {
@@ -35,6 +35,15 @@ describe("SMS through FarazSMS / IranPayamak", () => {
     await expect(createSmsSender(provider, false, down)!.sendCode("+989121234567", "123456", log)).rejects.toBeInstanceOf(SmsError);
   });
 
+  it("sends nothing past the hourly ceiling on all messages", async () => {
+    const fetchImpl = vi.fn(async () => ok());
+    const sender = createSmsSender({ ...provider, hourlyLimit: 2 }, false, fetchImpl)!;
+    await sender.sendCode("+989121234567", "123456", log);
+    await sender.sendInvitation("+989121234568", "Sara", "Home", log);
+    await expect(sender.sendCode("+989121234569", "123456", log)).rejects.toBeInstanceOf(SmsLimitError);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("only logs in development without a key, and cannot send in production", () => {
     expect(createSmsSender(null, true)).not.toBeNull();
     expect(createSmsSender(null, false)).toBeNull();
@@ -53,7 +62,9 @@ describe("SMS configuration", () => {
       apiKey: "secret-key",
       sender: "90008361",
       patterns: { code: "abc", invitation: null },
+      hourlyLimit: 300,
     });
+    expect(loadConfig({ ...base, SMS_API_KEY: "secret-key", SMS_SENDER: "90008361", SMS_PATTERN_CODE: "abc", SMS_HOURLY_LIMIT: "50" }).sms?.hourlyLimit).toBe(50);
   });
 });
 
@@ -66,11 +77,12 @@ describe("POST /internal/kratos/sms", () => {
   const app = buildServer({ logLevel: "silent", kratosWebhookSecret: secret }, pool, { sms: sender });
   const noProvider = buildServer({ logLevel: "silent", kratosWebhookSecret: secret }, pool, { sms: null });
   const failing = buildServer({ logLevel: "silent", kratosWebhookSecret: secret }, pool, { sms: { ...sender, sendCode: async () => { throw new SmsError("down"); } } });
+  const overLimit = buildServer({ logLevel: "silent", kratosWebhookSecret: secret }, pool, { sms: { ...sender, sendCode: async () => { throw new SmsLimitError("limit"); } } });
   const post = (server: typeof app, payload: object, headers: Record<string, string> = { "x-webhook-secret": secret }) =>
     server.inject({ method: "POST", url: "/internal/kratos/sms", payload, headers });
 
   afterAll(async () => {
-    await Promise.all([app.close(), noProvider.close(), failing.close()]);
+    await Promise.all([app.close(), noProvider.close(), failing.close(), overLimit.close()]);
     await pool.end();
   });
 
@@ -93,6 +105,10 @@ describe("POST /internal/kratos/sms", () => {
   it("answers 503 without a provider and 502 when sending fails, so the courier retries", async () => {
     expect((await post(noProvider, { to: "+989121234567", code: "123456" })).statusCode).toBe(503);
     expect((await post(failing, { to: "+989121234567", code: "123456" })).statusCode).toBe(502);
+  });
+
+  it("drops a message over the hourly ceiling without a retry", async () => {
+    expect((await post(overLimit, { to: "+989121234567", code: "123456" })).statusCode).toBe(204);
   });
 
   it("sends a number at most 5 codes an hour, and drops the rest without a retry", async () => {

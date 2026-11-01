@@ -3,10 +3,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { latinDigits } from "@/lib/auth/phone";
+import { safeNextPath } from "@/lib/safe-next";
 
 function safeNext(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
-  return value;
+  return safeNextPath(typeof value === "string" ? value : null);
 }
 
 function field(formData: FormData, name: string): string {

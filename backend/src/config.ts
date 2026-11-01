@@ -37,6 +37,8 @@ const configSchema = z.object({
   SMS_SENDER: unsetWhenEmpty(z.string().regex(/^\d{4,15}$/, { error: "must be the sender line, e.g. 90008361" })),
   SMS_PATTERN_CODE: unsetWhenEmpty(z.string()),
   SMS_PATTERN_INVITATION: unsetWhenEmpty(z.string()),
+  // Every message costs money: at most this many an hour in all (codes and invitations together).
+  SMS_HOURLY_LIMIT: z.coerce.number().int().min(1).default(300),
 });
 
 export type Config = {
@@ -60,7 +62,7 @@ export type Config = {
   /** The operators' numbers in E.164 (PLATFORM_ADMIN_PHONES). */
   platformAdmins: string[];
   /** The SMS provider, or null until SMS_API_KEY, SMS_SENDER and SMS_PATTERN_CODE are all set. */
-  sms: { url: string; apiKey: string; sender: string; patterns: { code: string; invitation: string | null } } | null;
+  sms: { url: string; apiKey: string; sender: string; patterns: { code: string; invitation: string | null }; hourlyLimit: number } | null;
   /** The boards' MQTT broker, or null when MQTT_URL is not set. */
   broker: { url: string; username: string; password: string } | null;
 };
@@ -105,6 +107,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
           apiKey: value.SMS_API_KEY!,
           sender: value.SMS_SENDER!,
           patterns: { code: value.SMS_PATTERN_CODE!, invitation: value.SMS_PATTERN_INVITATION ?? null },
+          hourlyLimit: value.SMS_HOURLY_LIMIT,
         }
       : null,
     broker: value.MQTT_URL ? { url: value.MQTT_URL, username: value.MQTT_USERNAME!, password: value.MQTT_PASSWORD! } : null,

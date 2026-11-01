@@ -26,7 +26,15 @@ import type { SessionVerifier } from "../auth/session-verifier";
 import type { TxClient } from "../db/tx";
 import type { SmsSender } from "../sms/sms";
 import { PROPERTY_COLUMNS, toProperty, type PropertyRow } from "./homes";
+import { RecentCounter } from "./recent";
 import { createHandler, HttpError, notFound, parse, requireAction, requireUuid, roleIn } from "./route-helpers";
+
+/**
+ * Invitation messages one person may cause in an hour. Inviting, cancelling and inviting again
+ * would otherwise send texts to any numbers at our cost; past this the invitation is still made,
+ * without a message (the invited person sees it when they sign in).
+ */
+export const INVITATION_SMS_PER_HOUR = 10;
 
 const forbidden = () => new HttpError(403, "forbidden");
 const conflict = () => new HttpError(409, "conflict");
@@ -50,6 +58,7 @@ async function memberRole(tx: TxClient, propertyId: string, userId: string): Pro
 export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier, sms: SmsSender | null = null): void {
   const handle = createHandler(pool, verifier);
   type HomeParams = { Params: { propertyId: string } };
+  const invitationTexts = new RecentCounter(60 * 60 * 1000);
 
   app.get<HomeParams>("/v1/properties/:propertyId/members", (request, reply) =>
     handle(request, reply, 200, async (tx, session): Promise<MemberListResponse> => {
@@ -77,7 +86,8 @@ export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier:
         [propertyId, body.phone, body.role],
       );
       // Tell them by SMS. Best effort: the invitation stands even if the message does not go out.
-      if (sms) {
+      if (sms && invitationTexts.count(session.userId) < INVITATION_SMS_PER_HOUR) {
+        invitationTexts.add(session.userId);
         const { rows: names } = await tx.query<{ inviter: string; home: string }>(
           "select coalesce((select full_name from public.profiles where user_id = auth.uid()), '') as inviter, name as home from public.properties where id = $1",
           [propertyId],

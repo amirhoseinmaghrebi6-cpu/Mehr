@@ -144,6 +144,7 @@ services:
       SMS_SENDER: ${SMS_SENDER:-}
       SMS_PATTERN_CODE: ${SMS_PATTERN_CODE:-}
       SMS_PATTERN_INVITATION: ${SMS_PATTERN_INVITATION:-}
+      SMS_HOURLY_LIMIT: ${SMS_HOURLY_LIMIT:-300}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4000/readyz"]
       interval: 5s

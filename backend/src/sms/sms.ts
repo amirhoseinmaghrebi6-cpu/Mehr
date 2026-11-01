@@ -12,6 +12,7 @@
  */
 import type { FastifyBaseLogger } from "fastify";
 import type { Config } from "../config";
+import { RecentCounter } from "../http/recent";
 
 export type SmsSender = {
   sendCode(to: string, code: string, log: FastifyBaseLogger): Promise<void>;
@@ -20,6 +21,8 @@ export type SmsSender = {
 };
 
 export class SmsError extends Error {}
+/** The hourly ceiling on all messages was reached (SMS_HOURLY_LIMIT): nothing was sent. */
+export class SmsLimitError extends SmsError {}
 
 const TIMEOUT_MS = 10_000;
 /** Pattern variables have a length limit; names are cut well before it. */
@@ -41,7 +44,15 @@ export function createSmsSender(sms: Config["sms"], dev: boolean, fetchImpl: typ
     };
   }
 
+  // A ceiling on the bill: someone asking for codes to thousands of numbers, from many addresses,
+  // stops here. Real users then wait for the next hour; the operator sees it in the log.
+  const sent = new RecentCounter(60 * 60 * 1000, 1);
   const send = async (to: string, pattern: string, attributes: Record<string, string>, log: FastifyBaseLogger) => {
+    if (sent.count("all") >= sms.hourlyLimit) {
+      log.error({ limit: sms.hourlyLimit }, "SMS hourly limit reached: message not sent (SMS_HOURLY_LIMIT)");
+      throw new SmsLimitError("SMS hourly limit reached");
+    }
+    sent.add("all");
     let response: Response;
     try {
       response = await fetchImpl(`${sms.url}/ws/v1/sms/pattern`, {

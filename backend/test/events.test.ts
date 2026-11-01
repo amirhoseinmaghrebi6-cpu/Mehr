@@ -8,6 +8,7 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SessionCredential, SessionVerifier } from "../src/auth/session-verifier";
 import { startHomeEvents, type HomeEvents } from "../src/realtime/home-events";
+import { MAX_STREAMS_PER_USER } from "../src/http/events";
 import { buildServer } from "../src/server";
 import { adminQuery, createApiPool, createTenants, dropTenants, PROPERTY_A, PROPERTY_B, USER_A, USER_B } from "./fixtures";
 
@@ -94,5 +95,20 @@ describe("live updates (GET /v1/properties/:id/events)", () => {
     await sleep(600);
     expect(mine.received.match(/data: changed/g)?.length ?? 0).toBe(1);
     mine.close();
+  });
+
+  it("lets one user hold at most MAX_STREAMS_PER_USER streams at once", async () => {
+    const streams = [];
+    for (let i = 0; i < MAX_STREAMS_PER_USER; i++) streams.push(await open("a", PROPERTY_A));
+    expect(streams.every((stream) => stream.status === 200)).toBe(true);
+    expect((await open("a", PROPERTY_A)).status).toBe(429);
+    // Someone else is not affected, and a closed stream frees its place.
+    const other = await open("b", PROPERTY_B);
+    expect(other.status).toBe(200);
+    streams.pop()!.close();
+    await sleep(300);
+    const again = await open("a", PROPERTY_A);
+    expect(again.status).toBe(200);
+    for (const stream of [...streams, other, again]) stream.close();
   });
 });

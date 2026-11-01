@@ -8,6 +8,7 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { syncIdentity } from "../src/auth/identity-webhook";
 import type { SessionCredential, SessionVerifier } from "../src/auth/session-verifier";
+import { INVITATION_SMS_PER_HOUR } from "../src/http/members";
 import { buildServer } from "../src/server";
 import { adminQuery, createApiPool, deleteUsers } from "./fixtures";
 
@@ -143,5 +144,20 @@ describe("home members API", () => {
     expect((await call("member", "GET", `${base()}/members`)).status).toBe(404);
     expect((await call("admin", "DELETE", `${base()}/members/${USERS.admin[0]}`)).status).toBe(204); // leaves
     expect(((await call("owner", "GET", `${base()}/members`)).body as MemberListResponse).members.map((member) => member.role)).toEqual(["owner"]);
+  });
+
+  it("sends one person at most INVITATION_SMS_PER_HOUR invitation texts an hour; the invitations still stand", async () => {
+    const texts: string[] = [];
+    const counting = buildServer({ logLevel: "silent" }, pool, {
+      sessionVerifier: verifier,
+      sms: { sendCode: async () => undefined, sendInvitation: async (to) => void texts.push(to) },
+    });
+    for (let i = 0; i < INVITATION_SMS_PER_HOUR + 3; i++) {
+      const created = await counting.inject({ method: "POST", url: `${base()}/invitations`, headers: { authorization: "Bearer owner" }, payload: { phone: "09120000099", role: "member" } });
+      expect(created.statusCode).toBe(201);
+      await counting.inject({ method: "DELETE", url: `${base()}/invitations/${created.json().id}`, headers: { authorization: "Bearer owner" } });
+    }
+    await counting.close();
+    expect(texts).toHaveLength(INVITATION_SMS_PER_HOUR);
   });
 });

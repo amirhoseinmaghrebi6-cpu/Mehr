@@ -18,8 +18,11 @@ import { HttpError, roleIn } from "./route-helpers";
 
 const HEARTBEAT_MS = 25_000;
 export const MAX_STREAM_MS = 10 * 60_000;
+/** Open streams per user (a few tabs and phones); more would only hold connections open for nothing. */
+export const MAX_STREAMS_PER_USER = 20;
 
 export function registerEventRoutes(app: FastifyInstance, pool: Pool, verifier: SessionVerifier, events: HomeEvents | null, maxStreamMs = MAX_STREAM_MS): void {
+  const open = new Map<string, number>();
   app.get<{ Params: { propertyId: string } }>("/v1/properties/:propertyId/events", async (request, reply) => {
     const session = await requireSession(request, reply, verifier);
     if (!session) return reply;
@@ -33,6 +36,9 @@ export function registerEventRoutes(app: FastifyInstance, pool: Pool, verifier: 
       return reply.code(caught.statusCode).send({ error: caught.error } satisfies ApiErrorResponse);
     }
     if (!events) return reply.code(503).send({ error: "internal_error" } satisfies ApiErrorResponse);
+    const streams = open.get(session.userId) ?? 0;
+    if (streams >= MAX_STREAMS_PER_USER) return reply.code(429).send({ error: "rate_limited" } satisfies ApiErrorResponse);
+    open.set(session.userId, streams + 1);
 
     reply.hijack();
     const raw = reply.raw;
@@ -48,7 +54,13 @@ export function registerEventRoutes(app: FastifyInstance, pool: Pool, verifier: 
     const unsubscribe = events.subscribe(propertyId, () => raw.write("data: changed\n\n"));
     const heartbeat = setInterval(() => raw.write(": ping\n\n"), HEARTBEAT_MS);
     const limit = setTimeout(() => raw.end(), maxStreamMs);
+    let closed = false;
     const close = () => {
+      if (closed) return;
+      closed = true;
+      const left = (open.get(session.userId) ?? 1) - 1;
+      if (left > 0) open.set(session.userId, left);
+      else open.delete(session.userId);
       unsubscribe();
       clearInterval(heartbeat);
       clearTimeout(limit);

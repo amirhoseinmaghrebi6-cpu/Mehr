@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
     return config;
   },
   reactStrictMode: true,
+  // The app uses no next/image: its optimizer endpoint stays off, so it is no attack surface.
+  images: { unoptimized: true },
   // Same-origin access to the public M2smart API for browser code: /api/v1/* → API /v1/*.
   // Only /v1 is forwarded: the API's /internal/* routes (webhooks, dev SMS) must never be
   // reachable through the web app, where they would appear to come from 127.0.0.1.
