@@ -19,7 +19,8 @@
     "db:seed": "pnpm --filter @m2smart/api db:seed",
     "dev:board": "pnpm --filter @m2smart/api dev:board",
     "dev:pairing": "pnpm --filter @m2smart/api dev:pairing",
-    "dev:devkit": "pnpm --filter @m2smart/api dev:devkit"
+    "dev:devkit": "pnpm --filter @m2smart/api dev:devkit",
+    "factory:batch": "pnpm --filter @m2smart/api factory:batch"
   },
   "dependencies": {
     "@m2smart/contracts": "workspace:*",

@@ -58,6 +58,10 @@ For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC
    The first flash writes the factory partition (`0xF000 …bin`). Later flashes leave it out: the board keeps its identity, Wi-Fi and pairing.
 4. **Watch it run:** the Arduino IDE's Serial Monitor at 115200 baud shows the board's log.
 
+## Producing boards
+
+Factory batches (an identity per board) and flashing them one after another: [docs/factory.md](../docs/factory.md) and `firmware/factory/`.
+
 ## Releasing a new version
 
 1. Raise `PROJECT_VER` in `firmware/CMakeLists.txt`, for example `0.1.0` → `0.2.0`.

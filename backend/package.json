@@ -14,7 +14,8 @@
     "dev:board": "tsx scripts/dev-board.ts",
     "dev:pairing": "tsx scripts/dev-pairing.ts",
     "typecheck": "tsc --noEmit",
-    "dev:devkit": "tsx scripts/dev-devkit.ts"
+    "dev:devkit": "tsx scripts/dev-devkit.ts",
+    "factory:batch": "tsx scripts/factory-batch.ts"
   },
   "dependencies": {
     "@m2smart/contracts": "workspace:*",
