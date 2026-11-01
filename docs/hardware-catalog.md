@@ -1,5 +1,7 @@
 # Hardware catalog: adding an M2smart board
 
+The proposed boards and their pin maps: [board-lineup.md](board-lineup.md).
+
 Every M2smart device is one channel of an M2smart ESP32 board. What each GPIO does is fixed by the PCB design, so it is recorded once, in the hardware catalog in PostgreSQL, and never by users.
 
 - **Adding a board to a home:**
