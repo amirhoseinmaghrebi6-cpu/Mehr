@@ -39,7 +39,8 @@ services:
         fi
         exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
     ports:
-      - "127.0.0.1:${MQTT_HOST_PORT:-18830}:1883"
+      # A DevKit on the home network needs the broker: set MQTT_HOST_BIND=0.0.0.0 in .env while testing.
+      - "${MQTT_HOST_BIND:-127.0.0.1}:${MQTT_HOST_PORT:-18830}:1883"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data

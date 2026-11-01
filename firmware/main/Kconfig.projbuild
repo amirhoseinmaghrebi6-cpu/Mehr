@@ -1,0 +1,30 @@
+menu "M2smart"
+
+    config M2_API_URL
+        string "Server address"
+        default "https://m2smart.ir"
+        help
+            The web app's address; the board claims at <address>/api/v1/boards/claim.
+
+    config M2_MQTT_URL
+        string "Broker address"
+        default "mqtts://mqtt.m2smart.ir:8883"
+        help
+            The boards' MQTT broker. mqtts:// is checked against certs/board_ca.pem.
+
+    config M2_DEV_INSECURE
+        bool "Allow http:// and mqtt:// (development only)"
+        default n
+        help
+            For a DevKit against the development stack on a PC. Never in production.
+
+    choice M2_KEYS
+        prompt "Keys"
+        default M2_KEYS_TTP223
+        config M2_KEYS_TTP223
+            bool "TTP223 touch keys (output high while touched)"
+        config M2_KEYS_BUTTON
+            bool "Push buttons to GND (internal pull-up)"
+    endchoice
+
+endmenu

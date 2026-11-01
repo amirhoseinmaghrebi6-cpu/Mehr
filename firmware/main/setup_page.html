@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M2smart</title>
+<style>
+  body { margin: 0; font-family: Tahoma, system-ui, sans-serif; background: #f4f5f1; color: #1f2a22; }
+  main { max-width: 420px; margin: 0 auto; padding: 24px 18px; }
+  .mark { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #34503d; color: #fff; font-weight: 700; }
+  h1 { font-size: 20px; margin: 14px 0 4px; }
+  p { color: #5d675f; font-size: 13px; line-height: 1.8; margin: 0 0 14px; }
+  label { display: block; font-size: 12px; font-weight: 600; margin: 14px 0 6px; }
+  input, select { box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border: 1px solid #c7ccc4; border-radius: 8px; background: #fff; font-size: 15px; }
+  .ltr { direction: ltr; text-align: left; }
+  .code { font-family: monospace; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; }
+  button { width: 100%; height: 48px; margin-top: 20px; border: 0; border-radius: 8px; background: #34503d; color: #fff; font-size: 15px; font-weight: 700; }
+  button:disabled { opacity: .6; }
+  .note { margin-top: 16px; padding: 12px; border-radius: 8px; background: #fff; font-size: 13px; line-height: 1.8; }
+  .ok { background: #e3f1e6; color: #1f5a2f; }
+  .err { background: #fbe9e4; color: #8a2e1a; }
+  small { display: block; color: #7a837b; margin-top: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="mark">M2</span>
+  <h1>راه‌اندازی بُرد</h1>
+  <p>شبکه‌ی وای‌فای خانه را انتخاب کنید و رمزش را بنویسید. کد راه‌اندازی را برنامه‌ی M2smart داده است.<br><span class="ltr" style="display:inline-block">Choose your home Wi-Fi and enter the setup code from the M2smart app.</span></p>
+  <form id="form">
+    <label for="ssid">وای‌فای خانه · Home Wi-Fi</label>
+    <select id="networks" class="ltr"><option value="">…</option></select>
+    <input id="ssid" class="ltr" autocomplete="off" maxlength="32" placeholder="Wi-Fi name" style="margin-top:8px" required>
+    <label for="password">رمز وای‌فای · Wi-Fi password</label>
+    <input id="password" class="ltr" type="password" autocomplete="off" maxlength="64">
+    <label for="code">کد راه‌اندازی · Setup code</label>
+    <input id="code" class="ltr code" autocomplete="off" maxlength="20" placeholder="XXXX-XXXX-XXXX" required>
+    <small>۱۲ حرف از برنامه · 12 characters from the app</small>
+    <button id="go" type="submit">اتصال · Connect</button>
+  </form>
+  <div id="note" class="note" hidden></div>
+</main>
+<script>
+  var messages = {
+    connecting: ["در حال اتصال به وای‌فای خانه…", "Joining your home Wi-Fi…", ""],
+    wifi_failed: ["به وای‌فای خانه وصل نشد. اسم و رمز را بررسی کنید.", "Could not join your Wi-Fi. Check its name and password.", "err"],
+    claiming: ["در حال اتصال به M2smart…", "Connecting to M2smart…", ""],
+    wrong_code: ["کد درست نیست یا منقضی شده است. در برنامه یک کد تازه بگیرید.", "The code is wrong or has expired. Get a new one in the app.", "err"],
+    wrong_product: ["این کد برای محصول دیگری است. در برنامه محصول درست را انتخاب کنید.", "This code is for another product. Pick the right product in the app.", "err"],
+    too_many: ["تلاش‌های اشتباه زیاد شد. یک ساعت دیگر دوباره امتحان کنید.", "Too many wrong codes. Try again in an hour.", "err"],
+    no_server: ["سرور M2smart در دسترس نیست. اینترنت خانه را بررسی کنید و دوباره امتحان کنید.", "M2smart cannot be reached. Check your internet and try again.", "err"],
+    done: ["بُرد جفت شد. به وای‌فای خانه برگردید و برنامه را باز کنید.", "The board is paired. Go back to your home Wi-Fi and open the app.", "ok"]
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var code = new URLSearchParams(location.search).get("code");
+  if (code) $("code").value = code.replace(/(.{4})(?=.)/g, "$1-");
+  fetch("/scan").then(function (r) { return r.json(); }).then(function (names) {
+    var select = $("networks");
+    select.innerHTML = "<option value=\"\">— انتخاب شبکه · Choose —</option>";
+    names.forEach(function (name) { var o = document.createElement("option"); o.textContent = name; o.value = name; select.appendChild(o); });
+  }).catch(function () {});
+  $("networks").onchange = function () { if (this.value) $("ssid").value = this.value; };
+  function show(state) {
+    var m = messages[state]; if (!m) return;
+    var note = $("note"); note.hidden = false; note.className = "note " + m[2];
+    note.innerHTML = m[0] + "<br><span class=\"ltr\" style=\"display:inline-block\">" + m[1] + "</span>";
+    var busy = state === "connecting" || state === "claiming" || state === "done";
+    $("go").disabled = busy;
+    if (busy && state !== "done") setTimeout(poll, 1000);
+  }
+  function poll() { fetch("/status").then(function (r) { return r.json(); }).then(function (s) { show(s.state); }).catch(function () { setTimeout(poll, 1500); }); }
+  $("form").onsubmit = function (event) {
+    event.preventDefault();
+    var typed = $("code").value.toUpperCase().replace(/[\s-]/g, "");
+    if (!/^[2-9A-HJ-NP-Z]{12}$/.test(typed)) { show("wrong_code"); return; }
+    $("go").disabled = true;
+    fetch("/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ssid: $("ssid").value, password: $("password").value, code: typed }) })
+      .then(function () { show("connecting"); }).catch(function () { $("go").disabled = false; });
+  };
+</script>
+</body>
+</html>

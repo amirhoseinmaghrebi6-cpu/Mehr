@@ -1,0 +1,7 @@
+# Development settings for a DevKit against the dev stack on your PC. Copy to sdkconfig.dev
+# (gitignored) and put your PC's address on the home network in both lines.
+CONFIG_M2_API_URL="http://192.168.1.10:3000"
+CONFIG_M2_MQTT_URL="mqtt://192.168.1.10:18830"
+CONFIG_M2_DEV_INSECURE=y
+# Push buttons to GND on the DevKit; with TTP223 modules use CONFIG_M2_KEYS_TTP223=y instead.
+CONFIG_M2_KEYS_BUTTON=y
