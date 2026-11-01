@@ -1,15 +1,30 @@
 /**
  * The operator's panel for the demo: sample people and boards kept in this browser
- * (localStorage), so blocking, unblocking and deleting can be shown to a customer. Nothing
- * reaches the API, and no real account is ever touched.
+ * (localStorage), so blocking, unblocking and deleting can be shown to a customer, and firmware
+ * versions of the sample boards' models, so uploading and publishing an update can be shown too
+ * (any file is taken, as the next version). Nothing reaches the API, and no real account is ever
+ * touched.
  */
-import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminBoardListResponse, type AdminOverview, type AdminUser, type AdminUserListResponse } from "@m2smart/contracts";
+import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminBoardListResponse, type AdminFirmwareResponse, type AdminOverview, type AdminUser, type AdminUserListResponse, type FirmwareRelease } from "@m2smart/contracts";
 import type { AdminSource } from "@/features/admin/admin-panel";
 import type { Locale } from "@/lib/i18n";
 import { demoName } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-admin-v1-";
-type DemoAdminData = { users: AdminUser[]; boards: AdminBoard[] };
+type DemoAdminData = { users: AdminUser[]; boards: AdminBoard[]; releases?: FirmwareRelease[] };
+
+/** A demo model's code, from its name: "2-switch board" → "m2-2-switch-board-rev-a". */
+const modelCode = (name: string) => `m2-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-rev-a`;
+const fakeSha = () => Array.from({ length: 64 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+
+/** Every sample model runs 1.4.2; some still have 1.3.0 listed, as an older version. */
+function createReleases(boards: AdminBoard[]): FirmwareRelease[] {
+  const models = [...new Set(boards.map((board) => board.model))];
+  return models.flatMap((model, index) => [
+    { id: `demo-fw-${index}-142`, modelCode: modelCode(model), version: "1.4.2", sizeBytes: 1_012_736, sha256: fakeSha(), notes: "Faster reconnect after power cuts", active: true, createdAt: daysAgo(12) },
+    ...(index % 4 === 3 ? [{ id: `demo-fw-${index}-130`, modelCode: modelCode(model), version: "1.3.0", sizeBytes: 998_400, sha256: fakeSha(), notes: "First release", active: false, createdAt: daysAgo(60) }] : []),
+  ]);
+}
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -74,6 +89,7 @@ export function createDemoAdminSource(userId: string, locale: Locale): AdminSour
     return createData(userId);
   };
   let data = load();
+  const releases = () => (data.releases ??= createReleases(data.boards));
   const save = () => {
     try {
       window.localStorage.setItem(key, JSON.stringify(data));
@@ -120,10 +136,48 @@ export function createDemoAdminSource(userId: string, locale: Locale): AdminSour
       const sorted = [...data.boards].sort((a, b) => Number(b.online) - Number(a.online) || (b.lastSeenAt ?? "").localeCompare(a.lastSeenAt ?? ""));
       return { boards: page(sorted, offset).map(shown), total: sorted.length };
     },
+    async firmware(): Promise<AdminFirmwareResponse> {
+      const names = [...new Set(data.boards.map((board) => board.model))];
+      return {
+        models: names.map((name) => {
+          const code = modelCode(name);
+          const counts = new Map<string, number>();
+          for (const board of data.boards.filter((item) => item.model === name)) counts.set(board.firmwareVersion ?? "", (counts.get(board.firmwareVersion ?? "") ?? 0) + 1);
+          return {
+            code,
+            name: demoName(name, locale),
+            activeVersion: releases().find((release) => release.modelCode === code && release.active)?.version ?? null,
+            boards: [...counts].map(([version, count]) => ({ version: version || null, count })),
+          };
+        }),
+        releases: [...releases()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      };
+    },
+    async uploadFirmware(code, file, notes) {
+      // In the demo any file is taken, as the next version of the model.
+      const latest = releases().filter((release) => release.modelCode === code).map((release) => release.version.split(".").map(Number)).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0] ?? [1, 0, -1];
+      const release: FirmwareRelease = { id: `demo-fw-${crypto.randomUUID()}`, modelCode: code, version: `${latest[0]}.${latest[1]}.${latest[2] + 1}`, sizeBytes: file.size, sha256: fakeSha(), notes, active: false, createdAt: new Date().toISOString() };
+      releases().push(release);
+      save();
+      return release;
+    },
+    async setFirmwareActive(id, active) {
+      const release = releases().find((item) => item.id === id);
+      if (!release) return;
+      for (const item of releases()) if (item.modelCode === release.modelCode) item.active = false;
+      release.active = active;
+      // Published: the demo's boards of that model update at once.
+      if (active) for (const board of data.boards) if (modelCode(board.model) === release.modelCode) board.firmwareVersion = release.version;
+      save();
+    },
+    async deleteFirmware(id) {
+      data.releases = releases().filter((item) => item.id !== id);
+      save();
+    },
     setBlocked: (id, blocked) => change(id, (user) => (user.blocked = blocked)),
     remove: (id) => {
       const user = data.users.find((item) => item.id === id && !item.platformAdmin);
-      if (user) data = { users: data.users.filter((item) => item !== user), boards: data.boards.filter((board) => board.ownerPhone !== user.phone) };
+      if (user) data = { ...data, users: data.users.filter((item) => item !== user), boards: data.boards.filter((board) => board.ownerPhone !== user.phone) };
       save();
       return Promise.resolve();
     },

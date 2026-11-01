@@ -9,7 +9,7 @@
  * broker secret.
  */
 import { randomUUID } from "node:crypto";
-import { allBoardsTopic, boardTopic, parseBoardTopic, type BoardMessageKind } from "@m2smart/contracts";
+import { allBoardsTopic, boardTopic, parseBoardTopic, type BoardMessageKind, type ServerMessageKind } from "@m2smart/contracts";
 import mqtt, { type MqttClient } from "mqtt";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
@@ -19,8 +19,8 @@ const boardRole = (boardId: string) => `m2-board-${boardId}`;
 const API_ROLE = "m2-api-bridge";
 const CONTROL_TIMEOUT_MS = 5_000;
 
-/** Messages boards send; `cmd` only goes the other way. */
-export type InboundKind = Exclude<BoardMessageKind, "cmd">;
+/** Messages boards send; `cmd` and `update` only go the other way. */
+export type InboundKind = Exclude<BoardMessageKind, ServerMessageKind>;
 const INBOUND: InboundKind[] = ["ack", "state", "status", "reset"];
 
 export type BrokerOptions = { url: string; username: string; password: string };
@@ -55,7 +55,7 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
   client.on("message", (topic, message) => {
     if (topic === `${CONTROL}/response`) return onControlResponse(message.toString());
     const parsed = parseBoardTopic(topic);
-    if (!parsed || parsed.kind === "cmd") return;
+    if (!parsed || parsed.kind === "cmd" || parsed.kind === "update") return;
     let payload: unknown;
     try {
       // An empty retained message is how a board's status is cleared.
@@ -145,13 +145,14 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
       // Deleting first closes a connection that still uses the old secret.
       await control({ command: "deleteClient", username: boardId }, notFound);
       await control({ command: "deleteRole", rolename: boardRole(boardId) }, notFound);
-      // The board may send on its own four topics and receive only its own commands.
+      // The board may send on its own four topics and receive only its own commands and updates.
       await control({
         command: "createRole",
         rolename: boardRole(boardId),
         acls: [
           ...INBOUND.map((kind) => ({ acltype: "publishClientSend", topic: boardTopic(boardId, kind), allow: true })),
           { acltype: "subscribeLiteral", topic: boardTopic(boardId, "cmd"), allow: true },
+          { acltype: "subscribeLiteral", topic: boardTopic(boardId, "update"), allow: true },
         ],
       });
       await control({ command: "createClient", username: boardId, password: secret, roles: [{ rolename: boardRole(boardId) }] });

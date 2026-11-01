@@ -29,6 +29,7 @@ import { registerEventRoutes } from "./http/events";
 import { registerActivityRoutes } from "./http/activity";
 import { refuseBlocked, registerAdminRoutes, registerBlockedCheck } from "./http/admin";
 import { registerPhoneRoutes } from "./http/phone";
+import { registerFirmwareDownload } from "./http/firmware";
 import { createKratosAdmin, type IdentityAdmin } from "./auth/kratos-admin";
 import { startHomeEvents, type HomeEvents } from "./realtime/home-events";
 import { createSmsSender, type SmsSender } from "./sms/sms";
@@ -103,6 +104,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
   }
   registerBoardRoutes(app, pool, sessionVerifier, services.broker ?? (() => null));
   registerBlockedCheck(app, pool);
+  registerFirmwareDownload(app, pool);
   if (config.kratosWebhookSecret) {
     registerIdentityWebhook(app, pool, config.kratosWebhookSecret);
     registerSmsRoute(app, pool, services.sms ?? null);

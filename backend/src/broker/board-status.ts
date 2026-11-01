@@ -5,10 +5,13 @@
  *
  * The board id comes from the topic, and the broker lets a board publish only on its own topics,
  * so a board can never report for another one.
+ *
+ * A board that comes online on another version than its model's active firmware is offered it.
  */
 import { boardStatus } from "@m2smart/contracts";
 import type { Pool } from "pg";
 import { withSystemTx } from "../db/tx";
+import { offerUpdate } from "../firmware/releases";
 import type { Broker } from "./broker";
 
 type Log = { error: (object: object, message: string) => void };
@@ -32,8 +35,8 @@ export function followBoardStatus(broker: Broker, pool: Pool, log: Log): void {
   broker.on("status", (boardId, payload) => {
     const status = boardStatus.safeParse(payload);
     if (!status.success) return;
-    storeBoardStatus(pool, boardId, status.data.online, status.data.fw).catch((error: Error) =>
-      log.error({ err: { message: error.message }, boardId }, "Could not store a board's status"),
-    );
+    storeBoardStatus(pool, boardId, status.data.online, status.data.fw)
+      .then((known) => (known && status.data.online ? offerUpdate(pool, broker, boardId, status.data.fw) : false))
+      .catch((error: Error) => log.error({ err: { message: error.message }, boardId }, "Could not store a board's status"));
   });
 }

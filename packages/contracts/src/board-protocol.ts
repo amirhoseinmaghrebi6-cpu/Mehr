@@ -14,14 +14,17 @@ import { capabilities, type CapabilityName } from "./catalog.js";
 export const BOARD_PROTOCOL_VERSION = 1;
 const ROOT = `m2/v${BOARD_PROTOCOL_VERSION}/boards`;
 
-export const boardMessageKinds = ["cmd", "ack", "state", "status", "reset"] as const;
+export const boardMessageKinds = ["cmd", "ack", "state", "status", "reset", "update"] as const;
 export type BoardMessageKind = (typeof boardMessageKinds)[number];
 
 /** `m2/v1/boards/{boardId}/{kind}` */
 export const boardTopic = (boardId: string, kind: BoardMessageKind) => `${ROOT}/${boardId}/${kind}`;
 
+/** Kinds only the server sends; the board sends every other kind. */
+export type ServerMessageKind = "cmd" | "update";
+
 /** The server's subscription for one kind of message from every board. */
-export const allBoardsTopic = (kind: Exclude<BoardMessageKind, "cmd">) => `${ROOT}/+/${kind}`;
+export const allBoardsTopic = (kind: Exclude<BoardMessageKind, ServerMessageKind>) => `${ROOT}/+/${kind}`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -79,6 +82,21 @@ export type BoardStatus = z.infer<typeof boardStatus>;
 
 /** board → server, best effort just before a factory reset erases the board. */
 export const boardReset = z.strictObject({});
+
+/**
+ * server → board: a new firmware for its model (docs/board-protocol.md, "Firmware updates"). The
+ * board downloads `path` from the server it claimed at (over HTTPS), checks the SHA-256, writes
+ * it to its other firmware slot and restarts; it goes back to the old one if the new one cannot
+ * reach the broker within 5 minutes.
+ */
+export const boardUpdate = z.strictObject({
+  version: z.string().min(1).max(31),
+  /** e.g. "/api/v1/firmware/{id}.bin", under the server's own address. */
+  path: z.string().regex(/^\/api\/v1\/firmware\/[0-9a-f-]{36}\.bin$/),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  size: z.int().min(1),
+});
+export type BoardUpdate = z.infer<typeof boardUpdate>;
 
 // --- Pairing by setup code (docs/board-protocol.md, "Pairing") ----------------------------------
 

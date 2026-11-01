@@ -15,6 +15,7 @@ import { IdentityAdminError, type IdentityAdmin } from "../auth/kratos-admin";
 import type { SessionVerifier, VerifiedSession } from "../auth/session-verifier";
 import type { Broker } from "../broker/broker";
 import { withSystemTx } from "../db/tx";
+import { registerFirmwareAdmin } from "./firmware";
 import { requireSession } from "./me";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -191,4 +192,6 @@ export function registerAdminRoutes(app: FastifyInstance, pool: Pool, verifier: 
     request.log.info({ userId: request.params.userId, boards: rows.length }, "Operator deleted an account");
     return reply.code(204).send();
   });
+
+  registerFirmwareAdmin(app, pool, operator, services.broker);
 }

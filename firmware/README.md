@@ -6,6 +6,7 @@ What it does:
 - **Power-up:** applies the saved relay states at once, then the keys work, then it joins Wi-Fi and the broker.
 - **Keys:** a touch switches its channel; the setup key held 7–10 s starts pairing; held over 15 s within 3 minutes after power-up, it does a factory reset.
 - **Pairing mode:** opens the network `M2smart-XXXX` with a setup page at `http://192.168.4.1` (home Wi-Fi and setup code), claims with the code, then restarts paired.
+- **Updates over the air:** it takes `update` from the broker, downloads the image over HTTPS and checks its SHA-256. It writes the image to the other slot and restarts, and goes back to the previous firmware if the new one cannot reach the broker within 5 minutes.
 - **Broker:** MQTT, over TLS to our own certificate authority. It reports online, takes commands, acknowledges them and reports the result. It reports every key press, and every channel on connect.
 
 | File | Does |
@@ -18,6 +19,7 @@ What it does:
 | `main/setup_mode.c`, `main/setup_page.html` | Pairing mode and its page |
 | `main/claim.c` | `POST /api/v1/boards/claim` |
 | `main/cloud.c` | MQTT |
+| `main/ota.c` | Firmware updates and rollback |
 | `main/storage.c` | Flash: the `nvs` partition (erased by a factory reset) and `m2factory` (never erased) |
 
 ## Build
@@ -55,6 +57,12 @@ For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC
 
    The first flash writes the factory partition (`0xF000 …bin`). Later flashes leave it out: the board keeps its identity, Wi-Fi and pairing.
 4. **Watch it run:** the Arduino IDE's Serial Monitor at 115200 baud shows the board's log.
+
+## Releasing a new version
+
+1. Raise `PROJECT_VER` in `firmware/CMakeLists.txt`, for example `0.1.0` → `0.2.0`.
+2. Run `sh firmware/build.sh` for production.
+3. In the admin panel → Firmware, pick the board model, upload `firmware/dist/m2smart-board.bin` and publish it. The panel reads the version and the model from the file.
 
 ## Try it with the dev stack
 

@@ -4,6 +4,7 @@
 #include "cloud.h"
 #include "board.h"
 #include "channels.h"
+#include "ota.h"
 #include "storage.h"
 #include "cJSON.h"
 #include "esp_app_desc.h"
@@ -120,6 +121,10 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         ESP_LOGI(TAG, "Connected to the broker");
         topic(name, sizeof(name), "cmd");
         esp_mqtt_client_subscribe(client, name, 1);
+        topic(name, sizeof(name), "update");
+        esp_mqtt_client_subscribe(client, name, 1);
+        // Reaching the broker is what proves a new firmware works.
+        m2_ota_confirm();
         cJSON *status = cJSON_CreateObject();
         cJSON_AddBoolToObject(status, "online", true);
         cJSON_AddStringToObject(status, "fw", esp_app_get_description()->version);
@@ -134,6 +139,8 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     case MQTT_EVENT_DATA:
         topic(name, sizeof(name), "cmd");
         if (event->topic_len == (int)strlen(name) && strncmp(event->topic, name, event->topic_len) == 0) on_command(event->data, event->data_len);
+        topic(name, sizeof(name), "update");
+        if (event->topic_len == (int)strlen(name) && strncmp(event->topic, name, event->topic_len) == 0) m2_ota_offer(event->data, event->data_len);
         break;
     case MQTT_EVENT_ERROR:
         // Refused login: the board was removed in the app or reset on the server. It keeps obeying

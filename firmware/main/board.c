@@ -15,8 +15,12 @@ static const m2_channel_t channels[] = {
     { .key = "ch2", .kind = M2_CH_SWITCH, .capability = "power", .relay_gpio = 17, .key_gpio = 33 },
 };
 
+#define MODEL "devkit-2ch-rev-a"
+
+const char m2_model_marker[] = "M2MODEL=" MODEL ";";
+
 const m2_board_t m2_board = {
-    .model = "devkit-2ch-rev-a",
+    .model = MODEL,
     .channels = channels,
     .channel_count = sizeof(channels) / sizeof(channels[0]),
     .setup_gpio = 32,

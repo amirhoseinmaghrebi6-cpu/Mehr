@@ -10,9 +10,10 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Ban, Check, Cpu, Home, LayoutDashboard, LockOpen, Search, Trash2, TriangleAlert, Users, X } from "lucide-react";
-import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminBoardListResponse, type AdminOverview, type AdminUser, type AdminUserListResponse } from "@m2smart/contracts";
+import { Ban, Check, Cpu, HardDriveDownload, Home, LayoutDashboard, LockOpen, Search, Trash2, TriangleAlert, Users, X } from "lucide-react";
+import { ADMIN_PAGE_SIZE, type AdminBoard, type AdminFirmwareResponse, type FirmwareRelease, type AdminBoardListResponse, type AdminOverview, type AdminUser, type AdminUserListResponse } from "@m2smart/contracts";
 import { useI18n } from "@/components/i18n-provider";
+import { FirmwareSection } from "@/features/admin/firmware";
 import { phoneLabel } from "@/features/members/members";
 import { gatewayMessage } from "@/lib/gateway-messages";
 import { formatDate, formatNumber, formatTime } from "@/lib/i18n";
@@ -27,7 +28,19 @@ export type AdminSource = {
   boards(offset: number): Promise<AdminBoardListResponse>;
   setBlocked(userId: string, blocked: boolean): Promise<void>;
   remove(userId: string): Promise<void>;
+  firmware(): Promise<AdminFirmwareResponse>;
+  uploadFirmware(modelCode: string, file: File, notes: string): Promise<FirmwareRelease>;
+  setFirmwareActive(releaseId: string, active: boolean): Promise<void>;
+  deleteFirmware(releaseId: string): Promise<void>;
 };
+
+/** A file as base64, in chunks (a 1.6 MB image is too long for one String.fromCharCode call). */
+async function base64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(text);
+}
 
 const apiSource: AdminSource = {
   overview: () => request<AdminOverview>("GET", "/admin/overview"),
@@ -35,10 +48,14 @@ const apiSource: AdminSource = {
   boards: (offset) => request<AdminBoardListResponse>("GET", `/admin/boards?offset=${offset}`),
   setBlocked: (userId, blocked) => request("PATCH", `/admin/users/${userId}`, { blocked }),
   remove: (userId) => request("DELETE", `/admin/users/${userId}`),
+  firmware: () => request<AdminFirmwareResponse>("GET", "/admin/firmware"),
+  uploadFirmware: async (modelCode, file, notes) => request<FirmwareRelease>("POST", "/admin/firmware", { modelCode, image: await base64(file), notes }),
+  setFirmwareActive: (releaseId, active) => request("PATCH", `/admin/firmware/${releaseId}`, { active }),
+  deleteFirmware: (releaseId) => request("DELETE", `/admin/firmware/${releaseId}`),
 };
 
-type Tab = "overview" | "users" | "boards";
-type Toast = { message: string; tone: "ok" | "warn" };
+type Tab = "overview" | "users" | "boards" | "firmware";
+export type Toast = { message: string; tone: "ok" | "warn" };
 const codeOf = (error: unknown): GatewayErrorCode => (error instanceof GatewayError ? error.code : "network");
 const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -66,7 +83,7 @@ export function AdminPanel({ demoUserId }: { /** Set for the demo: sample data, 
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  const tabs = [["overview", LayoutDashboard], ["users", Users], ["boards", Cpu]] as const;
+  const tabs = [["overview", LayoutDashboard], ["users", Users], ["boards", Cpu], ["firmware", HardDriveDownload]] as const;
   return (
     <section className="admin-main">
         <div className="panel-intro"><span className="panel-overline">M2SMART{demoUserId && " · DEMO"}</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
@@ -79,6 +96,7 @@ export function AdminPanel({ demoUserId }: { /** Set for the demo: sample data, 
         {tab === "overview" && overview && <OverviewSection overview={overview} />}
         {tab === "users" && <UsersSection source={source} accounts={overview?.services.accounts ?? false} onToast={setToast} onChanged={() => void loadOverview()} />}
         {tab === "boards" && <BoardsSection source={source} />}
+        {tab === "firmware" && <FirmwareSection source={source} onToast={setToast} />}
       <AnimatePresence>{toast && <motion.div className={`toast-message${toast.tone === "warn" ? " toast-warn" : ""}`} role="status" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}><span>{toast.tone === "warn" ? <TriangleAlert size={14} /> : <Check size={14} />}</span>{toast.message}</motion.div>}</AnimatePresence>
     </section>
   );
@@ -214,7 +232,7 @@ function BoardsSection({ source }: { source: AdminSource }) {
             <span className={`admin-dot ${board.online ? "is-ok" : "is-off"}`} aria-hidden="true" />
             <span className="member-copy">
               <strong>{board.model}</strong>
-              <small><bdi dir="ltr">{board.hardwareUid}</bdi>{board.firmwareVersion && ` · ${t.firmware(board.firmwareVersion)}`}</small>
+              <small><bdi dir="ltr">{board.hardwareUid}</bdi>{board.firmwareVersion && ` · ${t.firmwareVersion(board.firmwareVersion)}`}</small>
               <small>{board.ownerPhone ? <>{board.ownerName || t.noName} · <bdi dir="ltr">{phoneLabel(board.ownerPhone, locale)}</bdi></> : t.noOwner}</small>
             </span>
             <span className="admin-board-state"><span className={`admin-status ${board.online ? "is-ok" : "is-off"}`}>{board.online ? t.online : t.offline}</span><small>{seen(board)}</small></span>

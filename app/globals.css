@@ -1215,3 +1215,9 @@ a.profile-menu { color: var(--muted); }
 .account-reauth { display: grid; max-width: 420px; gap: 10px; margin-top: 8px; padding: 12px; border: 1px solid var(--warning-soft); border-radius: 6px; background: color-mix(in srgb, var(--warning-soft) 45%, var(--surface)); }
 .account-reauth p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
 .account-reauth .button-primary { justify-self: start; }
+
+/* Operator's panel → Firmware. */
+.firmware-upload { display: grid; max-width: 460px; gap: 10px; margin-top: 10px; }
+.firmware-upload input[type="file"] { height: auto; padding: 8px 10px; }
+.firmware-upload .button-primary { justify-self: start; }
+.firmware-model .admin-status { flex: 0 0 auto; }

@@ -40,5 +40,11 @@ typedef struct {
 
 extern const m2_board_t m2_board;
 
+/**
+ * "M2MODEL=<code>;" inside the image: the server reads it when an operator uploads a firmware, so
+ * a firmware built for another board is never sent to this one (backend/src/firmware/releases.ts).
+ */
+extern const char m2_model_marker[];
+
 /** The channel with this key, or -1. */
 int m2_board_channel(const char *key);

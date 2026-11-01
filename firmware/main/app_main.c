@@ -10,6 +10,7 @@
 #include "cloud.h"
 #include "keys.h"
 #include "net.h"
+#include "ota.h"
 #include "setup_mode.h"
 #include "storage.h"
 #include "esp_log.h"
@@ -43,7 +44,9 @@ void app_main(void)
     m2_keys_start(on_pairing, on_factory_reset);
 
     has_identity = m2_factory_identity(uid, sizeof(uid), factory_secret, sizeof(factory_secret));
-    ESP_LOGI(TAG, "Board %s, model %s", has_identity ? uid : "(not provisioned)", m2_board.model);
+    // Logging the marker also keeps it in the image, where the server looks for it.
+    ESP_LOGI(TAG, "Board %s, %s", has_identity ? uid : "(not provisioned)", m2_model_marker);
+    m2_ota_boot_check();
 
     m2_net_init();
     char ssid[33], password[65];

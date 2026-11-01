@@ -123,6 +123,26 @@ Why it is safe at any scale: a guess has a chance of about one in a billion even
 
 The factory secret is a random value written to the board at production. It proves the board is genuine, and it is the only thing that survives a factory reset.
 
+## Firmware updates
+
+A board gets new firmware over the air, from our own server.
+
+1. **Upload:** an operator uploads the image in the admin panel (Firmware).
+   - The server reads the **version** from the image's ESP-IDF app description.
+   - It reads the **board model** from the marker `M2MODEL=<code>;` that every firmware carries (`firmware/main/board.c`).
+   - A file that is not our firmware, or one built for another model, is refused, so a wrong version or another board's firmware can never be sent.
+2. **Publish:** the operator makes a version active. One version per model is active at a time.
+3. **Offer:** the server sends `update` to every online board of that model that reported another version in its `status`.
+   - A board that is offline gets it when it comes online.
+   - Payload: `{"version", "path", "sha256", "size"}`, where `path` is `/api/v1/firmware/{id}.bin`.
+4. **Install:** the board downloads `path` from the server it claimed at, over HTTPS, and checks the size and the SHA-256 against the message.
+   - It writes the image to its other firmware slot; `esp_ota_end` also checks the image's own format and checksum.
+   - Then it restarts. Relays and keys keep working during the download. A failed download changes nothing, and the offer comes again at the next connection.
+5. **Prove:** the new firmware is kept only once it reaches the broker. If it cannot within 5 minutes, or it crashes first, the board goes back to the firmware it had (ESP-IDF app rollback).
+6. **Done:** the board's next `status` reports the new version, and the panel counts boards by version.
+
+The image needs no account to download: it is the same code that is in every board. Only an active release can be downloaded.
+
 ## Factory reset
 
 1. If the board is online, it publishes `reset` (best effort).
