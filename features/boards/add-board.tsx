@@ -25,6 +25,8 @@ import { GatewayError } from "@/services/home-gateway";
 export type WaitingBoard = { boardId: string; boardName: string };
 
 type Props = {
+  /** The home; its Wi-Fi is remembered per home, on this phone only. */
+  propertyId: string;
   rooms: Room[];
   /** Owners and admins add and pair boards; members only read how it is done. */
   canPair: boolean;
@@ -43,7 +45,7 @@ type Props = {
   onClose: () => void;
 };
 
-export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd, createSetupCode, isPaired, simulateBoard, onClose }: Props) {
+export function AddBoard({ propertyId, rooms, canPair, nameOf, waiting, loadProducts, onAdd, createSetupCode, isPaired, simulateBoard, onClose }: Props) {
   const { locale, m, rtl } = useI18n();
   const d = m.dialogs;
   const [products, setProducts] = useState<HardwareProduct[] | null>(null);
@@ -93,7 +95,7 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
   // --- Step 3: pairing ---------------------------------------------------------------------------
   if (board) {
     return canPair ? (
-      <Pairing board={board} nameOf={nameOf} createSetupCode={createSetupCode} isPaired={isPaired} simulateBoard={simulateBoard} onClose={onClose} />
+      <Pairing propertyId={propertyId} board={board} nameOf={nameOf} createSetupCode={createSetupCode} isPaired={isPaired} simulateBoard={simulateBoard} onClose={onClose} />
     ) : (
       <>
         <p className="workspace-dialog-description">{d.pairBoardText(nameOf(board.boardName))}</p>
@@ -177,7 +179,7 @@ export function AddBoard({ rooms, canPair, nameOf, waiting, loadProducts, onAdd,
 }
 
 /** Step 3: the setup code, the way to the board's page, and waiting until the board has joined. */
-function Pairing({ board, nameOf, createSetupCode, isPaired, simulateBoard, onClose }: Pick<Props, "nameOf" | "createSetupCode" | "isPaired" | "simulateBoard" | "onClose"> & { board: WaitingBoard }) {
+function Pairing({ propertyId, board, nameOf, createSetupCode, isPaired, simulateBoard, onClose }: Pick<Props, "propertyId" | "nameOf" | "createSetupCode" | "isPaired" | "simulateBoard" | "onClose"> & { board: WaitingBoard }) {
   const { locale, m } = useI18n();
   const d = m.dialogs;
   const [setup, setSetup] = useState<SetupCodeResponse | null>(null);
@@ -185,6 +187,7 @@ function Pairing({ board, nameOf, createSetupCode, isPaired, simulateBoard, onCl
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const paired = isPaired(board.boardId);
+  const wifi = useHomeWifi(propertyId);
   const message = (caught: unknown) => gatewayMessage(caught instanceof GatewayError ? caught.code : "network", locale);
 
   // One request at a time: each new code ends the earlier one, so two at once could leave the
@@ -258,8 +261,15 @@ function Pairing({ board, nameOf, createSetupCode, isPaired, simulateBoard, onCl
           <button type="button" className="button-primary pairing-open" disabled={busy || !setup || expired} onClick={() => void simulate()}><Sparkles size={15} />{d.demoSimulate}</button>
         </>
       ) : (
-        setup && !expired && <a className="button-primary pairing-open" href={setup.setupUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />{d.openBoardPage}</a>
+        setup && !expired && <a className="button-primary pairing-open" href={setup.setupUrl + wifi.fragment} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />{d.openBoardPage}</a>
       )}
+      <details className="home-wifi" open={Boolean(wifi.ssid)}>
+        <summary><Wifi size={14} />{d.homeWifi}</summary>
+        <p className="form-note">{d.homeWifiNote}</p>
+        <input aria-label={d.wifiName} placeholder={d.wifiName} dir="ltr" maxLength={32} autoComplete="off" value={wifi.ssid} onChange={(event) => wifi.set(event.target.value, wifi.password)} />
+        <input aria-label={d.wifiPassword} placeholder={d.wifiPassword} dir="ltr" maxLength={64} type="password" autoComplete="off" value={wifi.password} onChange={(event) => wifi.set(wifi.ssid, event.target.value)} />
+        {wifi.ssid && <button type="button" className="button-subtle" onClick={() => wifi.set("", "")}>{d.forgetWifi}</button>}
+      </details>
       {setup && !expired && <p className="pairing-waiting" role="status"><LoaderCircle size={14} className="spin" />{d.waitingForBoard}</p>}
       <div className="workspace-form-actions">
         <button type="button" className="button-subtle" onClick={onClose}><Hourglass size={14} />{d.pairLater}</button>
@@ -267,4 +277,31 @@ function Pairing({ board, nameOf, createSetupCode, isPaired, simulateBoard, onCl
       </div>
     </>
   );
+}
+
+/**
+ * The home's Wi-Fi, kept only in this phone's storage (never sent to our server), so an installer
+ * types it once per home. The board's page reads it after "#", which the browser keeps to itself.
+ */
+function useHomeWifi(propertyId: string) {
+  const key = `m2smart-wifi-${propertyId}`;
+  const [wifi, setWifi] = useState(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(key) ?? "null") as { ssid?: unknown; password?: unknown } | null;
+      return { ssid: typeof saved?.ssid === "string" ? saved.ssid : "", password: typeof saved?.password === "string" ? saved.password : "" };
+    } catch {
+      return { ssid: "", password: "" };
+    }
+  });
+  const set = (ssid: string, password: string) => {
+    setWifi({ ssid, password });
+    try {
+      if (ssid) window.localStorage.setItem(key, JSON.stringify({ ssid, password }));
+      else window.localStorage.removeItem(key);
+    } catch {
+      // Private mode: it just is not remembered.
+    }
+  };
+  const fragment = wifi.ssid ? `#${new URLSearchParams({ ssid: wifi.ssid, pw: wifi.password })}` : "";
+  return { ...wifi, set, fragment };
 }

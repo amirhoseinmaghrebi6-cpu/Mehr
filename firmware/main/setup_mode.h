@@ -3,6 +3,9 @@
  * "M2smart-XXXX" with a setup page at http://192.168.4.1. The page takes the home Wi-Fi and the
  * setup code (filled in by the app's link, or typed); the board joins the Wi-Fi, claims with the
  * code, keeps its broker account and restarts as a paired board.
+ *
+ * A board that is already paired is also offered "change only the Wi-Fi": no code, and it stays in
+ * its home. It keeps the new Wi-Fi only once it has reached our server over it.
  */
 #pragma once
 

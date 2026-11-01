@@ -84,7 +84,8 @@ export function createDemoData(): DemoData {
       ],
       caspian: [
         demoDevice("c-lamp", "dimmer", "Reading lamp", "c-living", { brightness: 40 }),
-        demoDevice("c-fan", "fan", "Ceiling fan", "c-bedroom", { speed: "off" }),
+        // Offline, so the demo shows what the app says when a board has lost its Wi-Fi.
+        { ...demoDevice("c-fan", "fan", "Ceiling fan", "c-bedroom", { speed: "off" }), online: false, lastSeenAt: new Date(Date.now() - 3 * 3600_000).toISOString() },
         demoDevice("c-window", "contact_sensor", "Balcony door", "c-living", { contact: "closed" }),
         demoDevice("c-motion", "motion_sensor", "Hallway motion", "c-living", { motion: false }),
         demoDevice("c-presence", "presence_sensor", "Bedroom presence", "c-bedroom", { presence: true }),

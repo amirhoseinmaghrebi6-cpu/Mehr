@@ -5,7 +5,7 @@ ESP-IDF v5.4 firmware for M2smart boards. It follows [docs/board-protocol.md](..
 What it does:
 - **Power-up:** applies the saved relay states at once, then the keys work, then it joins Wi-Fi and the broker.
 - **Keys:** a touch switches its channel; the setup key held 7–10 s starts pairing; held over 15 s within 3 minutes after power-up, it does a factory reset.
-- **Pairing mode:** opens the network `M2smart-XXXX` with a setup page at `http://192.168.4.1` (home Wi-Fi and setup code), claims with the code, then restarts paired.
+- **Pairing mode:** opens the network `M2smart-XXXX` with a setup page at `http://192.168.4.1` (home Wi-Fi and setup code), claims with the code, then restarts paired. A paired board can also change only its Wi-Fi there: it keeps the new one only after reaching our server over it.
 - **Updates over the air:** it takes `update` from the broker, downloads the image over HTTPS and checks its SHA-256. It writes the image to the other slot and restarts, and goes back to the previous firmware if the new one cannot reach the broker within 5 minutes.
 - **Broker:** MQTT, over TLS to our own certificate authority. It reports online, takes commands, acknowledges them and reports the result. It reports every key press, and every channel on connect.
 

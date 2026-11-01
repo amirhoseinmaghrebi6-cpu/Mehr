@@ -20,14 +20,16 @@ static const char *TAG = "setup";
 extern const char page_start[] asm("_binary_setup_page_html_start");
 extern const char page_end[] asm("_binary_setup_page_html_end");
 
-typedef enum { IDLE, CONNECTING, WIFI_FAILED, CLAIMING, WRONG_CODE, WRONG_PRODUCT, TOO_MANY, NO_SERVER, DONE } setup_state_t;
-static const char *STATE_NAMES[] = { "idle", "connecting", "wifi_failed", "claiming", "wrong_code", "wrong_product", "too_many", "no_server", "done" };
+typedef enum { IDLE, CONNECTING, WIFI_FAILED, CLAIMING, WRONG_CODE, WRONG_PRODUCT, TOO_MANY, NO_SERVER, DONE, CHECKING, WIFI_CHANGED } setup_state_t;
+static const char *STATE_NAMES[] = { "idle", "connecting", "wifi_failed", "claiming", "wrong_code", "wrong_product", "too_many", "no_server", "done", "checking", "wifi_changed" };
 
 static httpd_handle_t server;
 static esp_timer_handle_t timeout;
 static volatile setup_state_t state = IDLE;
 static char uid[72], factory_secret[136];
 static char ssid[33], password[65], code[24];
+/** Already paired: the page also offers changing only the Wi-Fi (no code; the board stays in its home). */
+static bool paired;
 
 static esp_err_t page(httpd_req_t *req)
 {
@@ -45,8 +47,8 @@ static esp_err_t scan(httpd_req_t *req)
 
 static esp_err_t status(httpd_req_t *req)
 {
-    char json[48];
-    snprintf(json, sizeof(json), "{\"state\":\"%s\"}", STATE_NAMES[state]);
+    char json[64];
+    snprintf(json, sizeof(json), "{\"state\":\"%s\",\"paired\":%s}", STATE_NAMES[state], paired ? "true" : "false");
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, json);
 }
@@ -77,6 +79,34 @@ static void pair(void *arg)
     vTaskDelete(NULL);
 }
 
+/**
+ * Only the Wi-Fi changes (the router or its password did): the board tries the new network and our
+ * server first, and keeps it only if both work; otherwise it goes back to the Wi-Fi it had, so a
+ * typo never cuts it off. Its home, names, rooms and scenarios stay.
+ */
+static void change_wifi(void *arg)
+{
+    char old_ssid[33] = "", old_password[65] = "";
+    bool had_wifi = m2_load_wifi(old_ssid, sizeof(old_ssid), old_password, sizeof(old_password));
+    state = CONNECTING;
+    m2_net_connect(ssid, password);
+    if (!m2_net_wait_connected(20000)) {
+        state = WIFI_FAILED;
+    } else {
+        state = CHECKING;
+        if (m2_server_reachable()) {
+            m2_save_wifi(ssid, password);
+            state = WIFI_CHANGED;
+            ESP_LOGI(TAG, "Wi-Fi changed; restarting");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            esp_restart();
+        }
+        state = NO_SERVER;
+    }
+    if (had_wifi) m2_net_connect(old_ssid, old_password);
+    vTaskDelete(NULL);
+}
+
 static esp_err_t setup(httpd_req_t *req)
 {
     char body[256] = { 0 };
@@ -85,17 +115,20 @@ static esp_err_t setup(httpd_req_t *req)
     const cJSON *s = cJSON_GetObjectItem(json, "ssid");
     const cJSON *p = cJSON_GetObjectItem(json, "password");
     const cJSON *c = cJSON_GetObjectItem(json, "code");
-    bool busy = state == CONNECTING || state == CLAIMING || state == DONE;
-    if (busy || !cJSON_IsString(s) || !s->valuestring[0] || !cJSON_IsString(c)) {
+    const cJSON *mode = cJSON_GetObjectItem(json, "mode");
+    // "wifi": change only the Wi-Fi of a paired board; otherwise pair with the code.
+    bool wifi_only = paired && cJSON_IsString(mode) && strcmp(mode->valuestring, "wifi") == 0;
+    bool busy = state == CONNECTING || state == CLAIMING || state == DONE || state == CHECKING || state == WIFI_CHANGED;
+    if (busy || !cJSON_IsString(s) || !s->valuestring[0] || (!wifi_only && !cJSON_IsString(c))) {
         cJSON_Delete(json);
         httpd_resp_set_status(req, busy ? "409 Conflict" : "400 Bad Request");
         return httpd_resp_sendstr(req, "{}");
     }
     strlcpy(ssid, s->valuestring, sizeof(ssid));
     strlcpy(password, cJSON_IsString(p) ? p->valuestring : "", sizeof(password));
-    strlcpy(code, c->valuestring, sizeof(code));
+    strlcpy(code, wifi_only ? "" : c->valuestring, sizeof(code));
     cJSON_Delete(json);
-    xTaskCreate(pair, "pair", 8192, NULL, 5, NULL);
+    xTaskCreate(wifi_only ? change_wifi : pair, "pair", 8192, NULL, 5, NULL);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, "{}");
 }
@@ -103,7 +136,7 @@ static esp_err_t setup(httpd_req_t *req)
 static void time_up(void *arg)
 {
     // Pairing mode ends after 5 minutes; if the board is pairing right now, a minute later.
-    if (state == CONNECTING || state == CLAIMING || state == DONE) {
+    if (state == CONNECTING || state == CLAIMING || state == DONE || state == CHECKING || state == WIFI_CHANGED) {
         esp_timer_start_once(timeout, 60ULL * 1000 * 1000);
         return;
     }
@@ -116,6 +149,8 @@ void m2_setup_start(const char *board_uid, const char *secret)
     if (server) return;
     strlcpy(uid, board_uid, sizeof(uid));
     strlcpy(factory_secret, secret, sizeof(factory_secret));
+    char board_id[64], broker_secret[96];
+    paired = m2_load_account(board_id, sizeof(board_id), broker_secret, sizeof(broker_secret));
     char name[33];
     size_t len = strlen(uid);
     // The network is named after the last 4 characters of the hardware id.

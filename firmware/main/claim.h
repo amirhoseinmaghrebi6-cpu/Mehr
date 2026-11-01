@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 
 typedef enum {
@@ -19,3 +20,6 @@ typedef enum {
 } m2_claim_result_t;
 
 m2_claim_result_t m2_claim(const char *uid, const char *secret, const char *code, char *board_id, size_t board_id_len, char *broker_secret, size_t broker_secret_len);
+
+/** Whether our server answers (any HTTP status) on the network the board is on now. */
+bool m2_server_reachable(void);

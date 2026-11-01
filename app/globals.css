@@ -923,6 +923,12 @@ a.auth-submit { text-decoration: none; }
 .setup-code-box.is-expired small:first-of-type { color: var(--warning); }
 .pairing-open { width: 100%; text-decoration: none; }
 .pairing-waiting { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 10px 0 0; color: var(--muted); font-size: 10px; }
+.home-wifi { margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.home-wifi summary { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; cursor: pointer; }
+.home-wifi input { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: inherit; font: inherit; }
+.home-wifi .form-note { margin: 8px 0 0; }
+.home-wifi .button-subtle { margin-top: 8px; }
+.sheet-offline { margin: 6px 0 14px; padding: 12px 14px; border-radius: 8px; background: var(--warning-soft); }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .pairing-done { display: grid; justify-items: center; gap: 6px; padding: 10px 0 0; color: var(--positive); text-align: center; }

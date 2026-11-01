@@ -572,6 +572,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
       />}
 
       {addDevice && propertyId && <AddDeviceDialog
+        propertyId={propertyId}
         rooms={rooms}
         nameOf={nameOf}
         canPair={property ? can(property.role, "board.pair") : false}

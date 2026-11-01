@@ -109,7 +109,7 @@ Nothing is printed on the product, and the board has no screen. The app gives a 
    - Valid once and for 10 minutes, for this waiting board only. Asking again gives a new code and ends the earlier one. No two waiting codes are ever the same. The server stores only the SHA-256.
 2. **Pairing mode.** The user holds the board's setup key for 7–10 seconds. The board opens a temporary Wi-Fi access point named `M2smart-…`, with a setup page at `http://192.168.4.1`.
 3. **Setup page** (served by the board, no internet needed). The user's phone joins the board's Wi-Fi, and the user taps "Open the board's page" in the app. That opens `http://192.168.4.1/?code=XXXXXXXXXXXX`, so the code is filled in already. The page asks for:
-   - the home's Wi-Fi name and password;
+   - the home's Wi-Fi name and password (only 2.4 GHz networks are listed; the page says so). If the installer saved this home's Wi-Fi in the app, the link carries it after `#` (`#ssid=…&pw=…`): it is kept only on that phone, the browser never sends a fragment, and our server never sees it;
    - the setup code: filled in from the link, or typed. Typing accepts any case, spaces and dashes.
 4. **Claim.** The board joins the home's Wi-Fi and calls `POST /v1/boards/claim` over HTTPS with `{"hardwareUid", "secret", "code"}`: its hardware id, its factory secret and the setup code.
    - **200** `{"boardId", "brokerSecret"}`: the board is now the waiting board of that home. The waiting devices keep their names, rooms and scenario actions and become real. If it was in another home, it leaves it.
@@ -122,6 +122,15 @@ Nothing is printed on the product, and the board has no screen. The app gives a 
 Why it is safe at any scale: a guess has a chance of about one in a billion even with thousands of codes waiting at once. Each board gets 5 wrong tries an hour. A code works for one board of the right product, only for 10 minutes. Only a genuine board (with its factory secret) can use one.
 
 The factory secret is a random value written to the board at production. It proves the board is genuine, and it is the only thing that survives a factory reset.
+
+## Changing the Wi-Fi
+
+When the router or its password changes, the board goes offline; the app tells the user how to fix it. The user puts the board in pairing mode (setup key 7–10 s) and opens its page. A board that is already paired offers two choices:
+
+- **Change only the Wi-Fi** (the default): no code. The page sends `{"ssid", "password", "mode": "wifi"}`. The board joins the new Wi-Fi and checks that our server answers on it (state `checking`). Only then does it save it (state `wifi_changed`) and restart in the same home, with the same names, rooms and scenarios. If the Wi-Fi or the server fails, it reports `wifi_failed` or `no_server` and goes back to the Wi-Fi it had, so a typo never cuts it off.
+- **Move to another home**: pairing with a setup code, as above. A link from the app with a code picks this one.
+
+`GET /status` returns `{"state", "paired"}`; `mode: "wifi"` is refused on a board that is not paired.
 
 ## Firmware updates
 

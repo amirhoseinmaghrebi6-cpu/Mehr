@@ -87,6 +87,7 @@ export function DeviceSheet({ device, name, roomName, valueOf, activity, slowHar
           </p>
         )}
 
+        {!device.pending && !device.online && <p className="form-note sheet-offline">{m.sheet.offlineText}</p>}
         {device.pending && (
           <div className="sheet-pending">
             <p>{m.sheet.awaitingPairingText}</p>

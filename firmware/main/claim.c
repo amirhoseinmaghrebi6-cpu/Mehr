@@ -69,3 +69,16 @@ m2_claim_result_t m2_claim(const char *uid, const char *secret, const char *code
     free(payload);
     return result;
 }
+
+bool m2_server_reachable(void)
+{
+    char url[160];
+    snprintf(url, sizeof(url), "%s/api/v1/hardware-products", CONFIG_M2_API_URL);
+    esp_http_client_config_t config = { .url = url, .timeout_ms = 10000, .crt_bundle_attach = esp_crt_bundle_attach };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    // Any answer from the server (401 here: no session) proves the network reaches it.
+    bool ok = esp_http_client_perform(client) == ESP_OK && esp_http_client_get_status_code(client) > 0 && esp_http_client_get_status_code(client) < 500;
+    esp_http_client_cleanup(client);
+    ESP_LOGI(TAG, "Server %s", ok ? "reachable" : "not reachable");
+    return ok;
+}
