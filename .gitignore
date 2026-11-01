@@ -26,5 +26,5 @@ firmware/dist/
 firmware/.last-build
 
 # Factory batches: they hold boards' secrets until flashed (docs/factory.md).
-factory/
-backend/factory/
+/factory/
+/backend/factory/
