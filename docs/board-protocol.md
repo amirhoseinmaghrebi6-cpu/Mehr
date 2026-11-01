@@ -34,7 +34,7 @@ A board may publish and subscribe only on its own topics; the broker refuses any
 
 Connecting is how the server learns that power or internet is back. It then sends any commands that are still valid.
 
-**When the connection is lost** the board keeps working locally and reconnects with a growing delay (1 s, 2 s, 4 s … up to 60 s).
+**When the connection is lost** the board keeps working locally and reconnects with a growing delay (1 s, 2 s, 4 s … up to 60 s). Each wait is spread at random over its second half, so boards that lost the broker together do not all come back in the same second. A board whose login the broker refuses 5 times (removed in the app) asks only once an hour, in case the refusal was the server's fault.
 
 ## Topics and messages
 

@@ -13,6 +13,7 @@
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "mqtt_client.h"
 #include "freertos/FreeRTOS.h"
@@ -25,6 +26,22 @@ extern const char board_ca_pem_start[] asm("_binary_board_ca_pem_start");
 static esp_mqtt_client_handle_t client;
 /** Every value again every 10 minutes, so the server knows a quiet sensor is still there. */
 static esp_timer_handle_t heartbeat;
+/**
+ * Reconnecting (docs/board-protocol.md, "Connection"): after 1 s, doubling up to 60 s, each wait
+ * spread at random over its second half, so thousands of boards coming back after an outage do
+ * not all knock at once. A board the broker keeps refusing asks once an hour.
+ */
+static esp_timer_handle_t retry_timer;
+static int retry_s = 1;
+#define REFUSED_RETRY_S 3600
+
+/**
+ * The last commands answered. QoS 1 may deliver a command twice; the board then repeats its
+ * answer and does not run the hardware again (docs/board-protocol.md, step 5).
+ */
+#define RECENT 8
+static struct { char id[40]; char err[24]; int channel; bool done; } recent[RECENT];
+static int recent_next;
 static bool connected;
 static char topic_base[96];
 static int refused;
@@ -141,8 +158,19 @@ static void report_all_now(void *arg)
     if (connected) report_all();
 }
 
+static int recent_find(const char *id)
+{
+    for (int i = 0; i < RECENT; i++) {
+        if (recent[i].id[0] && strcmp(recent[i].id, id) == 0) return i;
+    }
+    return -1;
+}
+
 void m2_cloud_report(int channel, const char *command_id)
 {
+    // The command is done: a repeat of it now gets this state again.
+    int seen = command_id ? recent_find(command_id) : -1;
+    if (seen >= 0) recent[seen].done = true;
     if (!connected) return;
     // A momentary channel reports only that it opened.
     if (m2_board.channels[channel].kind == M2_CH_MOMENTARY && !m2_channel_value(channel)) return;
@@ -175,29 +203,48 @@ static void on_command(const char *data, int len)
         cJSON_Delete(json);
         return;
     }
+    int seen = recent_find(id->valuestring);
+    if (seen >= 0) {
+        // Already answered: the same answer again, and the state if it is done.
+        ack(id->valuestring, recent[seen].err[0] ? recent[seen].err : NULL);
+        if (!recent[seen].err[0] && recent[seen].done) m2_cloud_report(recent[seen].channel, id->valuestring);
+        cJSON_Delete(json);
+        return;
+    }
     int channel = m2_board_channel(ch->valuestring);
     const m2_channel_t *target = channel >= 0 ? &m2_board.channels[channel] : NULL;
     // A second capability: a cooler's pump, a camera's recording.
     bool pump = target && target->kind == M2_CH_COOLER && strcmp(cap->valuestring, "pump") == 0;
     bool recording = target && target->kind == M2_CH_CAMERA && strcmp(cap->valuestring, "recording") == 0;
     int value = target ? decode(target, pump, val) : -1;
+    const char *err = NULL;
     // A sensor's values are read-only.
     if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || (!pump && !recording && strcmp(target->capability, cap->valuestring) != 0)) {
-        ack(id->valuestring, "unknown_target");
+        err = "unknown_target";
     } else if (value < 0) {
-        ack(id->valuestring, "invalid_value");
+        err = "invalid_value";
     } else if (target->kind == M2_CH_CAMERA) {
-        const char *refused = m2_camera_refuse(recording, value);
-        ack(id->valuestring, refused);
-        if (!refused) m2_camera_command(recording, value, id->valuestring);
+        err = m2_camera_refuse(recording, value);
     } else if (value && m2_channel_inhibited(channel)) {
         // e.g. a pump whose tank is empty: it must not run dry.
-        ack(id->valuestring, "blocked_by_sensor");
-    } else {
-        ack(id->valuestring, NULL);
-        m2_channel_command(channel, pump, value, id->valuestring);
+        err = "blocked_by_sensor";
     }
+    // Remembered before the hardware runs, so its report marks it done.
+    // ponytail: a curtain's later report may race this from another task; it only delays "done".
+    strlcpy(recent[recent_next].id, id->valuestring, sizeof(recent[0].id));
+    strlcpy(recent[recent_next].err, err ? err : "", sizeof(recent[0].err));
+    recent[recent_next].channel = channel;
+    recent[recent_next].done = false;
+    recent_next = (recent_next + 1) % RECENT;
+    ack(id->valuestring, err);
+    if (!err && target->kind == M2_CH_CAMERA) m2_camera_command(recording, value, id->valuestring);
+    else if (!err) m2_channel_command(channel, pump, value, id->valuestring);
     cJSON_Delete(json);
+}
+
+static void retry(void *arg)
+{
+    esp_mqtt_client_reconnect(client);
 }
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -208,6 +255,7 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     case MQTT_EVENT_CONNECTED: {
         connected = true;
         refused = 0;
+        retry_s = 1;
         m2_led_set(M2_LED_ON);
         ESP_LOGI(TAG, "Connected to the broker");
         topic(name, sizeof(name), "cmd");
@@ -224,10 +272,16 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         report_all();
         break;
     }
-    case MQTT_EVENT_DISCONNECTED:
+    case MQTT_EVENT_DISCONNECTED: {
+        // Also after a failed attempt: the next one waits (the client's own retry is off).
         connected = false;
         m2_led_set(M2_LED_OFF);
+        int wait_s = refused >= 5 ? REFUSED_RETRY_S : retry_s;
+        retry_s = retry_s * 2 > 60 ? 60 : retry_s * 2;
+        uint64_t half = (uint64_t)wait_s * 1000 * 1000 / 2;
+        esp_timer_start_once(retry_timer, half + esp_random() % (half + 1));
         break;
+    }
     case MQTT_EVENT_DATA:
         topic(name, sizeof(name), "cmd");
         if (event->topic_len == (int)strlen(name) && strncmp(event->topic, name, event->topic_len) == 0) on_command(event->data, event->data_len);
@@ -236,10 +290,10 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         break;
     case MQTT_EVENT_ERROR:
         // Refused login: the board was removed in the app or reset on the server. It keeps obeying
-        // its keys and waits for the setup key; asking again and again is pointless.
-        if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED && ++refused >= 5) {
+        // its keys and waits for the setup key. It still asks once an hour, in case the refusal
+        // was the server's fault, so no board is lost for good.
+        if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED && ++refused == 5) {
             ESP_LOGW(TAG, "The broker refuses this board: it is no longer paired. Hold the setup key to pair it again.");
-            esp_mqtt_client_stop(client);
         }
         break;
     default:
@@ -267,7 +321,7 @@ void m2_cloud_start(const char *board_id, const char *broker_secret)
         .credentials.authentication.password = secret_kept,
         .session.keepalive = 30,
         .session.last_will = { .topic = will_topic_kept, .msg = "{\"online\":false}", .qos = 1, .retain = 1 },
-        .network.reconnect_timeout_ms = 5000,
+        .network.disable_auto_reconnect = true,
     };
 #if !CONFIG_M2_DEV_INSECURE
     if (strncmp(CONFIG_M2_MQTT_URL, "mqtts://", 8) != 0) {
@@ -278,6 +332,8 @@ void m2_cloud_start(const char *board_id, const char *broker_secret)
     esp_timer_create_args_t beat = { .callback = report_all_now, .name = "heartbeat" };
     esp_timer_create(&beat, &heartbeat);
     esp_timer_start_periodic(heartbeat, 10LL * 60 * 1000 * 1000);
+    esp_timer_create_args_t retry_args = { .callback = retry, .name = "mqtt-retry" };
+    esp_timer_create(&retry_args, &retry_timer);
     client = esp_mqtt_client_init(&config);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, on_event, NULL);
     esp_mqtt_client_start(client);
