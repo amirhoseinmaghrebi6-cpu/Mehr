@@ -37,6 +37,8 @@ int esp_timer_create(const esp_timer_create_args_t *args, esp_timer_handle_t *ou
 }
 int esp_timer_start_once(esp_timer_handle_t timer, uint64_t us) { (void)us; timer->running = true; return 0; }
 int esp_timer_stop(esp_timer_handle_t timer) { timer->running = false; return 0; }
+static int64_t clock_us = 1000 * 1000 * 1000;
+int64_t esp_timer_get_time(void) { return clock_us; }
 /** The timer runs out. */
 static void elapse(void)
 {
@@ -164,8 +166,40 @@ int main(void)
     m2_channel_key(1, false, true);
     m2_channel_key(1, false, true);
     assert(dimmed[1] == 15 && saved[1] == 15 && !strcmp(last_id, ""));
+#elif CONFIG_M2_BOARD_AL
+    saved[0] = 1;  // armed home before the power cut
+    level[25] = 0;  // the box is shut
+    m2_channels_init();
+    assert(m2_channel_value(0) == 1 && !level[4]);
+    level[32] = 1;  // motion: does not count at home
+    poll(3);
+    assert(!level[4] && !m2_channel_triggered(0));
+    level[34] = 1;  // a door opens: armed at once after a power cut, so it goes off
+    poll(3);
+    assert(level[4] && m2_channel_triggered(0));
+    elapse();  // the siren stops; still triggered
+    assert(!level[4] && m2_channel_triggered(0));
+    m2_channel_command(0, false, 0, "off");
+    assert(!m2_channel_triggered(0) && saved[0] == 0);
+    level[34] = 0;
+    level[32] = 0;
+    poll(3);
+    m2_channel_command(0, false, 2, "away");
+    level[32] = 1;  // motion within the exit delay: not yet
+    poll(3);
+    assert(!level[4]);
+    level[32] = 0;
+    poll(3);
+    clock_us += 31LL * 1000 * 1000;
+    level[32] = 1;  // away, after the exit delay: motion counts
+    poll(3);
+    assert(level[4]);
+    m2_channel_command(0, false, 0, "off");
+    level[25] = 1;  // the box is opened, even disarmed
+    poll(3);
+    assert(level[4] && m2_channel_triggered(0));
 #else
-#error "channels_test covers fn, cl, cu, gd, lk, ct, d2"
+#error "channels_test covers fn, cl, cu, gd, lk, ct, d2, al"
 #endif
     printf("%s: ok\n", m2_board.model);
     return 0;

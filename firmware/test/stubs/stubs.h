@@ -19,6 +19,8 @@ typedef struct stub_timer *esp_timer_handle_t;
 int esp_timer_create(const esp_timer_create_args_t *args, esp_timer_handle_t *out);
 int esp_timer_start_once(esp_timer_handle_t timer, uint64_t us);
 int esp_timer_stop(esp_timer_handle_t timer);
+int64_t esp_timer_get_time(void);
+#define GPIO_IS_VALID_OUTPUT_GPIO(gpio) ((gpio) < 34)
 
 typedef void *SemaphoreHandle_t;
 #define portMAX_DELAY 0

@@ -44,6 +44,7 @@ static void publish(const char *kind, cJSON *json, bool retain)
 }
 
 static const char *SPEEDS[] = { "off", "low", "high" };
+static const char *ALARM_MODES[] = { "disarmed", "armed_home", "armed_away" };
 /** Curtains and parking doors. */
 static const char *POSITIONS[] = { "closed", "open" };
 
@@ -78,6 +79,10 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
     case M2_CH_DIMMER: cJSON_AddNumberToObject(item, "val", value); break;
     case M2_CH_MEASURE: break;
+    case M2_CH_ALARM:
+        cJSON_AddStringToObject(item, "val", ALARM_MODES[value]);
+        cJSON_AddBoolToObject(value_item(values, ch->key, "triggered"), "val", m2_channel_triggered(channel));
+        break;
     case M2_CH_INPUT:
         if (strcmp(ch->capability, "contact") == 0) cJSON_AddStringToObject(item, "val", POSITIONS[value]);
         else cJSON_AddBoolToObject(item, "val", value);
@@ -109,6 +114,7 @@ static int decode(const m2_channel_t *ch, bool pump, const cJSON *val)
     case M2_CH_MOMENTARY: return strcmp(val->valuestring, "open") == 0 ? 1 : -1;
     case M2_CH_FAN:
     case M2_CH_COOLER: return find(val->valuestring, SPEEDS, 3);
+    case M2_CH_ALARM: return find(val->valuestring, ALARM_MODES, 3);
     default: return find(val->valuestring, POSITIONS, 2);
     }
 }

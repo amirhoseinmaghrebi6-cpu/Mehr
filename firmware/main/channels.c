@@ -14,6 +14,10 @@
 #define MOTOR_PAUSE_MS 300
 /** A curtain motor stops this long before it runs the other way. */
 #define REVERSE_PAUSE_MS 600
+/** After arming, time to leave before the zones count. */
+#define EXIT_DELAY_US (30LL * 1000 * 1000)
+/** How long the siren sounds; a new alarm after that sounds it again. */
+#define SIREN_MS (3 * 60 * 1000)
 /** Samples (20 ms apart) a door contact must agree on before it counts. */
 #define CONTACT_SAMPLES 3
 
@@ -27,6 +31,10 @@ static char pending[MAX_CHANNELS][40];
 static int contact_count[MAX_CHANNELS];
 /** Dimmers: the brightness a touch switches back on to. */
 static int last_on[MAX_CHANNELS];
+/** Alarms: set off, the siren sounding, when armed, and the tamper switch's state and debounce. */
+static bool triggered[MAX_CHANNELS], siren[MAX_CHANNELS];
+static int64_t armed_at[MAX_CHANNELS];
+static int tamper[MAX_CHANNELS], tamper_count[MAX_CHANNELS];
 static esp_timer_handle_t timers[MAX_CHANNELS];
 static m2_channel_listener_t listener;
 /** Keys, commands and timers run on different tasks; a motor's relays change under this lock only. */
@@ -54,8 +62,11 @@ static void output(int gpio)
 static void input(int gpio, bool driven)
 {
     gpio_config_t in = { .pin_bit_mask = 1ULL << gpio, .mode = GPIO_MODE_INPUT };
-    if (driven) in.pull_down_en = GPIO_PULLDOWN_ENABLE;
-    else in.pull_up_en = GPIO_PULLUP_ENABLE;
+    // Input-only pins (ESP32 GPIO 34-39) have no pull resistors: those are on the PCB.
+    if (GPIO_IS_VALID_OUTPUT_GPIO(gpio)) {
+        if (driven) in.pull_down_en = GPIO_PULLDOWN_ENABLE;
+        else in.pull_up_en = GPIO_PULLUP_ENABLE;
+    }
     gpio_config(&in);
 }
 
@@ -132,9 +143,34 @@ static void timer_done(void *arg)
         save(channel);
         report(channel, pending[channel][0] ? pending[channel] : NULL);
         pending[channel][0] = '\0';
+    } else if (ch->kind == M2_CH_ALARM) {
+        // The siren has sounded long enough; the alarm stays triggered until disarmed.
+        siren[channel] = false;
     }
     // A parking door's pulse just ends; the contact reports the door.
     give();
+}
+
+/** The alarm goes off: siren for SIREN_MS, reported at once. */
+static void sound(int alarm)
+{
+    if (siren[alarm]) return;
+    bool was = triggered[alarm];
+    triggered[alarm] = siren[alarm] = true;
+    relay(m2_board.channels[alarm].relay_gpio, true);
+    esp_timer_start_once(timers[alarm], (uint64_t)SIREN_MS * 1000);
+    if (!was) report(alarm, NULL);
+}
+
+/** A zone opened or saw motion: an armed alarm goes off (motion counts only when away). */
+static void zone_active(int zone)
+{
+    for (int a = 0; a < m2_board.channel_count; a++) {
+        if (m2_board.channels[a].kind != M2_CH_ALARM || value[a] == 0) continue;
+        if (esp_timer_get_time() - armed_at[a] < EXIT_DELAY_US) continue;
+        if (value[a] == 1 && strcmp(m2_board.channels[zone].capability, "motion") == 0) continue;
+        sound(a);
+    }
 }
 
 void m2_channels_init(void)
@@ -185,12 +221,19 @@ void m2_channels_init(void)
         case M2_CH_MEASURE:
             // measure.c reads it.
             break;
+        case M2_CH_ALARM:
+            // Armed stays armed over a power cut, at once: no exit delay for a thief who cuts the power.
+            value[i] = saved <= 2 ? saved : 0;
+            armed_at[i] = -EXIT_DELAY_US;
+            input(ch->sensor_gpio, false);
+            tamper[i] = gpio_get_level(ch->sensor_gpio);
+            break;
         case M2_CH_DIMMER:
             value[i] = saved <= 100 ? saved : 0;
             last_on[i] = value[i] ? value[i] : 100;
             break;
         }
-        if (ch->kind == M2_CH_MOMENTARY || ch->kind == M2_CH_CURTAIN || ch->kind == M2_CH_GARAGE) {
+        if (ch->kind == M2_CH_MOMENTARY || ch->kind == M2_CH_CURTAIN || ch->kind == M2_CH_GARAGE || ch->kind == M2_CH_ALARM) {
             esp_timer_create_args_t args = { .callback = timer_done, .arg = (void *)(intptr_t)i, .name = "channel" };
             esp_timer_create(&args, &timers[i]);
         }
@@ -217,6 +260,11 @@ int m2_channel_value(int channel)
 bool m2_channel_pump(int channel)
 {
     return pump[channel];
+}
+
+bool m2_channel_triggered(int channel)
+{
+    return triggered[channel];
 }
 
 bool m2_channel_inhibited(int channel)
@@ -294,6 +342,18 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
     case M2_CH_MEASURE:
         // A sensor takes no commands.
         return false;
+    case M2_CH_ALARM:
+        value[channel] = to;
+        armed_at[channel] = esp_timer_get_time();
+        if (!to) {
+            // Disarmed: the siren stops and the alarm is over.
+            esp_timer_stop(timers[channel]);
+            relay(ch->relay_gpio, false);
+            siren[channel] = triggered[channel] = false;
+        }
+        save(channel);
+        report(channel, command_id);
+        break;
     case M2_CH_DIMMER:
         value[channel] = to;
         if (to) last_on[channel] = to;
@@ -348,6 +408,17 @@ void m2_channels_poll(void)
     for (int i = 0; i < m2_board.channel_count; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
         if (value[i] && m2_channel_inhibited(i)) set(i, false, 0, NULL);
+        if (ch->kind == M2_CH_ALARM) {
+            // Opening the panel's box sets it off in any mode, armed or not.
+            int now = gpio_get_level(ch->sensor_gpio);
+            tamper_count[i] = now != tamper[i] ? tamper_count[i] + 1 : 0;
+            if (tamper_count[i] >= CONTACT_SAMPLES) {
+                tamper_count[i] = 0;
+                tamper[i] = now;
+                if (now) sound(i);
+            }
+            continue;
+        }
         if (ch->kind != M2_CH_GARAGE && ch->kind != M2_CH_INPUT) continue;
         int now = read_sensor(ch);
         contact_count[i] = now != value[i] ? contact_count[i] + 1 : 0;
@@ -356,6 +427,7 @@ void m2_channels_poll(void)
         value[i] = now;
         // A leak sensor's buzzer sounds while it is wet, with or without internet.
         if (ch->kind == M2_CH_INPUT && ch->relay_gpio >= 0) relay(ch->relay_gpio, now);
+        if (ch->kind == M2_CH_INPUT && now) zone_active(i);
         // The door got where the command asked: that completes it. Otherwise it is a report of its own.
         bool asked = pending[i][0] && now == target[i];
         report(i, asked ? pending[i] : NULL);

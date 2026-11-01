@@ -167,6 +167,13 @@ Channels:
 - `alarm` (mode disarmed/home/away, triggered): the board decides when to sound the siren, even offline;
 - six zones as `contact_sensor` or `motion_sensor`, set per installation model.
 
+In the firmware:
+- **Away** watches all six zones. **Home** watches only the door and window zones (1–4).
+- **Exit delay:** after arming, the zones count after 30 s. There is no entry delay: the user disarms in the app before opening the door.
+- **Siren:** an alarm sounds it for 3 minutes. The alarm stays `triggered` until disarmed, and a new alarm after the 3 minutes sounds it again.
+- **Tamper:** opening the box sets it off in any mode, armed or not.
+- **Power cut:** the mode survives it and is armed again at once, so cutting the power does not help a thief.
+
 ### M2-CAM: camera (ESP32-CAM, AI-Thinker)
 
 | GPIO | Function |

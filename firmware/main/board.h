@@ -43,6 +43,13 @@ typedef enum {
      * gives two. `relay_gpio` may drive a buzzer (carbon monoxide); otherwise -1.
      */
     M2_CH_MEASURE,
+    /**
+     * An alarm panel: "alarm_mode" 0 disarmed, 1 armed_home, 2 armed_away, and "triggered". The
+     * siren is `relay_gpio`, the box's tamper switch `sensor_gpio` (closed to GND while shut). Its
+     * zones are the board's input channels: contacts guard in both armed modes, motion only when
+     * away. The board sounds the siren itself, with or without internet.
+     */
+    M2_CH_ALARM,
 } m2_channel_kind_t;
 
 typedef enum {

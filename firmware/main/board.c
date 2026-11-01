@@ -211,6 +211,23 @@ static const m2_channel_t channels[] = {
 #define UART_RX 4
 #define UART_TX 5
 
+#elif CONFIG_M2_BOARD_AL
+/*
+ * Alarm panel (ESP32-WROOM-32): siren relay 4; zones 1-4 (doors and windows) on 34, 35, 36, 39
+ * and zones 5-6 (motion) on 32, 33, all NC contacts to GND (open = alarm), pull-ups on the PCB
+ * for the input-only pins; tamper switch 25; setup button 26; status LED 27.
+ */
+#define MODEL "m2-al-rev-a"
+#define ZONE(name, capability_name, pin) { .key = (name), .kind = M2_CH_INPUT, .capability = (capability_name), .relay_gpio = -1, .sensor_gpio = (pin), .sensor_active_high = true, .key_gpio = -1, .inhibit_gpio = -1 }
+static const m2_channel_t channels[] = {
+    { .key = "alarm", .kind = M2_CH_ALARM, .capability = "alarm_mode", .relay_gpio = 4, .sensor_gpio = 25, .key_gpio = -1, .inhibit_gpio = -1 },
+    ZONE("zone1", "contact", 34), ZONE("zone2", "contact", 35), ZONE("zone3", "contact", 36), ZONE("zone4", "contact", 39),
+    ZONE("zone5", "motion", 32), ZONE("zone6", "motion", 33),
+};
+#define SETUP_GPIO 26
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 27
+
 #elif CONFIG_M2_BOARD_PM
 /* Water pump (ESP32-C3): contactor relay 4; setup button 5; float switch 6 (open = tank empty) guards against running dry. */
 #define MODEL "m2-pm-rev-a"

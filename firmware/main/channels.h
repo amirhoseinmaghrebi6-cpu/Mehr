@@ -4,7 +4,8 @@
  *
  * A channel's value depends on its kind (board.h): a switch 0/1; a fan or cooler speed 0 off,
  * 1 low, 2 high; a curtain or parking door 0 closed, 1 open; a sensor input 1 while active; a
- * dimmer 0–100. A cooler also has its pump.
+ * dimmer 0–100; an alarm 0 disarmed, 1 armed_home, 2 armed_away. A cooler also has its pump, and an
+ * alarm whether it was triggered.
  * Relays of one motor are never on together, whoever asks and from whichever task.
  */
 #pragma once
@@ -21,6 +22,8 @@ void m2_channels_listen(m2_channel_listener_t listener);
 int m2_channel_value(int channel);
 /** Coolers only. */
 bool m2_channel_pump(int channel);
+/** Alarms only: set off since it was armed (stays until disarmed). */
+bool m2_channel_triggered(int channel);
 
 /** Whether a guard input keeps the channel off right now (e.g. a pump's tank is empty). */
 bool m2_channel_inhibited(int channel);
