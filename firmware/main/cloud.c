@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "cloud.h"
 #include "board.h"
 #include "channels.h"
 #include "led.h"
+#include "measure.h"
 #include "ota.h"
 #include "storage.h"
 #include "cJSON.h"
@@ -58,6 +60,13 @@ static cJSON *value_item(cJSON *values, const char *channel_key, const char *cap
 static void add_values(cJSON *values, int channel)
 {
     const m2_channel_t *ch = &m2_board.channels[channel];
+    if (ch->kind == M2_CH_MEASURE) {
+        // Only what was really measured, to one decimal.
+        float measured;
+        if (m2_measure_value(channel, false, &measured)) cJSON_AddNumberToObject(value_item(values, ch->key, ch->capability), "val", roundf(measured * 10) / 10);
+        if (ch->capability2 && m2_measure_value(channel, true, &measured)) cJSON_AddNumberToObject(value_item(values, ch->key, ch->capability2), "val", roundf(measured * 10) / 10);
+        return;
+    }
     int value = m2_channel_value(channel);
     cJSON *item = value_item(values, ch->key, ch->capability);
     switch (ch->kind) {
@@ -68,6 +77,7 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_CURTAIN:
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
     case M2_CH_DIMMER: cJSON_AddNumberToObject(item, "val", value); break;
+    case M2_CH_MEASURE: break;
     case M2_CH_INPUT:
         if (strcmp(ch->capability, "contact") == 0) cJSON_AddStringToObject(item, "val", POSITIONS[value]);
         else cJSON_AddBoolToObject(item, "val", value);
@@ -160,7 +170,7 @@ static void on_command(const char *data, int len)
     bool pump = target && target->kind == M2_CH_COOLER && strcmp(cap->valuestring, "pump") == 0;
     int value = target ? decode(target, pump, val) : -1;
     // A sensor's values are read-only.
-    if (!target || target->kind == M2_CH_INPUT || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
+    if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
         ack(id->valuestring, "unknown_target");
     } else if (value < 0) {
         ack(id->valuestring, "invalid_value");

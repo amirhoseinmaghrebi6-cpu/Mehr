@@ -175,6 +175,42 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED -1
 
+#elif CONFIG_M2_BOARD_RS || CONFIG_M2_BOARD_RSAIR
+/*
+ * Room sensor (ESP32-C3): I²C SDA 4, SCL 5 (SHT40, BH1750, and the SCD40 on the air-quality
+ * version); AM312 PIR on 6 (high = motion); setup button 7; status LED 10.
+ */
+#define CLIMATE { .key = "climate", .kind = M2_CH_MEASURE, .sensor = M2_SENSOR_SHT40, .capability = "humidity", .capability2 = "temperature", .relay_gpio = -1, .key_gpio = -1, .inhibit_gpio = -1 }
+#define LIGHT { .key = "light", .kind = M2_CH_MEASURE, .sensor = M2_SENSOR_BH1750, .capability = "illuminance_lux", .relay_gpio = -1, .key_gpio = -1, .inhibit_gpio = -1 }
+#define MOTION { .key = "motion", .kind = M2_CH_INPUT, .capability = "motion", .relay_gpio = -1, .sensor_gpio = 6, .sensor_active_high = true, .sensor_driven = true, .key_gpio = -1, .inhibit_gpio = -1 }
+#if CONFIG_M2_BOARD_RS
+#define MODEL "m2-rs-rev-a"
+static const m2_channel_t channels[] = { CLIMATE, LIGHT, MOTION };
+#else
+#define MODEL "m2-rs-air-rev-a"
+static const m2_channel_t channels[] = {
+    CLIMATE, LIGHT, MOTION,
+    { .key = "air", .kind = M2_CH_MEASURE, .sensor = M2_SENSOR_SCD40, .capability = "co2_ppm", .relay_gpio = -1, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#endif
+#define SETUP_GPIO 7
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 10
+#define I2C_SDA 4
+#define I2C_SCL 5
+
+#elif CONFIG_M2_BOARD_CO
+/* Carbon monoxide (ESP32-C3): ZE07-CO on UART1 (board RX 4, TX 5); buzzer 6; setup button 7. */
+#define MODEL "m2-co-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "co", .kind = M2_CH_MEASURE, .sensor = M2_SENSOR_ZE07, .capability = "co_ppm", .relay_gpio = 6, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 7
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED -1
+#define UART_RX 4
+#define UART_TX 5
+
 #elif CONFIG_M2_BOARD_PM
 /* Water pump (ESP32-C3): contactor relay 4; setup button 5; float switch 6 (open = tank empty) guards against running dry. */
 #define MODEL "m2-pm-rev-a"
@@ -189,6 +225,15 @@ static const m2_channel_t channels[] = {
 #error "No board chosen: build with sh firmware/build.sh <board>"
 #endif
 
+#ifndef I2C_SDA
+#define I2C_SDA -1
+#define I2C_SCL -1
+#endif
+#ifndef UART_RX
+#define UART_RX -1
+#define UART_TX -1
+#endif
+
 const char m2_model_marker[] = "M2MODEL=" MODEL ";";
 
 const m2_board_t m2_board = {
@@ -199,6 +244,10 @@ const m2_board_t m2_board = {
     .relay_active_high = true,
     .keys_active_high = KEYS_ACTIVE_HIGH,
     .status_led_gpio = STATUS_LED,
+    .i2c_sda_gpio = I2C_SDA,
+    .i2c_scl_gpio = I2C_SCL,
+    .uart_rx_gpio = UART_RX,
+    .uart_tx_gpio = UART_TX,
 };
 
 int m2_board_channel(const char *key)

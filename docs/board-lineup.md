@@ -193,7 +193,7 @@ On the I²C bus:
 - SHT40 (humidity and temperature);
 - BH1750 (light).
 
-Channels: `humidity_sensor`, `light_sensor`, `motion_sensor`.
+Channels: `humidity_sensor`, `light_sensor`, `motion_sensor`. The firmware reads the sensors every 2 s. It reports a change of 0.3 °C, 2 % humidity, 10 % light (at least 5 lx) or 50 ppm CO₂, and everything every 10 minutes. A sensor that does not answer reports nothing.
 
 **M2-RS-AIR** is the same board with an SCD40 (CO₂) or SGP40 (VOC index) added on the bus, which adds `air_quality_sensor`. The sensor sits away from the chip's heat.
 
@@ -245,7 +245,7 @@ Channel: `smoke_sensor`. Smoke is detected by a certified detector, not by our o
 | 6 | buzzer |
 | 7 | setup button |
 
-Channel: `co_sensor` (ppm). The buzzer sounds locally above 50 ppm. MQ-7 is not used: it is not reliable enough.
+Channel: `co_sensor` (ppm). The buzzer sounds locally from 50 ppm and stops below 35 ppm. The board reports a change of 5 ppm. MQ-7 is not used: it is not reliable enough.
 
 ## In the catalog
 

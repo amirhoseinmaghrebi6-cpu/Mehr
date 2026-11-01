@@ -142,7 +142,8 @@ void m2_channels_init(void)
     lock = xSemaphoreCreateMutex();
     for (int i = 0; i < m2_board.channel_count && i < MAX_CHANNELS; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
-        if (ch->kind != M2_CH_INPUT && ch->kind != M2_CH_DIMMER) output(ch->relay_gpio);
+        // Measuring channels' buzzers belong to measure.c.
+        if (ch->kind != M2_CH_INPUT && ch->kind != M2_CH_DIMMER && ch->kind != M2_CH_MEASURE) output(ch->relay_gpio);
         if (ch->kind == M2_CH_FAN || ch->kind == M2_CH_COOLER || ch->kind == M2_CH_CURTAIN) output(ch->relay2_gpio);
         if (ch->kind == M2_CH_COOLER) output(ch->relay3_gpio);
         uint8_t saved = m2_load_channel(i);
@@ -180,6 +181,9 @@ void m2_channels_init(void)
             break;
         case M2_CH_MOMENTARY:
             // A strike never comes back on after a power cut.
+            break;
+        case M2_CH_MEASURE:
+            // measure.c reads it.
             break;
         case M2_CH_DIMMER:
             value[i] = saved <= 100 ? saved : 0;
@@ -287,6 +291,7 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
         esp_timer_start_once(timers[channel], (uint64_t)(ch->pulse_ms > 0 ? ch->pulse_ms : 1000) * 1000);
         break;
     case M2_CH_INPUT:
+    case M2_CH_MEASURE:
         // A sensor takes no commands.
         return false;
     case M2_CH_DIMMER:

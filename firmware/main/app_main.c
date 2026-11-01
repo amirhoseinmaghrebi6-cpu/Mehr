@@ -10,6 +10,7 @@
 #include "cloud.h"
 #include "keys.h"
 #include "led.h"
+#include "measure.h"
 #include "net.h"
 #include "ota.h"
 #include "setup_mode.h"
@@ -44,6 +45,7 @@ void app_main(void)
     m2_led_init();
     m2_channels_listen(m2_cloud_report);
     m2_keys_start(on_pairing, on_factory_reset);
+    m2_measure_start(m2_cloud_report);
 
     has_identity = m2_factory_identity(uid, sizeof(uid), factory_secret, sizeof(factory_secret));
     // Logging the marker also keeps it in the image, where the server looks for it.

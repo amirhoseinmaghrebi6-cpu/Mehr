@@ -38,7 +38,23 @@ typedef enum {
      * detector, shared by all of a board's dimmers. A touch switches it off, or back on as it was.
      */
     M2_CH_DIMMER,
+    /**
+     * Measured values from `sensor` (measure.c): `capability`, and `capability2` if the sensor
+     * gives two. `relay_gpio` may drive a buzzer (carbon monoxide); otherwise -1.
+     */
+    M2_CH_MEASURE,
 } m2_channel_kind_t;
+
+typedef enum {
+    /** Sensirion SHT40 on I²C: humidity, temperature. */
+    M2_SENSOR_SHT40,
+    /** ROHM BH1750 on I²C: light. */
+    M2_SENSOR_BH1750,
+    /** Sensirion SCD40 on I²C: CO₂. */
+    M2_SENSOR_SCD40,
+    /** Winsen ZE07-CO on UART1: carbon monoxide. */
+    M2_SENSOR_ZE07,
+} m2_sensor_t;
 
 typedef struct {
     /** The channel key in the catalog and in every message, e.g. "ch1". */
@@ -64,6 +80,9 @@ typedef struct {
     bool sensor_active_high;
     /** Inputs: the sensor drives its pin (a pull-down keeps a missing one quiet); otherwise it is a contact to GND with a pull-up. */
     bool sensor_driven;
+    /** Measuring channels. */
+    m2_sensor_t sensor;
+    const char *capability2;
     /** Curtains: how long the motor runs from one end to the other. */
     int travel_ms;
 } m2_channel_t;
@@ -81,6 +100,8 @@ typedef struct {
     bool keys_active_high;
     /** A status LED (steady: connected; slow blink: pairing mode), or -1. */
     int status_led_gpio;
+    /** Boards with measuring sensors: their I²C bus or UART1. */
+    int i2c_sda_gpio, i2c_scl_gpio, uart_rx_gpio, uart_tx_gpio;
 } m2_board_t;
 
 extern const m2_board_t m2_board;

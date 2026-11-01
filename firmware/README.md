@@ -37,7 +37,7 @@ sh firmware/build.sh t2          # one board, for production (m2smart.ir)
 sh firmware/build.sh devkit dev  # the DevKit against the dev stack on your PC
 ```
 
-Boards: `devkit`, `t1`–`t4` (touch switches), `r8` (8-relay panel), `d1`/`d2` (dimmers), `sk` (socket), `do` (door opener), `pm` (water pump), `cl` (cooler), `fn` (fan), `cu` (curtain), `gd` (parking door), `ct` (door and window), `lk` (water leak), `sm` (smoke), `pr` (presence). Each has its own chip, pin table (`main/board.c`) and output folder, `firmware/dist/<board>/`.
+Boards: `devkit`, `t1`–`t4` (touch switches), `r8` (8-relay panel), `d1`/`d2` (dimmers), `sk` (socket), `do` (door opener), `pm` (water pump), `cl` (cooler), `fn` (fan), `cu` (curtain), `gd` (parking door), `ct` (door and window), `lk` (water leak), `sm` (smoke), `pr` (presence), `rs`/`rsair` (room sensor), `co` (carbon monoxide). Each has its own chip, pin table (`main/board.c`) and output folder, `firmware/dist/<board>/`.
 
 For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC's address on the home network in it.
 
