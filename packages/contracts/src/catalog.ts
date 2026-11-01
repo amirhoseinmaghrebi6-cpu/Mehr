@@ -158,7 +158,7 @@ export function capabilityValueError(definition: CapabilityDefinition, value: un
  * "setup_button" (or, on touch-switch boards, its first touch key): held 7–10 s it starts pairing,
  * held over 15 s within 3 minutes after power-up it factory-resets the board.
  */
-export const pinFunctions = ["relay", "triac_gate", "zero_cross", "digital_in", "pulse_in", "i2c_sda", "i2c_scl", "uart_rx", "uart_tx", "adc", "setup_button"] as const;
+export const pinFunctions = ["relay", "triac_gate", "zero_cross", "digital_in", "pulse_in", "i2c_sda", "i2c_scl", "uart_rx", "uart_tx", "adc", "setup_button", "digital_out"] as const;
 export type PinFunction = (typeof pinFunctions)[number];
 
 /** Built-in photos for homes and rooms (public/images); uploads are not supported yet. */

@@ -17,7 +17,7 @@ The rules below are enforced by the database (`supabase/migrations/202610020002_
 
 | Table | One row per | Holds |
 |-------|-------------|-------|
-| `hardware_models` | board model and revision | `code` (e.g. `switch-2ch-rev-a`), `name`, `chip` (`esp32`) |
+| `hardware_models` | board model and revision | `code` (e.g. `m2-t2-rev-a`), `name`, `chip` (`esp32`, `esp32c3` or `esp32s3`) |
 | `hardware_model_channels` | device on the board | `channel_key`, `device_type`, `default_name`, optional `action_seconds` |
 | `hardware_model_pins` | GPIO | `gpio`, `function`, `channel_key` (null = shared by the board, e.g. an I2C bus), `role` |
 | `hardware_model_capabilities` | capability of a channel | the same fields as `device_capabilities`: type, range, enum values, unit, writable |
@@ -27,7 +27,9 @@ The rules below are enforced by the database (`supabase/migrations/202610020002_
 
 ### Pins
 
-Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins on the ESP32 (WROOM-32):
+Each GPIO appears once per model, so no pin can serve two purposes. The allowed pins depend on the model's chip (`board_pin_allowed()`, checked by a trigger). A plain output that is not a relay (a buzzer, a status LED) has function `digital_out` and follows the output pins.
+
+**ESP32** (WROOM-32, and the ESP32-CAM module):
 
 | Function | Allowed GPIO |
 |----------|--------------|
@@ -41,7 +43,9 @@ Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins
   - 0, 2, 5, 12 and 15 (boot-strapping pins)
 - **Not allowed as an output:** 14 (it pulses at boot and could click a relay).
 - **On WROVER modules,** 16 and 17 are wired to PSRAM, so don't use them there.
-- **Other chips** (ESP32-S3, -C3) need their own pin list in `esp32_pin_allowed()` before they can be used.
+**ESP32-C3** (MINI-1): GPIO 0, 1, 3, 4, 5, 6, 7 and 10 for every function; ADC on 0–4. Never 2, 8, 9 (boot straps; 9 is the BOOT button), 18/19 (USB) or 20/21 (UART0).
+
+**ESP32-S3** (WROOM-1): GPIO 1, 2, 4–18, 21, 38–42, 47 and 48; ADC on 1–10. Never 0, 3, 45, 46 (boot straps), 19/20 (USB), 43/44 (UART0) or 35–37 (octal PSRAM).
 
 ### Setup button
 
@@ -49,7 +53,7 @@ Each GPIO appears once per model, so no pin can serve two purposes. Allowed pins
   - held 7–10 s: pairing mode for 5 minutes;
   - held 10–15 s: nothing;
   - held over 15 s within 3 minutes after power-up: factory reset.
-- **On touch-switch boards** the setup key is the first touch key (TTP223), which also switches its channel. The catalog will record that pin as both (to be added with the first real touch-switch model).
+- **On touch-switch boards** the setup key is the first touch key (TTP223), which also switches its channel. That pin has function `setup_button` and names the channel it switches (`channel_key`); other boards' setup buttons name none.
 - **Required to join a home.** A model without one cannot be added to a home, and a second one is rejected.
 - **Not on GPIO 0:** that pin is the dev kit's BOOT button, and holding it during power-up starts the flasher.
 - **The full rules** for ownership (whoever holds the board owns it), pairing and reset are in [plans/phase-3-5.md](plans/phase-3-5.md), section A.

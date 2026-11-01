@@ -1,6 +1,6 @@
 # Proposed board lineup and pin maps
 
-Status: proposal (2026-11-01), for the PCB designer to check against the real circuits. Once a board is final, it goes into the hardware catalog ([hardware-catalog.md](hardware-catalog.md)) as a frozen model.
+Status: proposal (2026-11-01), for the PCB designer to check against the real circuits. All of it is in the hardware catalog (`supabase/migrations/202611040001_chips_and_board_lineup.sql`, model codes `m2-…-rev-a`). A model no installed board uses can still change in a later migration; once boards use it, it is frozen and a changed PCB becomes a new revision.
 
 21 boards cover all 20 device types of the app. Each table lists every GPIO the board uses.
 
@@ -247,7 +247,18 @@ Channel: `smoke_sensor`. Smoke is detected by a certified detector, not by our o
 
 Channel: `co_sensor` (ppm). The buzzer sounds locally above 50 ppm. MQ-7 is not used: it is not reliable enough.
 
-## Before these go into the catalog
+## In the catalog
 
-- The catalog accepts only WROOM pins today. **C3, S3 and ESP32-CAM pin lists** must be added to `esp32_pin_allowed()`, and `hardware_models.chip` must accept them. This goes in one migration, when the first real model is added.
-- **Touch key 1 as the setup key:** the catalog must let one pin be both a channel input and the setup key (today a GPIO appears once per model).
+| Model code | Board |
+|------------|-------|
+| `m2-t1-rev-a` … `m2-t4-rev-a` | Touch switch, 1–4 keys |
+| `m2-r8-rev-a` | 8-relay panel board |
+| `m2-d1-rev-a`, `m2-d2-rev-a` | Dimmer, 1 or 2 channels |
+| `m2-cl-rev-a`, `m2-fn-rev-a` | Cooler, fan |
+| `m2-cu-rev-a`, `m2-gd-rev-a`, `m2-do-rev-a` | Curtain, parking door, door opener |
+| `m2-sk-rev-a`, `m2-pm-rev-a` | Smart socket, water pump |
+| `m2-al-rev-a`, `m2-cam-rev-a` | Alarm panel, camera |
+| `m2-rs-rev-a`, `m2-rs-air-rev-a` | Room sensor, with air quality |
+| `m2-pr-rev-a`, `m2-ct-rev-a`, `m2-lk-rev-a`, `m2-sm-rev-a`, `m2-co-rev-a` | Presence, door and window, leak, smoke, carbon monoxide |
+
+Status LEDs and buzzers are in the catalog as `digital_out` pins. The ESP32-CAM's camera bus is fixed by the module and not listed.
