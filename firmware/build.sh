@@ -7,13 +7,13 @@
 #   sh firmware/build.sh <board>          production (m2smart.ir)
 #   sh firmware/build.sh <board> dev      against the dev stack (firmware/sdkconfig.dev)
 #
-# Boards: devkit, t1, t2, t3, t4, r8, d1, d2, sk, do, pm, cl, fn, cu, gd, ct, lk, sm, pr, rs, rsair, co, al (main/board.c, docs/board-lineup.md).
+# Boards: devkit, t1, t2, t3, t4, r8, d1, d2, sk, do, pm, cl, fn, cu, gd, ct, lk, sm, pr, rs, rsair, co, al, cam (main/board.c, docs/board-lineup.md).
 # A factory partition (firmware/provision/*.csv from pnpm dev:devkit) is turned into a .bin too.
 set -eu
 cd "$(dirname "$0")"
-board=${1:?usage: build.sh <board> [dev]   boards: devkit t1 t2 t3 t4 r8 d1 d2 sk do pm cl fn cu gd ct lk sm pr rs rsair co al}
+board=${1:?usage: build.sh <board> [dev]   boards: devkit t1 t2 t3 t4 r8 d1 d2 sk do pm cl fn cu gd ct lk sm pr rs rsair co al cam}
 case "$board" in
-  devkit|r8|al) target=esp32 ;;
+  devkit|r8|al|cam) target=esp32 ;;
   t1|t2|t3|t4|d1|d2|sk|do|pm|cl|fn|cu|gd|ct|lk|sm|pr|rs|rsair|co) target=esp32c3 ;;
   *) echo "Unknown board: $board" >&2; exit 1 ;;
 esac
@@ -23,6 +23,8 @@ defaults="sdkconfig.defaults"
 # The board choice, as a settings file the build reads last.
 upper=$(echo "$board" | tr '[:lower:]' '[:upper:]')
 printf 'CONFIG_M2_BOARD_%s=y\n' "$upper" > "sdkconfig.board"
+# A board's own settings, if it has any (the camera needs PSRAM).
+[ -f "sdkconfig.$board" ] && cat "sdkconfig.$board" >> "sdkconfig.board"
 defaults="$defaults;sdkconfig.board"
 
 project=$(pwd -W 2>/dev/null || pwd)

@@ -1,0 +1,7 @@
+# Downloaded at build time (ESP32 builds); only the camera board uses it. Nothing here runs on a server.
+dependencies:
+  espressif/esp32-camera:
+    version: "2.0.15"
+    rules:
+      # Only ESP32 boards; the others never link it unless they are the camera.
+      - if: "target == esp32"

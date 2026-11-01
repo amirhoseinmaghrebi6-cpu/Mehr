@@ -7,6 +7,7 @@
 #include "channels.h"
 #include "led.h"
 #include "measure.h"
+#include "camera.h"
 #include "ota.h"
 #include "storage.h"
 #include "cJSON.h"
@@ -79,6 +80,10 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
     case M2_CH_DIMMER: cJSON_AddNumberToObject(item, "val", value); break;
     case M2_CH_MEASURE: break;
+    case M2_CH_CAMERA:
+        cJSON_AddBoolToObject(item, "val", m2_camera_power());
+        cJSON_AddBoolToObject(value_item(values, ch->key, "recording"), "val", m2_camera_recording());
+        break;
     case M2_CH_ALARM:
         cJSON_AddStringToObject(item, "val", ALARM_MODES[value]);
         cJSON_AddBoolToObject(value_item(values, ch->key, "triggered"), "val", m2_channel_triggered(channel));
@@ -103,7 +108,7 @@ static int find(const char *text, const char *const *names, int count)
 /** A command's value as channels.c counts it (channels.h), or -1 if it does not fit. */
 static int decode(const m2_channel_t *ch, bool pump, const cJSON *val)
 {
-    if (ch->kind == M2_CH_SWITCH || pump) return cJSON_IsBool(val) ? cJSON_IsTrue(val) : -1;
+    if (ch->kind == M2_CH_SWITCH || ch->kind == M2_CH_CAMERA || pump) return cJSON_IsBool(val) ? cJSON_IsTrue(val) : -1;
     if (ch->kind == M2_CH_DIMMER) {
         // A whole percentage, 0–100.
         if (!cJSON_IsNumber(val) || val->valuedouble != (int)val->valuedouble) return -1;
@@ -172,14 +177,19 @@ static void on_command(const char *data, int len)
     }
     int channel = m2_board_channel(ch->valuestring);
     const m2_channel_t *target = channel >= 0 ? &m2_board.channels[channel] : NULL;
-    // A cooler's second capability: its pump.
+    // A second capability: a cooler's pump, a camera's recording.
     bool pump = target && target->kind == M2_CH_COOLER && strcmp(cap->valuestring, "pump") == 0;
+    bool recording = target && target->kind == M2_CH_CAMERA && strcmp(cap->valuestring, "recording") == 0;
     int value = target ? decode(target, pump, val) : -1;
     // A sensor's values are read-only.
-    if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
+    if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || (!pump && !recording && strcmp(target->capability, cap->valuestring) != 0)) {
         ack(id->valuestring, "unknown_target");
     } else if (value < 0) {
         ack(id->valuestring, "invalid_value");
+    } else if (target->kind == M2_CH_CAMERA) {
+        const char *refused = m2_camera_refuse(recording, value);
+        ack(id->valuestring, refused);
+        if (!refused) m2_camera_command(recording, value, id->valuestring);
     } else if (value && m2_channel_inhibited(channel)) {
         // e.g. a pump whose tank is empty: it must not run dry.
         ack(id->valuestring, "blocked_by_sensor");

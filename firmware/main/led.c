@@ -10,10 +10,15 @@ static esp_timer_handle_t blink_timer;
 static bool lit;
 static m2_led_mode_t current = M2_LED_OFF;
 
+static void light(bool on)
+{
+    gpio_set_level(m2_board.status_led_gpio, on != m2_board.status_led_active_low);
+}
+
 static void toggle(void *arg)
 {
     lit = !lit;
-    gpio_set_level(m2_board.status_led_gpio, lit);
+    light(lit);
 }
 
 void m2_led_init(void)
@@ -21,7 +26,7 @@ void m2_led_init(void)
     if (m2_board.status_led_gpio < 0) return;
     gpio_config_t out = { .pin_bit_mask = 1ULL << m2_board.status_led_gpio, .mode = GPIO_MODE_OUTPUT };
     gpio_config(&out);
-    gpio_set_level(m2_board.status_led_gpio, 0);
+    light(0);
     esp_timer_create_args_t args = { .callback = toggle, .name = "led" };
     esp_timer_create(&args, &blink_timer);
 }
@@ -35,7 +40,7 @@ void m2_led_set(m2_led_mode_t mode)
         esp_timer_start_periodic(blink_timer, 500 * 1000);
     } else {
         lit = mode == M2_LED_ON;
-        gpio_set_level(m2_board.status_led_gpio, lit);
+        light(lit);
     }
 }
 
@@ -55,9 +60,9 @@ void m2_feedback(int times)
         m2_led_mode_t before = current;
         esp_timer_stop(blink_timer);
         for (int i = 0; i < times; i++) {
-            gpio_set_level(m2_board.status_led_gpio, 1);
+            light(1);
             vTaskDelay(pdMS_TO_TICKS(250));
-            gpio_set_level(m2_board.status_led_gpio, 0);
+            light(0);
             vTaskDelay(pdMS_TO_TICKS(250));
         }
         current = M2_LED_OFF;

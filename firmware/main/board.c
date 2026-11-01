@@ -228,6 +228,17 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED 27
 
+#elif CONFIG_M2_BOARD_CAM
+/* Camera (ESP32-CAM, AI-Thinker): the camera bus is fixed by the module; setup button 13; red LED 33 (lit when LOW). */
+#define MODEL "m2-cam-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "camera", .kind = M2_CH_CAMERA, .capability = "power", .relay_gpio = -1, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 13
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 33
+#define STATUS_LED_ACTIVE_LOW true
+
 #elif CONFIG_M2_BOARD_PM
 /* Water pump (ESP32-C3): contactor relay 4; setup button 5; float switch 6 (open = tank empty) guards against running dry. */
 #define MODEL "m2-pm-rev-a"
@@ -242,6 +253,9 @@ static const m2_channel_t channels[] = {
 #error "No board chosen: build with sh firmware/build.sh <board>"
 #endif
 
+#ifndef STATUS_LED_ACTIVE_LOW
+#define STATUS_LED_ACTIVE_LOW false
+#endif
 #ifndef I2C_SDA
 #define I2C_SDA -1
 #define I2C_SCL -1
@@ -261,6 +275,7 @@ const m2_board_t m2_board = {
     .relay_active_high = true,
     .keys_active_high = KEYS_ACTIVE_HIGH,
     .status_led_gpio = STATUS_LED,
+    .status_led_active_low = STATUS_LED_ACTIVE_LOW,
     .i2c_sda_gpio = I2C_SDA,
     .i2c_scl_gpio = I2C_SCL,
     .uart_rx_gpio = UART_RX,

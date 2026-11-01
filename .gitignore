@@ -29,3 +29,5 @@ firmware/.last-build
 /factory/
 /backend/factory/
 firmware/sdkconfig.board
+firmware/managed_components/
+firmware/dependencies.lock

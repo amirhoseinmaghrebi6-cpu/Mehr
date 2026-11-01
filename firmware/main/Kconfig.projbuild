@@ -52,6 +52,8 @@ menu "M2smart"
             bool "Carbon monoxide (ESP32-C3)"
         config M2_BOARD_AL
             bool "Alarm panel (ESP32)"
+        config M2_BOARD_CAM
+            bool "Camera (ESP32-CAM)"
     endchoice
 
     config M2_API_URL

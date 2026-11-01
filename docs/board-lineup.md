@@ -182,7 +182,13 @@ In the firmware:
 | 13 | setup button (the only free pin that is not a boot strap) |
 | 33 | on-module red LED (status, active low) |
 
-Channel: `camera` (on/off, recording). Live video comes in a later version. Recording needs the microSD slot, which shares pins 2, 4, 12–15 with the flash LED: the flash LED is not used.
+Channel: `camera` (on/off, recording). Live video comes in a later version.
+
+In the firmware:
+- **Recording** saves a 640×480 JPEG frame every half second to the microSD card, one folder per recording (`R0001/F00000.JPG` …).
+- **Rules:** recording needs the camera on (otherwise `camera_off`), and switching the camera off stops it.
+- **Card full or missing:** recording stops and the app is told.
+- **Power cut:** both states come back. Recording needs the microSD slot, which shares pins 2, 4, 12–15 with the flash LED: the flash LED is not used.
 
 ## Sensors
 

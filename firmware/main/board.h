@@ -50,6 +50,8 @@ typedef enum {
      * away. The board sounds the siren itself, with or without internet.
      */
     M2_CH_ALARM,
+    /** The ESP32-CAM's camera: "power" and "recording" (camera.c). */
+    M2_CH_CAMERA,
 } m2_channel_kind_t;
 
 typedef enum {
@@ -107,6 +109,8 @@ typedef struct {
     bool keys_active_high;
     /** A status LED (steady: connected; slow blink: pairing mode), or -1. */
     int status_led_gpio;
+    /** The status LED lights when its pin is LOW (the ESP32-CAM's red LED). */
+    bool status_led_active_low;
     /** Boards with measuring sensors: their I²C bus or UART1. */
     int i2c_sda_gpio, i2c_scl_gpio, uart_rx_gpio, uart_tx_gpio;
 } m2_board_t;

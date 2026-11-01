@@ -6,6 +6,7 @@
  * work, with or without internet.
  */
 #include "board.h"
+#include "camera.h"
 #include "channels.h"
 #include "cloud.h"
 #include "keys.h"
@@ -46,6 +47,9 @@ void app_main(void)
     m2_channels_listen(m2_cloud_report);
     m2_keys_start(on_pairing, on_factory_reset);
     m2_measure_start(m2_cloud_report);
+    for (int i = 0; i < m2_board.channel_count; i++) {
+        if (m2_board.channels[i].kind == M2_CH_CAMERA) m2_camera_start(i, m2_cloud_report);
+    }
 
     has_identity = m2_factory_identity(uid, sizeof(uid), factory_secret, sizeof(factory_secret));
     // Logging the marker also keeps it in the image, where the server looks for it.
