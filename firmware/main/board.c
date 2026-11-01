@@ -75,6 +75,20 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED -1
 
+#elif CONFIG_M2_BOARD_D1 || CONFIG_M2_BOARD_D2
+/* Dimmers (ESP32-C3): zero-cross detector 4; TRIAC gates 5 and 6; touch keys 0 (setup) and 1. */
+#define DIMMER(name, gate, key_pin) { .key = (name), .kind = M2_CH_DIMMER, .capability = "brightness", .relay_gpio = (gate), .sensor_gpio = 4, .key_gpio = (key_pin), .inhibit_gpio = -1 }
+#if CONFIG_M2_BOARD_D1
+#define MODEL "m2-d1-rev-a"
+static const m2_channel_t channels[] = { DIMMER("ch1", 5, 0) };
+#else
+#define MODEL "m2-d2-rev-a"
+static const m2_channel_t channels[] = { DIMMER("ch1", 5, 0), DIMMER("ch2", 6, 1) };
+#endif
+#define SETUP_GPIO 0
+#define KEYS_ACTIVE_HIGH true
+#define STATUS_LED -1
+
 #elif CONFIG_M2_BOARD_CL
 /* Evaporative cooler (ESP32-C3): pump relay 4, motor low 5 and high 6 (never both); setup button 7; status LED 10. */
 #define MODEL "m2-cl-rev-a"

@@ -49,6 +49,11 @@ static void elapse(void)
 }
 
 uint8_t m2_load_channel(int channel) { return saved[channel]; }
+
+/** dimmer.c needs real timers and interrupts; here it only records what it was asked. */
+static int dimmed[2], zero_cross;
+void m2_dimmer_start(int zero_cross_gpio, const int *gate_gpios, int count) { zero_cross = zero_cross_gpio; }
+void m2_dimmer_set(int channel, int brightness) { dimmed[channel] = brightness; }
 void m2_save_channel(int channel, uint8_t value) { saved[channel] = value; }
 
 static int reports;
@@ -145,8 +150,22 @@ int main(void)
     level[4] = 1;
     poll(3);
     assert(m2_channel_value(0) == 1 && reports == 1);
+#elif CONFIG_M2_BOARD_D2
+    saved[0] = 40;  // ch1 at 40 % before the power cut, ch2 off
+    m2_channels_init();
+    assert(dimmed[0] == 40 && dimmed[1] == 0 && zero_cross == 4);
+    m2_channel_key(0, false, true);  // off
+    assert(dimmed[0] == 0 && saved[0] == 0);
+    m2_channel_key(0, false, true);  // back on as it was
+    assert(dimmed[0] == 40);
+    m2_channel_key(1, false, true);  // never on before: full
+    assert(dimmed[1] == 100);
+    m2_channel_command(1, false, 15, "d");
+    m2_channel_key(1, false, true);
+    m2_channel_key(1, false, true);
+    assert(dimmed[1] == 15 && saved[1] == 15 && !strcmp(last_id, ""));
 #else
-#error "channels_test covers fn, cl, cu, gd, lk, ct"
+#error "channels_test covers fn, cl, cu, gd, lk, ct, d2"
 #endif
     printf("%s: ok\n", m2_board.model);
     return 0;

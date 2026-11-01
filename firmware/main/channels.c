@@ -2,6 +2,7 @@
 #include "channels.h"
 #include "board.h"
 #include "storage.h"
+#include "dimmer.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -24,6 +25,8 @@ static int target[MAX_CHANNELS];
 /** The command a curtain or door reports when it gets there. */
 static char pending[MAX_CHANNELS][40];
 static int contact_count[MAX_CHANNELS];
+/** Dimmers: the brightness a touch switches back on to. */
+static int last_on[MAX_CHANNELS];
 static esp_timer_handle_t timers[MAX_CHANNELS];
 static m2_channel_listener_t listener;
 /** Keys, commands and timers run on different tasks; a motor's relays change under this lock only. */
@@ -139,7 +142,7 @@ void m2_channels_init(void)
     lock = xSemaphoreCreateMutex();
     for (int i = 0; i < m2_board.channel_count && i < MAX_CHANNELS; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
-        if (ch->kind != M2_CH_INPUT) output(ch->relay_gpio);
+        if (ch->kind != M2_CH_INPUT && ch->kind != M2_CH_DIMMER) output(ch->relay_gpio);
         if (ch->kind == M2_CH_FAN || ch->kind == M2_CH_COOLER || ch->kind == M2_CH_CURTAIN) output(ch->relay2_gpio);
         if (ch->kind == M2_CH_COOLER) output(ch->relay3_gpio);
         uint8_t saved = m2_load_channel(i);
@@ -178,11 +181,22 @@ void m2_channels_init(void)
         case M2_CH_MOMENTARY:
             // A strike never comes back on after a power cut.
             break;
+        case M2_CH_DIMMER:
+            value[i] = saved <= 100 ? saved : 0;
+            last_on[i] = value[i] ? value[i] : 100;
+            break;
         }
         if (ch->kind == M2_CH_MOMENTARY || ch->kind == M2_CH_CURTAIN || ch->kind == M2_CH_GARAGE) {
             esp_timer_create_args_t args = { .callback = timer_done, .arg = (void *)(intptr_t)i, .name = "channel" };
             esp_timer_create(&args, &timers[i]);
         }
+    }
+    // Dimmer boards have only dimmers, channels 0 … n-1, on one zero-cross detector.
+    if (m2_board.channels[0].kind == M2_CH_DIMMER) {
+        int gates[MAX_CHANNELS];
+        for (int i = 0; i < m2_board.channel_count; i++) gates[i] = m2_board.channels[i].relay_gpio;
+        m2_dimmer_start(m2_board.channels[0].sensor_gpio, gates, m2_board.channel_count);
+        for (int i = 0; i < m2_board.channel_count; i++) m2_dimmer_set(i, value[i]);
     }
 }
 
@@ -275,6 +289,13 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
     case M2_CH_INPUT:
         // A sensor takes no commands.
         return false;
+    case M2_CH_DIMMER:
+        value[channel] = to;
+        if (to) last_on[channel] = to;
+        m2_dimmer_set(channel, to);
+        save(channel);
+        report(channel, command_id);
+        break;
     }
     return true;
 }
@@ -302,6 +323,9 @@ void m2_channel_key(int channel, bool second, bool down)
         break;
     case M2_CH_FAN:
         if (down) set(channel, false, (value[channel] + 1) % 3, NULL);
+        break;
+    case M2_CH_DIMMER:
+        if (down) set(channel, false, value[channel] ? 0 : last_on[channel], NULL);
         break;
     case M2_CH_CURTAIN:
         if (down) set(channel, false, second ? 0 : 1, NULL);

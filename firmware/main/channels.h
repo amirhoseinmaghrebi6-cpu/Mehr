@@ -3,8 +3,8 @@
  * back after a power cut, before there is any internet) and reported to the cloud.
  *
  * A channel's value depends on its kind (board.h): a switch 0/1; a fan or cooler speed 0 off,
- * 1 low, 2 high; a curtain or parking door 0 closed, 1 open; a sensor input 1 while active. A
- * cooler also has its pump.
+ * 1 low, 2 high; a curtain or parking door 0 closed, 1 open; a sensor input 1 while active; a
+ * dimmer 0–100. A cooler also has its pump.
  * Relays of one motor are never on together, whoever asks and from whichever task.
  */
 #pragma once

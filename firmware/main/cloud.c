@@ -67,6 +67,7 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_COOLER: cJSON_AddStringToObject(item, "val", SPEEDS[value]); break;
     case M2_CH_CURTAIN:
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
+    case M2_CH_DIMMER: cJSON_AddNumberToObject(item, "val", value); break;
     case M2_CH_INPUT:
         if (strcmp(ch->capability, "contact") == 0) cJSON_AddStringToObject(item, "val", POSITIONS[value]);
         else cJSON_AddBoolToObject(item, "val", value);
@@ -88,6 +89,11 @@ static int find(const char *text, const char *const *names, int count)
 static int decode(const m2_channel_t *ch, bool pump, const cJSON *val)
 {
     if (ch->kind == M2_CH_SWITCH || pump) return cJSON_IsBool(val) ? cJSON_IsTrue(val) : -1;
+    if (ch->kind == M2_CH_DIMMER) {
+        // A whole percentage, 0–100.
+        if (!cJSON_IsNumber(val) || val->valuedouble != (int)val->valuedouble) return -1;
+        return val->valueint >= 0 && val->valueint <= 100 ? val->valueint : -1;
+    }
     if (!cJSON_IsString(val)) return -1;
     switch (ch->kind) {
     case M2_CH_MOMENTARY: return strcmp(val->valuestring, "open") == 0 ? 1 : -1;

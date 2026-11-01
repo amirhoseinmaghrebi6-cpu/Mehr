@@ -33,6 +33,11 @@ typedef enum {
      * offline; otherwise -1.
      */
     M2_CH_INPUT,
+    /**
+     * "brightness" 0–100 of a TRIAC whose gate is `relay_gpio`; `sensor_gpio` is the zero-cross
+     * detector, shared by all of a board's dimmers. A touch switches it off, or back on as it was.
+     */
+    M2_CH_DIMMER,
 } m2_channel_kind_t;
 
 typedef struct {

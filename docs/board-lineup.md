@@ -70,7 +70,7 @@ A TRIAC per channel, with an optocoupler on the gate (MOC3021-type, random phase
 | 0 | touch 1 (setup) | touch 1 (setup) |
 | 1 | | touch 2 |
 
-A touch toggles the light; a long touch under 7 s does not dim. Dimming is from the app. Channels: `dimmer` × 1–2.
+A touch switches the light off, or back on at its last brightness; a long touch under 7 s does not dim. Dimming is from the app. Brightness is restored after a power cut. The firmware fires each gate 0.6 ms (100 %) to 9 ms (1 %) after the zero-cross pulse, for 50 Hz mains; these two numbers in `firmware/main/dimmer.c` are the calibration for the real detector and lamps. Channels: `dimmer` × 1–2.
 
 ## Climate
 

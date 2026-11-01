@@ -24,6 +24,10 @@ menu "M2smart"
             bool "Door opener (ESP32-C3)"
         config M2_BOARD_PM
             bool "Water pump (ESP32-C3)"
+        config M2_BOARD_D1
+            bool "Dimmer, 1 channel (ESP32-C3)"
+        config M2_BOARD_D2
+            bool "Dimmer, 2 channels (ESP32-C3)"
         config M2_BOARD_CL
             bool "Evaporative cooler (ESP32-C3)"
         config M2_BOARD_FN
