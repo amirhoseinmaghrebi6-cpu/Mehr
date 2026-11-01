@@ -13,6 +13,20 @@ typedef enum {
     M2_CH_SWITCH,
     /** Pulses its relay while asked or held: "door_release" (door opener). */
     M2_CH_MOMENTARY,
+    /** "speed" off/low/high: low relay `relay_gpio`, high relay `relay2_gpio`, never both on. A touch steps off → low → high → off. */
+    M2_CH_FAN,
+    /** A fan's speed relays (`relay2_gpio` low, `relay3_gpio` high) plus "pump" on `relay_gpio`. */
+    M2_CH_COOLER,
+    /**
+     * "curtain" open/closed: the open relay `relay_gpio` or the close relay `relay2_gpio` (never both)
+     * runs for `travel_ms`. Key `key_gpio` opens, `key2_gpio` closes.
+     */
+    M2_CH_CURTAIN,
+    /**
+     * "door" open/closed of a parking door: `relay_gpio` pulses the door's own controller; the
+     * state comes only from the contact `sensor_gpio` (to GND, closed = door closed).
+     */
+    M2_CH_GARAGE,
 } m2_channel_kind_t;
 
 typedef struct {
@@ -33,6 +47,10 @@ typedef struct {
     int inhibit_gpio;
     /** The inhibit input is active when HIGH (a float switch to GND with a pull-up: open = HIGH). */
     bool inhibit_active_high;
+    /** Further pins, read only by the kinds that name them above. */
+    int relay2_gpio, relay3_gpio, key2_gpio, sensor_gpio;
+    /** Curtains: how long the motor runs from one end to the other. */
+    int travel_ms;
 } m2_channel_t;
 
 typedef struct {

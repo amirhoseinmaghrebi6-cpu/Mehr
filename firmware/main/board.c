@@ -75,6 +75,49 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED -1
 
+#elif CONFIG_M2_BOARD_CL
+/* Evaporative cooler (ESP32-C3): pump relay 4, motor low 5 and high 6 (never both); setup button 7; status LED 10. */
+#define MODEL "m2-cl-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "cooler", .kind = M2_CH_COOLER, .capability = "speed", .relay_gpio = 4, .relay2_gpio = 5, .relay3_gpio = 6, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 7
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 10
+
+#elif CONFIG_M2_BOARD_FN
+/* Fan (ESP32-C3): low relay 4, high relay 5 (never both); touch key 0 steps the speed and is the setup key. */
+#define MODEL "m2-fn-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "fan", .kind = M2_CH_FAN, .capability = "speed", .relay_gpio = 4, .relay2_gpio = 5, .key_gpio = 0, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 0
+#define KEYS_ACTIVE_HIGH true
+#define STATUS_LED -1
+
+#elif CONFIG_M2_BOARD_CU
+/*
+ * Curtain (ESP32-C3): open relay 4, close relay 5 (never both); touch "open" 0 (also the setup key),
+ * touch "close" 1. The motor's own end stops halt it; 30 s covers a long track.
+ */
+#define MODEL "m2-cu-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "curtain", .kind = M2_CH_CURTAIN, .capability = "curtain", .relay_gpio = 4, .relay2_gpio = 5, .key_gpio = 0, .key2_gpio = 1, .inhibit_gpio = -1, .travel_ms = 30000 },
+};
+#define SETUP_GPIO 0
+#define KEYS_ACTIVE_HIGH true
+#define STATUS_LED -1
+
+#elif CONFIG_M2_BOARD_GD
+/* Parking door (ESP32-C3): pulse relay 4 to the door's controller; door contact 5; setup button 6; status LED 10. */
+#define MODEL "m2-gd-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "door", .kind = M2_CH_GARAGE, .capability = "door", .relay_gpio = 4, .sensor_gpio = 5, .key_gpio = -1, .inhibit_gpio = -1, .pulse_ms = 1000 },
+};
+#define SETUP_GPIO 6
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 10
+
 #elif CONFIG_M2_BOARD_PM
 /* Water pump (ESP32-C3): contactor relay 4; setup button 5; float switch 6 (open = tank empty) guards against running dry. */
 #define MODEL "m2-pm-rev-a"

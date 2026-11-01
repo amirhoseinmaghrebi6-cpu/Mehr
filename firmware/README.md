@@ -37,9 +37,13 @@ sh firmware/build.sh t2          # one board, for production (m2smart.ir)
 sh firmware/build.sh devkit dev  # the DevKit against the dev stack on your PC
 ```
 
-Boards: `devkit`, `t1`–`t4` (touch switches), `r8` (8-relay panel), `sk` (socket), `do` (door opener), `pm` (water pump). Each has its own chip, pin table (`main/board.c`) and output folder, `firmware/dist/<board>/`.
+Boards: `devkit`, `t1`–`t4` (touch switches), `r8` (8-relay panel), `sk` (socket), `do` (door opener), `pm` (water pump), `cl` (cooler), `fn` (fan), `cu` (curtain), `gd` (parking door). Each has its own chip, pin table (`main/board.c`) and output folder, `firmware/dist/<board>/`.
 
 For `dev`, first copy `sdkconfig.dev.example` to `sdkconfig.dev` and put your PC's address on the home network in it.
+
+## Test the motor logic on a PC
+
+`sh firmware/test/run.sh` runs `main/channels.c` against stubbed pins and timers for the fan, cooler, curtain and parking door. It checks every relay change, so it fails if a motor's two relays are ever on together.
 
 ## Provision and flash a DevKit
 

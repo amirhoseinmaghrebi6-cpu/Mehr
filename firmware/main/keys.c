@@ -41,7 +41,8 @@ static void configure(int gpio)
 static int channel_of(int gpio)
 {
     for (int i = 0; i < m2_board.channel_count; i++) {
-        if (m2_board.channels[i].key_gpio == gpio) return i;
+        const m2_channel_t *ch = &m2_board.channels[i];
+        if (ch->key_gpio == gpio || (ch->kind == M2_CH_CURTAIN && ch->key2_gpio == gpio)) return i;
     }
     return -1;
 }
@@ -49,6 +50,8 @@ static int channel_of(int gpio)
 typedef struct {
     int gpio;
     int channel;
+    /** A curtain's "close" key. */
+    bool second;
     bool setup;
     bool down;
     int stable;     // consecutive samples that disagree with `down` (debounce)
@@ -64,6 +67,8 @@ static void watch(void *arg)
         int gpio = m2_board.channels[i].key_gpio;
         if (gpio < 0) continue;
         keys[count++] = (key_state_t){ .gpio = gpio, .channel = i, .setup = gpio == m2_board.setup_gpio };
+        const m2_channel_t *ch = &m2_board.channels[i];
+        if (ch->kind == M2_CH_CURTAIN && count < 23) keys[count++] = (key_state_t){ .gpio = ch->key2_gpio, .channel = i, .second = true, .setup = ch->key2_gpio == m2_board.setup_gpio };
     }
     if (channel_of(m2_board.setup_gpio) < 0) keys[count++] = (key_state_t){ .gpio = m2_board.setup_gpio, .channel = -1, .setup = true };
     for (int i = 0; i < count; i++) configure(keys[i].gpio);
@@ -77,15 +82,13 @@ static void watch(void *arg)
             if (key->stable >= 2) {
                 key->down = level;
                 key->stable = 0;
-                const m2_channel_t *ch = key->channel >= 0 ? &m2_board.channels[key->channel] : NULL;
                 if (key->down) {
                     key->since = now;
                     key->reset_done = false;
-                    // A touch switches at once; a momentary channel is on while held.
-                    if (ch && ch->kind == M2_CH_SWITCH) m2_channel_toggle(key->channel);
-                    if (ch && ch->kind == M2_CH_MOMENTARY) m2_channel_set(key->channel, true, NULL);
+                    // A touch acts at once (channels.c: toggle, step the speed, move the curtain, hold a strike).
+                    if (key->channel >= 0) m2_channel_key(key->channel, key->second, true);
                 } else {
-                    if (ch && ch->kind == M2_CH_MOMENTARY) m2_channel_set(key->channel, false, NULL);
+                    if (key->channel >= 0) m2_channel_key(key->channel, key->second, false);
                     int64_t held_ms = (now - key->since) / 1000;
                     if (key->setup && held_ms >= PAIRING_FROM_MS && held_ms < PAIRING_TO_MS) {
                         ESP_LOGI(TAG, "Setup key held %lld ms: pairing mode", held_ms);
@@ -106,7 +109,7 @@ static void watch(void *arg)
                 }
             }
         }
-        m2_channels_poll_guards();
+        m2_channels_poll();
         vTaskDelay(pdMS_TO_TICKS(POLL_MS));
     }
 }

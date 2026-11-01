@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "esp_err.h"
 
 esp_err_t m2_storage_init(void);
@@ -22,9 +23,9 @@ bool m2_load_account(char *board_id, size_t board_id_len, char *secret, size_t s
 esp_err_t m2_save_account(const char *board_id, const char *secret);
 esp_err_t m2_forget_account(void);
 
-/** A channel's saved on/off state (false if never saved). */
-bool m2_load_channel(int channel);
-void m2_save_channel(int channel, bool on);
+/** A channel's saved state (channels.c packs it into a byte; 0 if never saved). */
+uint8_t m2_load_channel(int channel);
+void m2_save_channel(int channel, uint8_t value);
 
 /** Factory reset: erases everything but the factory identity. */
 esp_err_t m2_erase_all(void);

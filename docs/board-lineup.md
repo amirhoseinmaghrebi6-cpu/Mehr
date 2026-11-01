@@ -84,7 +84,7 @@ A touch toggles the light; a long touch under 7 s does not dim. Dimming is from 
 | 7 | setup button |
 | 10 | status LED |
 
-Channel: `cooler` (pump, speed off/low/high).
+Channel: `cooler` (pump, speed off/low/high). Pump and speed are restored after a power cut. Changing speed turns the old relay off 0.3 s before the new one comes on.
 
 ### M2-FN: fan (ESP32-C3)
 
@@ -94,7 +94,7 @@ Channel: `cooler` (pump, speed off/low/high).
 | 5 | high relay (interlock group `speed`) |
 | 0 | touch key (setup; a touch steps off → low → high → off) |
 
-Channel: `fan` (speed off/low/high).
+Channel: `fan` (speed off/low/high), restored after a power cut. Changing speed turns the old relay off 0.3 s before the new one comes on.
 
 ## Openings
 
@@ -107,7 +107,7 @@ Channel: `fan` (speed off/low/high).
 | 0 | touch "open" (setup) |
 | 1 | touch "close" |
 
-The motor runs for the curtain's travel time (set per model, `action_seconds`). Channel: `curtain` (open/closed).
+A command or a touch runs the motor for the whole track (30 s in the firmware; the motor's own end stops halt it), then the board reports `open` or `closed`. Touching the other key reverses it, with a 0.6 s pause. After a power cut the motor stays still and the last position is kept. There is no stop in the middle: the app knows only open and closed. Channel: `curtain` (open/closed).
 
 ### M2-GD: parking door (ESP32-C3)
 
@@ -118,7 +118,7 @@ The motor runs for the curtain's travel time (set per model, `action_seconds`). 
 | 6 | setup button |
 | 10 | status LED |
 
-Channel: `garage_door`. The reported state comes from the contact, never from the pulse.
+Channel: `garage_door`. The reported state comes from the contact, never from the pulse. A command for where the door already is completes at once, without a pulse. Otherwise the relay closes for 1 s, and the command completes when the contact shows the door there. A change from the door's own remote is reported too.
 
 ### M2-DO: door opener (ESP32-C3)
 

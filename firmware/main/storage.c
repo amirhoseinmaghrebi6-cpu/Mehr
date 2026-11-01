@@ -93,7 +93,7 @@ esp_err_t m2_forget_account(void)
     return err;
 }
 
-bool m2_load_channel(int channel)
+uint8_t m2_load_channel(int channel)
 {
     char key[12];
     snprintf(key, sizeof(key), "st%d", channel);
@@ -103,17 +103,17 @@ bool m2_load_channel(int channel)
         nvs_get_u8(handle, key, &value);
         nvs_close(handle);
     }
-    return value != 0;
+    return value;
 }
 
-void m2_save_channel(int channel, bool on)
+void m2_save_channel(int channel, uint8_t value)
 {
     char key[12];
     snprintf(key, sizeof(key), "st%d", channel);
     nvs_handle_t handle;
     if (nvs_open(NS, NVS_READWRITE, &handle) != ESP_OK) return;
     // NVS spreads writes over its pages, so saving every change is fine for flash wear.
-    if (nvs_set_u8(handle, key, on ? 1 : 0) == ESP_OK) nvs_commit(handle);
+    if (nvs_set_u8(handle, key, value) == ESP_OK) nvs_commit(handle);
     nvs_close(handle);
 }
 

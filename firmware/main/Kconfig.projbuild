@@ -24,6 +24,14 @@ menu "M2smart"
             bool "Door opener (ESP32-C3)"
         config M2_BOARD_PM
             bool "Water pump (ESP32-C3)"
+        config M2_BOARD_CL
+            bool "Evaporative cooler (ESP32-C3)"
+        config M2_BOARD_FN
+            bool "Fan (ESP32-C3)"
+        config M2_BOARD_CU
+            bool "Curtain (ESP32-C3)"
+        config M2_BOARD_GD
+            bool "Parking door (ESP32-C3)"
     endchoice
 
     config M2_API_URL

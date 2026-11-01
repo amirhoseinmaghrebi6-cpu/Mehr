@@ -7,14 +7,14 @@
 #   sh firmware/build.sh <board>          production (m2smart.ir)
 #   sh firmware/build.sh <board> dev      against the dev stack (firmware/sdkconfig.dev)
 #
-# Boards: devkit, t1, t2, t3, t4, r8, sk, do, pm (main/board.c, docs/board-lineup.md).
+# Boards: devkit, t1, t2, t3, t4, r8, sk, do, pm, cl, fn, cu, gd (main/board.c, docs/board-lineup.md).
 # A factory partition (firmware/provision/*.csv from pnpm dev:devkit) is turned into a .bin too.
 set -eu
 cd "$(dirname "$0")"
-board=${1:?usage: build.sh <board> [dev]   boards: devkit t1 t2 t3 t4 r8 sk do pm}
+board=${1:?usage: build.sh <board> [dev]   boards: devkit t1 t2 t3 t4 r8 sk do pm cl fn cu gd}
 case "$board" in
   devkit|r8) target=esp32 ;;
-  t1|t2|t3|t4|sk|do|pm) target=esp32c3 ;;
+  t1|t2|t3|t4|sk|do|pm|cl|fn|cu|gd) target=esp32c3 ;;
   *) echo "Unknown board: $board" >&2; exit 1 ;;
 esac
 mode=${2:-prod}

@@ -38,37 +38,78 @@ static void publish(const char *kind, cJSON *json, bool retain)
     free(text);
 }
 
-static void add_value(cJSON *values, int channel, bool on)
+static const char *SPEEDS[] = { "off", "low", "high" };
+/** Curtains and parking doors. */
+static const char *POSITIONS[] = { "closed", "open" };
+
+static cJSON *value_item(cJSON *values, const char *channel_key, const char *cap)
 {
-    const m2_channel_t *ch = &m2_board.channels[channel];
     cJSON *value = cJSON_CreateObject();
-    cJSON_AddStringToObject(value, "ch", ch->key);
-    cJSON_AddStringToObject(value, "cap", ch->capability);
-    if (ch->kind == M2_CH_MOMENTARY) cJSON_AddStringToObject(value, "val", "open");
-    else cJSON_AddBoolToObject(value, "val", on);
+    cJSON_AddStringToObject(value, "ch", channel_key);
+    cJSON_AddStringToObject(value, "cap", cap);
     cJSON_AddItemToArray(values, value);
+    return value;
 }
 
-/** Every switch channel, on connect: the server learns the real state (a wall key may have been used offline). */
+/** A channel's capabilities and values, as the device catalog names them. */
+static void add_values(cJSON *values, int channel)
+{
+    const m2_channel_t *ch = &m2_board.channels[channel];
+    int value = m2_channel_value(channel);
+    cJSON *item = value_item(values, ch->key, ch->capability);
+    switch (ch->kind) {
+    case M2_CH_SWITCH: cJSON_AddBoolToObject(item, "val", value); break;
+    case M2_CH_MOMENTARY: cJSON_AddStringToObject(item, "val", "open"); break;
+    case M2_CH_FAN:
+    case M2_CH_COOLER: cJSON_AddStringToObject(item, "val", SPEEDS[value]); break;
+    case M2_CH_CURTAIN:
+    case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
+    }
+    if (ch->kind == M2_CH_COOLER) cJSON_AddBoolToObject(value_item(values, ch->key, "pump"), "val", m2_channel_pump(channel));
+}
+
+/** The index of `text` in `names`, or -1. */
+static int find(const char *text, const char *const *names, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (strcmp(text, names[i]) == 0) return i;
+    }
+    return -1;
+}
+
+/** A command's value as channels.c counts it (channels.h), or -1 if it does not fit. */
+static int decode(const m2_channel_t *ch, bool pump, const cJSON *val)
+{
+    if (ch->kind == M2_CH_SWITCH || pump) return cJSON_IsBool(val) ? cJSON_IsTrue(val) : -1;
+    if (!cJSON_IsString(val)) return -1;
+    switch (ch->kind) {
+    case M2_CH_MOMENTARY: return strcmp(val->valuestring, "open") == 0 ? 1 : -1;
+    case M2_CH_FAN:
+    case M2_CH_COOLER: return find(val->valuestring, SPEEDS, 3);
+    default: return find(val->valuestring, POSITIONS, 2);
+    }
+}
+
+/** Every channel but a strike, on connect: the server learns the real state (a wall key may have been used offline). */
 static void report_all(void)
 {
     cJSON *json = cJSON_CreateObject();
     cJSON *values = cJSON_AddArrayToObject(json, "values");
     for (int i = 0; i < m2_board.channel_count; i++) {
-        if (m2_board.channels[i].kind == M2_CH_SWITCH) add_value(values, i, m2_channel_is_on(i));
+        if (m2_board.channels[i].kind != M2_CH_MOMENTARY) add_values(values, i);
     }
     if (cJSON_GetArraySize(values)) publish("state", json, false);
     cJSON_Delete(json);
 }
 
-void m2_cloud_report(int channel, bool on, const char *command_id)
+void m2_cloud_report(int channel, const char *command_id)
 {
     if (!connected) return;
-    // A momentary channel reports only that it opened, with its command.
-    if (m2_board.channels[channel].kind == M2_CH_MOMENTARY && !on) return;
+    // A momentary channel reports only that it opened.
+    if (m2_board.channels[channel].kind == M2_CH_MOMENTARY && !m2_channel_value(channel)) return;
     cJSON *json = cJSON_CreateObject();
     if (command_id) cJSON_AddStringToObject(json, "id", command_id);
-    add_value(cJSON_AddArrayToObject(json, "values"), channel, on);
+    add_values(cJSON_AddArrayToObject(json, "values"), channel);
     publish("state", json, false);
     cJSON_Delete(json);
 }
@@ -97,19 +138,19 @@ static void on_command(const char *data, int len)
     }
     int channel = m2_board_channel(ch->valuestring);
     const m2_channel_t *target = channel >= 0 ? &m2_board.channels[channel] : NULL;
-    if (!target || strcmp(target->capability, cap->valuestring) != 0) {
+    // A cooler's second capability: its pump.
+    bool pump = target && target->kind == M2_CH_COOLER && strcmp(cap->valuestring, "pump") == 0;
+    int value = target ? decode(target, pump, val) : -1;
+    if (!target || (!pump && strcmp(target->capability, cap->valuestring) != 0)) {
         ack(id->valuestring, "unknown_target");
-    } else if (target->kind == M2_CH_SWITCH && cJSON_IsBool(val) && cJSON_IsTrue(val) && m2_channel_inhibited(channel)) {
+    } else if (value < 0) {
+        ack(id->valuestring, "invalid_value");
+    } else if (value && m2_channel_inhibited(channel)) {
         // e.g. a pump whose tank is empty: it must not run dry.
         ack(id->valuestring, "blocked_by_sensor");
-    } else if (target->kind == M2_CH_SWITCH && cJSON_IsBool(val)) {
-        ack(id->valuestring, NULL);
-        m2_channel_set(channel, cJSON_IsTrue(val), id->valuestring);
-    } else if (target->kind == M2_CH_MOMENTARY && cJSON_IsString(val) && strcmp(val->valuestring, "open") == 0) {
-        ack(id->valuestring, NULL);
-        m2_channel_pulse(channel, target->pulse_ms > 0 ? target->pulse_ms : 5000, id->valuestring);
     } else {
-        ack(id->valuestring, "bad_value");
+        ack(id->valuestring, NULL);
+        m2_channel_command(channel, pump, value, id->valuestring);
     }
     cJSON_Delete(json);
 }

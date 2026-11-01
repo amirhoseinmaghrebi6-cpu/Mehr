@@ -10,6 +10,6 @@
 void m2_cloud_start(const char *board_id, const char *broker_secret);
 bool m2_cloud_connected(void);
 /** Reports a channel change: from a wall key (no id) or as the result of a command. */
-void m2_cloud_report(int channel, bool on, const char *command_id);
+void m2_cloud_report(int channel, const char *command_id);
 /** Factory reset: tells the server (best effort), so it deletes the board at once. */
 void m2_cloud_say_reset(void);
