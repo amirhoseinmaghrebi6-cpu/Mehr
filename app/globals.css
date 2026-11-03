@@ -80,7 +80,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .nav-caption { margin: 0 10px 10px; }
 .nav-caption-spaced { margin-top: 25px; }
 .nav-group { display: grid; gap: 3px; }
-.nav-item { position: relative; display: flex; width: 100%; min-height: 38px; align-items: center; gap: 11px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-soft); cursor: pointer; text-align: start; transition: color .16s, background .16s; }
+.nav-item { position: relative; display: flex; width: 100%; min-height: 38px; align-items: center; gap: 11px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-soft); cursor: pointer; text-align: start; transition: color .16s, background .16s; text-decoration: none; }
 .nav-item:hover { background: var(--surface-hover); color: var(--ink); }
 .nav-item.is-active { background: var(--accent-soft); color: var(--accent-deep); font-weight: 650; }
 .nav-icon { display: grid; width: 19px; flex: 0 0 19px; place-items: center; color: currentColor; }

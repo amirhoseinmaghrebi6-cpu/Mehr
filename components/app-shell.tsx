@@ -346,12 +346,12 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
           <span className="sidebar-caption nav-caption">{m.nav.yourHome}</span>
           <div className="nav-group">{primaryLinks.map((item) => <NavigationItem key={item.id} item={item} active={!adminView && section === item.id} onClick={() => navigate(item.id)} />)}</div>
           <span className="sidebar-caption nav-caption nav-caption-spaced">{m.nav.homeAndYou}</span>
-          <div className="nav-group">{moreLinks.map((item) => <NavigationItem key={item.id} item={item} active={!adminView && section === item.id} onClick={() => navigate(item.id)} />)}</div>
+          <div className="nav-group">{moreLinks.map((item) => <NavigationItem key={item.id} item={item} active={!adminView && section === item.id} onClick={() => navigate(item.id)} />)}{platformAdmin && <Link className={`nav-item${adminView ? " is-active" : ""}`} href="/admin" aria-current={adminView ? "page" : undefined}><span className="nav-icon"><Gauge size={17} strokeWidth={adminView ? 2 : 1.75} /></span><span>{m.admin.open}</span>{adminView && <span className="nav-current-indicator" />}</Link>}</div>
         </nav>
 
         <div className="sidebar-bottom">
           <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpRight size={14} /></button>
-          <div className="profile-row"><span className="profile-avatar">{nameOf(displayName).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{nameOf(displayName)}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span>{platformAdmin && <Link className={`profile-menu${adminView ? " is-active" : ""}`} href="/admin" aria-label={m.admin.open} title={m.admin.open} aria-current={adminView ? "page" : undefined}><Gauge size={18} /></Link>}<button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
+          <div className="profile-row"><span className="profile-avatar">{nameOf(displayName).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{nameOf(displayName)}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span><button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
         </div>
       </aside>
 
