@@ -83,7 +83,7 @@ The current delivery implements:
   - A factory reset leaves nothing of the board on the server.
   - See `docs/plans/phase-4.md` and `docs/board-protocol.md`.
 
-Security, Cameras and Activity are built from the devices' current states and the last day of commands, for real homes and the demo alike (Phase 5D); live camera video comes later. There is no Automations page and no Energy page, and the app shows no consumption numbers: scenarios cover scheduling, and consumption is not a feature of the product (decided 2026-10-04).
+Security, Cameras and Activity are built from the devices' current states and the last day of commands, for real homes and the demo alike (Phase 5D); live camera video comes later. There is no Automations page: scenarios cover scheduling. Consumption is measured for the whole home only (decided 2026-11-03, after the product had none from 2026-10-04): an energy meter (M2-EM) in the electrical panel, one per phase. The server turns its running total into hourly use for 7 days and daily use for 12 months, and deletes older rows; no device but the meter shows consumption.
 
 Home members (Phase 5A): owners and admins invite people by mobile number; the invited person sees the invitation after signing in with that number and accepts or declines it. An owner manages admins and members, an admin manages members only, and anyone but the owner may leave. An invitation stays until it is accepted, declined or cancelled, and is then deleted. See `docs/plans/phase-5.md`.
 

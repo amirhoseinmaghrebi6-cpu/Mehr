@@ -6,7 +6,8 @@
  * - setup codes that expired (used or not);
  * - one-time scenarios whose time and validity window have passed (commands they already sent
  *   stay until they finish);
- * - every scenario run except the latest of its scenario.
+ * - every scenario run except the latest of its scenario;
+ * - hourly energy use after 7 days, daily energy use after 12 months.
  *
  * Runs in every API process; deleting is idempotent, so several at once is harmless.
  */
@@ -31,6 +32,8 @@ const RULES: Array<[name: string, sql: string]> = [
     `delete from public.scenario_runs as run
      where exists (select 1 from public.scenario_runs as newer where newer.scenario_id = run.scenario_id and newer.created_at > run.created_at)`,
   ],
+  ["hourly energy", `delete from public.energy_hourly where (device_id, hour) in (select device_id, hour from public.energy_hourly where hour < now() - interval '8 days' limit ${BATCH})`],
+  ["daily energy", `delete from public.energy_daily where (device_id, day) in (select device_id, day from public.energy_daily where day < current_date - 366 limit ${BATCH})`],
 ];
 
 /** Deletes one batch of everything that is past its time. Returns how many rows went, by kind. */

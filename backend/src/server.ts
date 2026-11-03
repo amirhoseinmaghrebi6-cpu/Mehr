@@ -29,6 +29,7 @@ import { registerMemberRoutes } from "./http/members";
 import { registerSmsRoute } from "./http/sms";
 import { registerEventRoutes } from "./http/events";
 import { registerActivityRoutes } from "./http/activity";
+import { registerEnergyRoutes } from "./http/energy";
 import { refuseBlocked, registerAdminRoutes, registerBlockedCheck } from "./http/admin";
 import { registerPhoneRoutes } from "./http/phone";
 import { registerFirmwareDownload } from "./http/firmware";
@@ -103,6 +104,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerScenarioRoutes(app, pool, sessionVerifier);
     registerEventRoutes(app, pool, sessionVerifier, services.homeEvents ?? null);
     registerActivityRoutes(app, pool, sessionVerifier);
+    registerEnergyRoutes(app, pool, sessionVerifier);
     registerPhoneRoutes(app, pool, sessionVerifier, services.identityAdmin ?? null, services.sms ?? null);
     registerAdminRoutes(app, pool, sessionVerifier, { admins, identityAdmin: services.identityAdmin ?? null, broker: services.broker ?? (() => null), smsReady: services.smsReady ?? false, firmwareKey: services.firmwareKey ?? null });
   }

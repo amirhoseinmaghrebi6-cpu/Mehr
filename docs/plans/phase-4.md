@@ -25,7 +25,7 @@ These replace earlier decisions; the older documents point here.
    - **States:** only the last reported value per capability, overwritten (as today).
    - **Factory reset:** nothing about the board stays on the server: the board, its devices, states, commands and scenario actions are deleted. No audit entry and no notification to the old home. This replaces the audit entry and notification of Phase 3.5, section A.
    - **Temporary data:** pairing codes, SMS codes and expired sessions are cleaned up regularly.
-   - **Energy:** nothing is kept. (Daily totals were built in 4C and removed on 2026-10-04, when the product owner decided the app shows no consumption at all.)
+   - **Energy:** nothing is kept. (Daily totals were built in 4C and removed on 2026-10-04, when the product owner decided the app shows no consumption at all. On 2026-11-03 whole-home metering came back: hourly use for 7 days and daily use for 12 months, from the M2-EM meter only; see docs/product-architecture.md.)
    - **What stays and does not grow:** the registry of manufactured boards (one fixed row per board).
 6. **Room for a hub later.** The protocol stays small and hardware-neutral, so a hub could be added without changing the boards' messages, if local control from the app is wanted one day.
 
