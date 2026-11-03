@@ -20,6 +20,7 @@ export const fa: Messages = {
   },
 
   nav: {
+    energy: "انرژی",
     help: "راهنمایی و پشتیبانی",
     overview: "نمای کلی",
     rooms: "فضاها",
@@ -98,6 +99,7 @@ export const fa: Messages = {
 
   dashboard: {
     sectionCopy: {
+      energy: "مصرف برق کل خانه، به تفکیک ساعت، روز و ماه.",
       help: "پاسخ کوتاه به پرتکرارترین پرسش‌ها.",
       overview: "نگاهی هوشمند به حال‌وهوای خانه‌ی شما.",
       rooms: "فضاهایی هماهنگ با جریان روز شما.",
@@ -123,6 +125,8 @@ export const fa: Messages = {
     loadingHome: "در حال دریافت اطلاعات خانه…",
     atAGlance: "وضعیت خانه",
     indoorComfort: "آسایش داخل خانه",
+    energyToday: "مصرف امروز",
+    energyNow: (value) => `${value} همین حالا`,
     climateAverage: "میانگین دما و رطوبت حسگرهای خانه",
     celsius: "سانتی‌گراد",
     fahrenheit: "فارنهایت",
@@ -771,6 +775,25 @@ export const fa: Messages = {
     someone: "یک نفر",
     didNotHappen: "انجام نشد",
     inProgress: "در حال انجام",
+  },
+
+  energy: {
+    overline: "کل خانه",
+    phases: (count) => `${count} کنتور، یکی برای هر فاز`,
+    chartTitle: "انرژی مصرفی",
+    now: "توان لحظه‌ای",
+    voltage: "ولتاژ برق",
+    today: "امروز",
+    thisMonth: "این ماه",
+    ranges: { day: "امروز", week: "۷ روز", month: "۳۰ روز", year: "۱۲ ماه" },
+    total: (value) => `در مجموع ${value} کیلووات‌ساعت`,
+    kwh: (value) => `${value} کیلووات‌ساعت`,
+    hours: (from, to) => `ساعت ${from} تا ${to}`,
+    loading: "در حال خواندن کنتور…",
+    noMeterTitle: "هنوز کنتور هوشمند ندارید",
+    noMeterText: "کنتور هوشمند M2-EM در تابلو برق، مصرف کل خانه را اندازه می‌گیرد. مثل هر بُرد دیگری اضافه‌اش کنید.",
+    addMeter: "افزودن دستگاه",
+    note: "مصرف ساعتی ۷ روز و مصرف روزانه ۱۲ ماه نگه داشته می‌شود و قدیمی‌ترها پاک می‌شوند.",
   },
 
   help: {

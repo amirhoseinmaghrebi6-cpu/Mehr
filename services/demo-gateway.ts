@@ -28,7 +28,7 @@ import {
 } from "@m2smart/contracts";
 import { GatewayError, type HomeGateway } from "@/services/home-gateway";
 import { nextRun } from "@/lib/scenario-time";
-import { createDemoData, createDemoPeople, createDemoScenarios, demoActivity, demoBoards, demoDevice, demoInvitedHome, type DemoData } from "@/services/demo-home";
+import { createDemoData, createDemoPeople, createDemoScenarios, demoActivity, demoBoards, demoDevice, demoInvitedHome, type DemoData, demoEnergy } from "@/services/demo-home";
 
 const STORAGE_PREFIX = "m2smart-demo-home-v2-";
 /** The demo's number, and the code that confirms a new one (shown on screen in the demo). */
@@ -55,6 +55,13 @@ export function createDemoGateway(userId: string): HomeGateway {
         const saved = JSON.parse(stored) as DemoData;
         // Device types that no longer exist (e.g. the energy meter) leave demo data saved earlier.
         for (const id of Object.keys(saved.devices)) saved.devices[id] = saved.devices[id].filter((device) => isDeviceType(device.type));
+        // Demo data saved before the energy meter came gets the sample one, once.
+        if (!saved.meterGiven) {
+          const meter = createDemoData().devices.tehran?.find((device) => device.type === "energy_meter");
+          if (meter && saved.devices.tehran && !saved.devices.tehran.some((device) => device.id === meter.id)) saved.devices.tehran.push(meter);
+          saved.meterGiven = true;
+          window.localStorage.setItem(key, JSON.stringify(saved));
+        }
         return saved;
       }
     } catch {
@@ -157,6 +164,13 @@ export function createDemoGateway(userId: string): HomeGateway {
       };
       window.addEventListener("storage", onStorage);
       return () => window.removeEventListener("storage", onStorage);
+    },
+
+    // Sample use for a home with a meter, the same on every visit for the same hour.
+    async loadEnergy(propertyId) {
+      const property = home(propertyId);
+      const hasMeter = (data.devices[propertyId] ?? []).some((device) => device.type === "energy_meter" && !device.pending);
+      return hasMeter ? demoEnergy(property.timeZone ?? "Asia/Tehran", new Date()) : { hours: [], days: [] };
     },
 
     // The sample activity, plus the commands the visitor sent in the last day (by "You").

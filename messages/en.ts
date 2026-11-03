@@ -22,6 +22,7 @@ export const en = {
   },
 
   nav: {
+    energy: "Energy",
     help: "Help & support",
     overview: "Overview",
     rooms: "Rooms",
@@ -100,6 +101,7 @@ export const en = {
 
   dashboard: {
     sectionCopy: {
+      energy: "How much power your whole home uses, by hour, day and month.",
       help: "Short answers to the questions people ask most.",
       overview: "A thoughtful look at how your home is feeling.",
       rooms: "Spaces that move with the rhythm of your day.",
@@ -125,6 +127,8 @@ export const en = {
     loadingHome: "Getting your home ready…",
     atAGlance: "Home at a glance",
     indoorComfort: "Indoor comfort",
+    energyToday: "Energy today",
+    energyNow: (value: string) => `${value} now`,
     climateAverage: "Average of the home's sensors",
     celsius: "C",
     fahrenheit: "F",
@@ -689,6 +693,25 @@ export const en = {
     someone: "Someone",
     didNotHappen: "did not happen",
     inProgress: "in progress",
+  },
+
+  energy: {
+    overline: "THE WHOLE HOME",
+    phases: (count: string) => `${count} meters, one per phase`,
+    chartTitle: "Energy used",
+    now: "Power now",
+    voltage: "Mains voltage",
+    today: "Today",
+    thisMonth: "This month",
+    ranges: { day: "Today", week: "7 days", month: "30 days", year: "12 months" },
+    total: (value: string) => `${value} kWh in all`,
+    kwh: (value: string) => `${value} kWh`,
+    hours: (from: string, to: string) => `${from}:00–${to}:00`,
+    loading: "Reading the meter…",
+    noMeterTitle: "No energy meter yet",
+    noMeterText: "An M2-EM energy meter in your electrical panel measures the whole home's use. Add it like any other board.",
+    addMeter: "Add a device",
+    note: "Hours are kept for 7 days and days for 12 months; older figures are deleted.",
   },
 
   help: {

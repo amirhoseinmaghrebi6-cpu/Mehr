@@ -33,6 +33,7 @@ import type {
   UpdateRoomRequest,
   UpdateSettingsRequest,
   UserSettings,
+  EnergyResponse,
 } from "@m2smart/contracts";
 
 export type GatewayErrorCode = "network" | "timeout" | "unauthenticated" | "forbidden" | "not_found" | "invalid_request" | "conflict" | "unavailable" | "reauth" | "rate_limited";
@@ -86,6 +87,9 @@ export interface HomeGateway {
 
   /** The last 24 hours of commands in the home, newest first, with who asked. */
   listActivity(propertyId: string): Promise<ActivityEntry[]>;
+
+  /** The home's energy use by hour (7 days) and day (12 months), its meters added up. */
+  loadEnergy(propertyId: string): Promise<EnergyResponse>;
 
   /** The user's display preferences (language, calendar, temperature unit). */
   getSettings(): Promise<UserSettings>;

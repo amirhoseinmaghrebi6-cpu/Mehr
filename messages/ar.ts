@@ -20,6 +20,7 @@ export const ar: Messages = {
   },
 
   nav: {
+    energy: "الطاقة",
     help: "المساعدة والدعم",
     overview: "نظرة عامة",
     rooms: "الغرف",
@@ -98,6 +99,7 @@ export const ar: Messages = {
 
   dashboard: {
     sectionCopy: {
+      energy: "كم يستهلك منزلك كله من الكهرباء، بالساعة واليوم والشهر.",
       help: "إجابات قصيرة عن أكثر الأسئلة شيوعًا.",
       overview: "نظرة هادئة على أحوال منزلك.",
       rooms: "غرف تتناغم مع إيقاع يومك.",
@@ -123,6 +125,8 @@ export const ar: Messages = {
     loadingHome: "جارٍ تحميل بيانات المنزل…",
     atAGlance: "المنزل في لمحة",
     indoorComfort: "الراحة داخل المنزل",
+    energyToday: "استهلاك اليوم",
+    energyNow: (value) => `${value} الآن`,
     climateAverage: "متوسط حرارة ورطوبة مستشعرات المنزل",
     celsius: "مئوية",
     fahrenheit: "فهرنهايت",
@@ -771,6 +775,25 @@ export const ar: Messages = {
     someone: "شخص ما",
     didNotHappen: "لم يحدث",
     inProgress: "قيد التنفيذ",
+  },
+
+  energy: {
+    overline: "المنزل كله",
+    phases: (count) => `${count} عدادات، واحد لكل طور`,
+    chartTitle: "الطاقة المستهلكة",
+    now: "القدرة الآن",
+    voltage: "جهد الكهرباء",
+    today: "اليوم",
+    thisMonth: "هذا الشهر",
+    ranges: { day: "اليوم", week: "٧ أيام", month: "٣٠ يومًا", year: "١٢ شهرًا" },
+    total: (value) => `${value} كيلوواط ساعة في المجموع`,
+    kwh: (value) => `${value} كيلوواط ساعة`,
+    hours: (from, to) => `من ${from} إلى ${to}`,
+    loading: "جارٍ قراءة العداد…",
+    noMeterTitle: "لا يوجد عداد طاقة بعد",
+    noMeterText: "عداد الطاقة M2-EM في لوحة الكهرباء يقيس استهلاك المنزل كله. أضفه مثل أي لوحة أخرى.",
+    addMeter: "إضافة جهاز",
+    note: "تُحفظ الساعات ٧ أيام والأيام ١٢ شهرًا، ويُحذف الأقدم.",
   },
 
   help: {

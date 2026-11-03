@@ -15,11 +15,13 @@ import {
   Trash2,
   TriangleAlert,
   Wifi,
+  Zap,
 } from "lucide-react";
 import { calendars, defaultTimeZone, displayTemperature, languages, palettes, temperatureUnits, type CapabilityName, type CapabilityValue, type ActivityEntry, type Device, type Property, type Room, type Scenario } from "@m2smart/contracts";
 import { DeviceControl } from "@/components/device-control";
 import { ScenarioList, ScenarioQuickList } from "@/features/scenarios/scenarios";
 import { ActivitySection, CameraSection, SecuritySection } from "@/features/safety/safety";
+import { EnergySection, meters, powerNow, useEnergy, useEnergyTotals, type LoadEnergy } from "@/features/energy/energy";
 import { useI18n } from "@/components/i18n-provider";
 import { deviceSummary, isActive, isAlert, photoUrl, primaryCapability, typeLabel } from "@/lib/device-ui";
 import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
@@ -30,7 +32,7 @@ export const homeTimeZone = (property: Property) => property.timeZone ?? default
 export const looks = ["plain", "glass"] as const;
 export type Look = (typeof looks)[number];
 
-export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings" | "help";
+export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings" | "help" | "energy";
 
 
 type Props = {
@@ -42,6 +44,7 @@ type Props = {
   accountPanel?: React.ReactNode;
   /** The last 24 hours of commands, for Activity. */
   loadActivity: () => Promise<ActivityEntry[]>;
+  loadEnergy: LoadEnergy;
   displayName: string;
   rooms: Room[];
   devices: Device[];
@@ -144,6 +147,10 @@ function Overview(props: Props) {
   const temperatures = numbers("temperature");
   const humidity = numbers("humidity");
   const alerts = devices.filter(isAlert);
+  const homeMeters = meters(devices);
+  const energy = useEnergy(props.loadEnergy, homeMeters.length > 0);
+  const energyTotals = useEnergyTotals(energy, homeTimeZone(property));
+  const power = powerNow(homeMeters, locale, m.devices.units);
   const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
   return (
@@ -163,7 +170,7 @@ function Overview(props: Props) {
         </div>
       </section>
 
-      <section className="metric-strip" aria-label={d.atAGlance}>
+      <section className={`metric-strip${homeMeters.length ? " has-energy" : ""}`} aria-label={d.atAGlance}>
         <article className="metric-item">
           <span className="metric-symbol climate-symbol"><Thermometer size={17} /></span>
           <div className="metric-content"><span className="metric-label">{d.indoorComfort}</span>{temperatures.length || humidity.length ? <span className="metric-note">{d.climateAverage}</span> : null}
@@ -174,6 +181,14 @@ function Overview(props: Props) {
           <span className="metric-symbol security-symbol">{alerts.length ? <TriangleAlert size={17} /> : <ShieldCheck size={17} />}</span>
           <div className="metric-content"><span className="metric-label">{d.safety}</span><strong className="security-value">{alerts.length ? d.alerts(formatNumber(alerts.length, locale)) : d.allClear}</strong><span className="metric-foot"><span className="metric-dot" />{alerts.length ? alerts.map((device) => nameOf(device.name)).join(rtl ? "، " : ", ") : d.fromLatest}</span></div>
         </article>
+        {homeMeters.length > 0 && (
+          <button type="button" className="metric-item metric-button" onClick={() => onNavigate("energy")}>
+            <span className="metric-symbol energy-symbol"><Zap size={17} /></span>
+            <div className="metric-content"><span className="metric-label">{d.energyToday}</span>
+              <strong>{energy ? formatNumber(energyTotals.today, locale, energyTotals.today < 10 ? 2 : 1) : "…"} <small>{m.devices.units.kwh.trim()}</small></strong>
+              <span className="metric-foot"><span className="metric-dot" />{power ? d.energyNow(power) : m.devices.waitingForReport}</span></div>
+          </button>
+        )}
       </section>
 
       <section className="content-section rooms-section">
@@ -311,6 +326,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "settings") return <SettingsSection demo={demo} property={props.property} accountPanel={props.accountPanel} look={props.look} onLook={props.onLook} />;
   if (section === "members") return <>{props.membersPanel}</>;
   if (section === "help") return <HelpSection />;
+  if (section === "energy") return <EnergySection devices={props.devices} load={props.loadEnergy} timeZone={homeTimeZone(props.property)} onAddDevice={props.onAddDevice} />;
   if (section === "scenes") {
     return (
       <ScenarioList

@@ -29,6 +29,7 @@ import {
   Sunset,
   TriangleAlert,
   Users,
+  Zap,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -65,6 +66,7 @@ const moreLinks: { id: DashboardSection; icon: LucideIcon }[] = [
   { id: "cameras", icon: Activity },
   { id: "notifications", icon: Bell },
   { id: "members", icon: Users },
+  { id: "energy", icon: Zap },
   { id: "settings", icon: Settings },
 ];
 
@@ -185,6 +187,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
   const canEditScenarios = property ? can(property.role, "scenario.edit") : false;
   const scenarioData = useScenarios(gateway, propertyId);
   const loadActivity = useCallback(() => (propertyId ? gateway.listActivity(propertyId) : Promise.resolve([])), [gateway, propertyId]);
+  const loadEnergy = useCallback(() => (propertyId ? gateway.loadEnergy(propertyId) : Promise.resolve({ hours: [], days: [] })), [gateway, propertyId]);
 
   // Remember each dimmer's last brightness, so switching it back on restores it.
   const lastBrightness = useRef<Record<string, number>>({});
@@ -394,6 +397,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
               section={section}
               property={property}
               loadActivity={loadActivity}
+              loadEnergy={loadEnergy}
               membersPanel={<MembersSection gateway={gateway} property={property} nameOf={nameOf} onToast={showToast} onLeft={() => { const remaining = (properties ?? []).filter((item) => item.id !== property.id); home.setProperties(remaining); if (remaining[0]) changeProperty(remaining[0].id); else router.push("/dashboard"); }} />}
               accountPanel={<AccountSection gateway={gateway} demo={demoMode} onToast={showToast} />}
               displayName={displayName}
@@ -440,7 +444,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
-          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings], ["help", CircleHelp]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["energy", Zap], ["members", Users], ["settings", Settings], ["help", CircleHelp]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
           {platformAdmin && <Link href="/admin" onClick={() => setMobileMoreOpen(false)}><Gauge size={18} /><span>{m.admin.open}</span></Link>}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
@@ -646,5 +650,5 @@ function MobileNavigationItem({ id, icon: Icon, active, onClick }: { id: Dashboa
 }
 
 function isDashboardSection(section: string | undefined): section is DashboardSection {
-  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "members", "settings", "help"].includes(section ?? "");
+  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "members", "settings", "help", "energy"].includes(section ?? "");
 }

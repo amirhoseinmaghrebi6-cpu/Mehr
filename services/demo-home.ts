@@ -2,7 +2,7 @@
  * Sample homes for the demo account, in the same shape the API returns. The demo never touches
  * the database: this data lives in the demo visitor's browser (services/demo-gateway.ts).
  */
-import { capabilities, deviceTypes, type ActivityEntry, type Command, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type HomeInvitation, type HomeMember, type MyInvitation, type Property, type Room, type Scenario } from "@m2smart/contracts";
+import { capabilities, deviceTypes, type ActivityEntry, type Command, type CapabilityName, type CapabilityValue, type Device, type DeviceType, type HomeInvitation, type HomeMember, type MyInvitation, type Property, type Room, type Scenario, type EnergyResponse } from "@m2smart/contracts";
 import { messages, type Locale } from "@/lib/i18n";
 
 export type DemoData = {
@@ -11,6 +11,8 @@ export type DemoData = {
   devices: Record<string, Device[]>;
   /** Boards that wait for pairing: board id → the product (a key of demoBoards). */
   waitingBoards?: Record<string, string>;
+  /** Set once the sample energy meter was given to demo data saved before it existed. */
+  meterGiven?: boolean;
   /** Missing in demo data saved before scenarios existed: then the samples are added. */
   scenarios?: Record<string, Scenario[]>;
   /** Commands sent in the demo, for Activity; only the last 24 hours are kept (like the API). */
@@ -56,6 +58,7 @@ function neutralValue(capability: CapabilityName): CapabilityValue {
 export function createDemoData(): DemoData {
   const room = (id: string, name: string, photo: Room["photo"], sortOrder: number): Room => ({ id, name, photo, sortOrder });
   return {
+    meterGiven: true,
     properties: [
       { id: "tehran", name: "Tehran Villa", type: "villa", address: "Niavaran, Tehran", coverPhoto: "living", timeZone: "Asia/Tehran", role: "owner" },
       { id: "caspian", name: "Caspian House", type: "house", address: "Ramsar, Mazandaran", coverPhoto: "exterior", timeZone: "Asia/Tehran", role: "owner" },
@@ -80,6 +83,7 @@ export function createDemoData(): DemoData {
         demoDevice("path-lights", "switch", "Path lighting", "terrace", { power: false }),
         demoDevice("garage", "garage_door", "Parking door", "terrace", { door: "closed" }),
         demoDevice("garden-pump", "pump", "Garden pump", "terrace", { power: false }),
+        demoDevice("home-meter", "energy_meter", "Home energy", null, { power_w: 1840, energy_kwh: 18342.6, voltage_v: 221 }),
         demoDevice("entrance-camera", "camera", "Entrance camera", "terrace", { power: true, recording: false }),
       ],
       caspian: [
@@ -122,6 +126,7 @@ export const demoBoards: Record<string, { name: string; channels: Array<[type: D
   "DEMO-CO": { name: "CO sensor", channels: [["co_sensor","CO sensor",{"co_ppm":2}]] },
   "DEMO-AIR": { name: "Air quality sensor", channels: [["air_quality_sensor","Air quality sensor",{"co2_ppm":600,"voc_index":80}]] },
   "DEMO-HUMIDITY": { name: "Humidity and temperature sensor", channels: [["humidity_sensor","Humidity and temperature sensor",{"humidity":40,"temperature":23}]] },
+  "DEMO-METER": { name: "Energy meter", channels: [["energy_meter","Home energy",{"power_w":0,"energy_kwh":0,"voltage_v":220}]] },
   "DEMO-LIGHT": { name: "Light sensor", channels: [["light_sensor","Light sensor",{"illuminance_lux":300}]] },
 };
 
@@ -199,4 +204,41 @@ export function demoActivity(propertyId: string, now = Date.now()): ActivityEntr
   }
   if (propertyId === "caspian") return [entry("lamp", "c-lamp", "Reading lamp", "brightness", 0, 180, { scenario: "Good night" })];
   return [];
+}
+
+/**
+ * The demo's energy use: a believable Iranian home (a cooler in summer afternoons, more light in
+ * winter evenings), the same figures on every visit for the same hour.
+ */
+export function demoEnergy(timeZone: string, now: Date): EnergyResponse {
+  const jitter = (seed: number) => {
+    const x = Math.sin(seed * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const local = (date: Date) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(date).map((part) => [part.type, part.value]));
+    return { day: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour), month: Number(parts.month) };
+  };
+  const hourUse = (date: Date) => {
+    const { hour, month } = local(date);
+    const summer = month >= 6 && month <= 9;
+    const winter = month === 12 || month <= 2;
+    let kwh = 0.3;
+    if (hour >= 7 && hour <= 9) kwh += 0.5;
+    if (hour >= 18 && hour <= 23) kwh += winter ? 1.3 : 0.9;
+    if (summer && hour >= 12 && hour <= 19) kwh += 1.6;
+    return Math.round(kwh * (0.75 + jitter(Math.floor(date.getTime() / 3_600_000)) * 0.5) * 1000) / 1000;
+  };
+  const thisHour = Math.floor(now.getTime() / 3_600_000) * 3_600_000;
+  const hours: EnergyResponse["hours"] = [];
+  const days = new Map<string, number>();
+  for (let at = thisHour - 366 * 86_400_000; at <= thisHour; at += 3_600_000) {
+    const date = new Date(at);
+    // This hour so far.
+    const kwh = at === thisHour ? Math.round(hourUse(date) * ((now.getTime() - at) / 3_600_000) * 1000) / 1000 : hourUse(date);
+    if (at >= thisHour - 7 * 86_400_000) hours.push({ start: date.toISOString(), kwh });
+    const { day } = local(date);
+    days.set(day, (days.get(day) ?? 0) + kwh);
+  }
+  return { hours, days: [...days].map(([start, kwh]) => ({ start, kwh: Math.round(kwh * 1000) / 1000 })) };
 }

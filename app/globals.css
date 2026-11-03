@@ -1271,3 +1271,40 @@ a.profile-menu { color: var(--muted); }
 @media (prefers-reduced-transparency: reduce) {
   :root[data-look="glass"] :is(.sidebar, .topbar, .mobile-nav, .metric-strip, .surface-panel, .invitation-banner, .quiet-panel, .empty-state, .large-scene-card, .camera-status-card, .scenario-card, .room-detail-list, .collection-device-grid, .confirm-dialog, .workspace-dialog, .device-sheet, .mobile-more-menu, .language-menu-list, .toast-message) { backdrop-filter: none; background: var(--surface); }
 }
+
+/* Energy (features/energy/energy.tsx). */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.metric-strip.has-energy { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metric-button { border: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.metric-button:hover .metric-label { color: var(--ink); }
+.energy-symbol { background: var(--warning-soft); color: var(--warning); }
+.energy-layout { display: grid; gap: 14px; }
+.energy-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.energy-stat { display: grid; gap: 8px; }
+.energy-stat strong { color: var(--ink); font-family: var(--font-display); font-size: 19px; font-weight: 600; letter-spacing: -.4px; }
+.energy-panel-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.energy-panel-head .panel-intro { padding-bottom: 6px; }
+.energy-ranges { min-width: min(100%, 340px); margin-top: 0; }
+.energy-chart { margin: 8px 0 0; }
+.energy-readout { min-height: 18px; margin-bottom: 10px; color: var(--ink-soft); font-size: 11.5px; font-weight: 600; }
+.energy-plot { position: relative; display: grid; grid-template-rows: 220px auto; }
+.energy-grid { position: absolute; inset: 0 0 auto; display: flex; height: 220px; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.energy-grid > span { position: relative; border-top: 1px solid var(--line); }
+.energy-grid > span:last-child { border-top-color: var(--line-strong); }
+.energy-grid small { position: absolute; inset-inline-end: 0; top: -14px; color: var(--muted); font-size: 9px; }
+.energy-bars { position: relative; display: flex; height: 220px; align-items: flex-end; gap: 2px; padding-top: 16px; }
+.energy-bar { display: flex; height: 100%; min-width: 0; flex: 1; align-items: flex-end; padding: 0; border: 0; background: transparent; cursor: default; }
+.energy-bar > span { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--accent); opacity: .82; transition: opacity .15s; }
+.energy-bar:hover > span, .energy-bar.is-hovered > span, .energy-bar:focus-visible > span { opacity: 1; }
+.energy-bars:hover .energy-bar:not(:hover) > span { opacity: .5; }
+.energy-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.energy-labels { display: flex; gap: 2px; margin-top: 6px; }
+.energy-labels > span { min-width: 0; flex: 1; overflow: visible; color: var(--muted); font-size: 9px; text-align: center; white-space: nowrap; }
+.energy-note, .energy-loading { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; color: var(--muted); font-size: 10px; }
+@media (max-width: 760px) {
+  .metric-strip.has-energy { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-strip.has-energy > .metric-button { grid-column: 1 / -1; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .energy-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .energy-plot { grid-template-rows: 180px auto; }
+  .energy-grid, .energy-bars { height: 180px; }
+}

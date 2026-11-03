@@ -6,7 +6,7 @@
  * is retried a few times with the same idempotency key, so a command that did arrive is never
  * created twice while one that got lost is still delivered.
  */
-import type { ActivityEntry, ApiErrorResponse, MeResponse, PhoneChangeResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, SetupCodeResponse, UserSettings } from "@m2smart/contracts";
+import type { ActivityEntry, ApiErrorResponse, MeResponse, PhoneChangeResponse, Command, CommandStatus, Device, HardwareProduct, HomeInvitation, HomeMember, MemberListResponse, MyInvitation, PairBoardResponse, Property, Room, Scenario, ScenarioRunResponse, SetupCodeResponse, UserSettings, EnergyResponse } from "@m2smart/contracts";
 import { GatewayError, type GatewayErrorCode, type HomeGateway } from "@/services/home-gateway";
 
 const BASE = "/api/v1";
@@ -122,6 +122,7 @@ export function createApiGateway(): HomeGateway {
     },
 
     listActivity: async (id) => (await request<{ entries: ActivityEntry[] }>("GET", `/properties/${id}/activity`)).entries,
+    loadEnergy: (id) => request<EnergyResponse>("GET", `/properties/${id}/energy`),
 
     getPhone: async () => (await request<MeResponse>("GET", "/me")).user.phone ?? "",
     changePhone: async (phone) => (await request<PhoneChangeResponse>("POST", "/me/phone", { phone })).phone,
