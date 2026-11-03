@@ -124,6 +124,7 @@ export const en = {
     loadingHome: "Getting your home ready…",
     atAGlance: "Home at a glance",
     indoorComfort: "Indoor comfort",
+    climateAverage: "Average of the home's sensors",
     celsius: "C",
     fahrenheit: "F",
     humidity: (value: string) => `${value}% humidity`,

@@ -122,6 +122,7 @@ export const ar: Messages = {
     loadingHome: "جارٍ تحميل بيانات المنزل…",
     atAGlance: "المنزل في لمحة",
     indoorComfort: "الراحة داخل المنزل",
+    climateAverage: "متوسط حرارة ورطوبة مستشعرات المنزل",
     celsius: "مئوية",
     fahrenheit: "فهرنهايت",
     humidity: (value) => `رطوبة ${value}٪`,

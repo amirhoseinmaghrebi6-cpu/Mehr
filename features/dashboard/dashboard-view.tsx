@@ -161,7 +161,7 @@ function Overview(props: Props) {
       <section className="metric-strip" aria-label={d.atAGlance}>
         <article className="metric-item">
           <span className="metric-symbol climate-symbol"><Thermometer size={17} /></span>
-          <div className="metric-content"><span className="metric-label">{d.indoorComfort}</span>
+          <div className="metric-content"><span className="metric-label">{d.indoorComfort}</span>{temperatures.length || humidity.length ? <span className="metric-note">{d.climateAverage}</span> : null}
             {temperatures.length ? <strong>{formatNumber(displayTemperature(average(temperatures), temperatureUnit), locale, 1)}° <small>{temperatureUnit === "fahrenheit" ? d.fahrenheit : d.celsius}</small></strong> : <strong className="metric-empty">{m.common.none}</strong>}
             <span className="metric-foot"><span className="metric-dot" />{humidity.length ? d.humidity(formatNumber(average(humidity), locale)) : d.noClimateSensor}</span></div>
         </article>

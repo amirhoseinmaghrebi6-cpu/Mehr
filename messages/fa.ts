@@ -122,6 +122,7 @@ export const fa: Messages = {
     loadingHome: "در حال دریافت اطلاعات خانه…",
     atAGlance: "وضعیت خانه",
     indoorComfort: "آسایش داخل خانه",
+    climateAverage: "میانگین دما و رطوبت حسگرهای خانه",
     celsius: "سانتی‌گراد",
     fahrenheit: "فارنهایت",
     humidity: (value) => `رطوبت ${value}٪`,
