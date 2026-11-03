@@ -12,6 +12,7 @@
 #include "keys.h"
 #include "led.h"
 #include "measure.h"
+#include "meter.h"
 #include "net.h"
 #include "ota.h"
 #include "setup_mode.h"
@@ -47,6 +48,7 @@ void app_main(void)
     m2_channels_listen(m2_cloud_report);
     m2_keys_start(on_pairing, on_factory_reset);
     m2_measure_start(m2_cloud_report);
+    m2_meter_start(m2_cloud_report);
     for (int i = 0; i < m2_board.channel_count; i++) {
         if (m2_board.channels[i].kind == M2_CH_CAMERA) m2_camera_start(i, m2_cloud_report);
     }

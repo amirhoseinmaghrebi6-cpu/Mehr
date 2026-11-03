@@ -117,6 +117,25 @@ void m2_save_channel(int channel, uint8_t value)
     nvs_close(handle);
 }
 
+uint64_t m2_load_energy_mwh(void)
+{
+    nvs_handle_t handle;
+    uint64_t value = 0;
+    if (nvs_open(NS, NVS_READONLY, &handle) == ESP_OK) {
+        nvs_get_u64(handle, "energy", &value);
+        nvs_close(handle);
+    }
+    return value;
+}
+
+void m2_save_energy_mwh(uint64_t mwh)
+{
+    nvs_handle_t handle;
+    if (nvs_open(NS, NVS_READWRITE, &handle) != ESP_OK) return;
+    if (nvs_set_u64(handle, "energy", mwh) == ESP_OK) nvs_commit(handle);
+    nvs_close(handle);
+}
+
 esp_err_t m2_erase_all(void)
 {
     nvs_flash_deinit();

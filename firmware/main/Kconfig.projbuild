@@ -54,7 +54,26 @@ menu "M2smart"
             bool "Alarm panel (ESP32)"
         config M2_BOARD_CAM
             bool "Camera (ESP32-CAM)"
+        config M2_BOARD_EM
+            bool "Whole-home energy meter (ESP32-C3)"
     endchoice
+
+    menu "Energy meter calibration"
+        depends on M2_BOARD_EM
+        help
+            The BL0942's register counts per unit, times 1000, for this PCB's burden resistor
+            and voltage divider. Measure once per batch against a known load (e.g. a 1000 W
+            heater) and a reference meter, then set them here (docs/board-lineup.md, M2-EM).
+        config M2_METER_COUNTS_PER_VOLT
+            int "Counts per volt x 1000"
+            default 15873359
+        config M2_METER_COUNTS_PER_AMP
+            int "Counts per ampere x 1000"
+            default 251213465
+        config M2_METER_COUNTS_PER_WATT
+            int "Counts per watt x 1000"
+            default 596000
+    endmenu
 
     config M2_API_URL
         string "Server address"

@@ -198,8 +198,15 @@ int main(void)
     level[25] = 1;  // the box is opened, even disarmed
     poll(3);
     assert(level[4] && m2_channel_triggered(0));
+#elif CONFIG_M2_BOARD_EM
+    m2_channels_init();
+    assert(m2_board_channel("meter") == 0 && ch->kind == M2_CH_METER);
+    assert(m2_board.uart_rx_gpio == 4 && m2_board.uart_tx_gpio == 5 && m2_board.setup_gpio == 6 && m2_board.status_led_gpio == 10);
+    assert(!m2_channel_command(0, false, 1, "x"));  // a meter takes no commands
+    poll(3);
+    assert(reports == 0);  // meter.c reports it, not channels.c
 #else
-#error "channels_test covers fn, cl, cu, gd, lk, ct, d2, al"
+#error "channels_test covers fn, cl, cu, gd, lk, ct, d2, al, em"
 #endif
     printf("%s: ok\n", m2_board.model);
     return 0;

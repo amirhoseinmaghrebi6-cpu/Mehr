@@ -179,7 +179,7 @@ void m2_channels_init(void)
     for (int i = 0; i < m2_board.channel_count && i < MAX_CHANNELS; i++) {
         const m2_channel_t *ch = &m2_board.channels[i];
         // Measuring channels' buzzers belong to measure.c.
-        if (ch->kind != M2_CH_INPUT && ch->kind != M2_CH_DIMMER && ch->kind != M2_CH_MEASURE && ch->kind != M2_CH_CAMERA) output(ch->relay_gpio);
+        if (ch->kind != M2_CH_INPUT && ch->kind != M2_CH_DIMMER && ch->kind != M2_CH_MEASURE && ch->kind != M2_CH_CAMERA && ch->kind != M2_CH_METER) output(ch->relay_gpio);
         if (ch->kind == M2_CH_FAN || ch->kind == M2_CH_COOLER || ch->kind == M2_CH_CURTAIN) output(ch->relay2_gpio);
         if (ch->kind == M2_CH_COOLER) output(ch->relay3_gpio);
         uint8_t saved = m2_load_channel(i);
@@ -220,6 +220,9 @@ void m2_channels_init(void)
             break;
         case M2_CH_MEASURE:
             // measure.c reads it.
+            break;
+        case M2_CH_METER:
+            // meter.c reads it.
             break;
         case M2_CH_CAMERA:
             // camera.c runs it.
@@ -343,6 +346,7 @@ static bool set(int channel, bool is_pump, int to, const char *command_id)
         break;
     case M2_CH_INPUT:
     case M2_CH_MEASURE:
+    case M2_CH_METER:
         // A sensor takes no commands.
         return false;
     case M2_CH_CAMERA:

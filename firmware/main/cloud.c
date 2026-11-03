@@ -7,6 +7,7 @@
 #include "channels.h"
 #include "led.h"
 #include "measure.h"
+#include "meter.h"
 #include "camera.h"
 #include "ota.h"
 #include "storage.h"
@@ -86,6 +87,16 @@ static void add_values(cJSON *values, int channel)
         if (ch->capability2 && m2_measure_value(channel, true, &measured)) cJSON_AddNumberToObject(value_item(values, ch->key, ch->capability2), "val", roundf(measured * 10) / 10);
         return;
     }
+    if (ch->kind == M2_CH_METER) {
+        float watts, volts;
+        double kwh;
+        if (!m2_meter_values(&watts, &volts, &kwh)) return;
+        cJSON_AddNumberToObject(value_item(values, ch->key, "power_w"), "val", roundf(watts));
+        cJSON_AddNumberToObject(value_item(values, ch->key, "voltage_v"), "val", roundf(volts * 10) / 10);
+        // The running total every ~10 minutes is enough for hourly use, and keeps the server's work small.
+        if (m2_meter_energy_due()) cJSON_AddNumberToObject(value_item(values, ch->key, "energy_kwh"), "val", round(kwh * 1000) / 1000);
+        return;
+    }
     int value = m2_channel_value(channel);
     cJSON *item = value_item(values, ch->key, ch->capability);
     switch (ch->kind) {
@@ -96,7 +107,8 @@ static void add_values(cJSON *values, int channel)
     case M2_CH_CURTAIN:
     case M2_CH_GARAGE: cJSON_AddStringToObject(item, "val", POSITIONS[value]); break;
     case M2_CH_DIMMER: cJSON_AddNumberToObject(item, "val", value); break;
-    case M2_CH_MEASURE: break;
+    case M2_CH_MEASURE:
+    case M2_CH_METER: break;
     case M2_CH_CAMERA:
         cJSON_AddBoolToObject(item, "val", m2_camera_power());
         cJSON_AddBoolToObject(value_item(values, ch->key, "recording"), "val", m2_camera_recording());
@@ -219,7 +231,7 @@ static void on_command(const char *data, int len)
     int value = target ? decode(target, pump, val) : -1;
     const char *err = NULL;
     // A sensor's values are read-only.
-    if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || (!pump && !recording && strcmp(target->capability, cap->valuestring) != 0)) {
+    if (!target || target->kind == M2_CH_INPUT || target->kind == M2_CH_MEASURE || target->kind == M2_CH_METER || (!pump && !recording && strcmp(target->capability, cap->valuestring) != 0)) {
         err = "unknown_target";
     } else if (value < 0) {
         err = "invalid_value";

@@ -52,6 +52,8 @@ typedef enum {
     M2_CH_ALARM,
     /** The ESP32-CAM's camera: "power" and "recording" (camera.c). */
     M2_CH_CAMERA,
+    /** The whole-home energy meter: "power_w", "voltage_v" and "energy_kwh" from a BL0942 on UART1 (meter.c). */
+    M2_CH_METER,
 } m2_channel_kind_t;
 
 typedef enum {

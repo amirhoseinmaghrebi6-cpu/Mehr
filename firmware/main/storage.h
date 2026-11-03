@@ -27,5 +27,9 @@ esp_err_t m2_forget_account(void);
 uint8_t m2_load_channel(int channel);
 void m2_save_channel(int channel, uint8_t value);
 
+/** An energy meter's running total, in milliwatt-hours (0 if never saved). */
+uint64_t m2_load_energy_mwh(void);
+void m2_save_energy_mwh(uint64_t mwh);
+
 /** Factory reset: erases everything but the factory identity. */
 esp_err_t m2_erase_all(void);

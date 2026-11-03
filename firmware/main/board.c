@@ -249,6 +249,18 @@ static const m2_channel_t channels[] = {
 #define KEYS_ACTIVE_HIGH false
 #define STATUS_LED -1
 
+#elif CONFIG_M2_BOARD_EM
+/* Whole-home energy meter (ESP32-C3): BL0942 on UART1 (board RX 4, TX 5) at 4800 baud; setup button 6; status LED 10. */
+#define MODEL "m2-em-rev-a"
+static const m2_channel_t channels[] = {
+    { .key = "meter", .kind = M2_CH_METER, .capability = "power_w", .relay_gpio = -1, .key_gpio = -1, .inhibit_gpio = -1 },
+};
+#define SETUP_GPIO 6
+#define KEYS_ACTIVE_HIGH false
+#define STATUS_LED 10
+#define UART_RX 4
+#define UART_TX 5
+
 #else
 #error "No board chosen: build with sh firmware/build.sh <board>"
 #endif

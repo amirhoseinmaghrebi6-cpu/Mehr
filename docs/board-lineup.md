@@ -163,10 +163,10 @@ Sits in the electrical panel (DIN-rail case). A split-core current clamp goes ar
 
 - **Metering chip:** BL0942 (calibrated by the maker, UART at 4800 baud). Current from the clamp (e.g. SCT-013-000, 100 A : 50 mA) through a burden resistor; voltage through a resistor divider.
 - **Isolation:** the BL0942 and the chip share the mains neutral as ground. Either the whole board stays inside the closed DIN case (as in commercial panel meters), or the UART goes through two optocouplers and the chip gets an isolated supply. The PCB designer picks one; the firmware is the same.
-- **Calibration:** once per batch, against a known load (e.g. a 1 000 W heater) and a reference meter. The constants are firmware settings (`CONFIG_M2_METER_*`).
+- **Calibration:** once per batch, against a known load (e.g. a 1 000 W heater) and a reference meter. The constants are firmware settings (`CONFIG_M2_METER_COUNTS_PER_VOLT`, `_PER_AMP`, `_PER_WATT`; the defaults are the BL0942 reference design's and must be measured for this PCB).
 - **Three phases:** one board per phase; the app adds the meters of a home together.
 
-Channel: `energy_meter`, with `power_w`, `energy_kwh` (the board's running total, kept in flash so a power cut does not lose it) and `voltage_v`. The board reports power when it changes by 5 % (at least 20 W), voltage by 3 V, and the total every 15 minutes. The server turns the total into hourly use (kept 7 days) and daily use (kept 12 months).
+Channel: `energy_meter`, with `power_w`, `energy_kwh` (the board's running total, kept in flash so a power cut does not lose it) and `voltage_v`. The board reads the meter every second and adds up its own total. It reports power when it changes by 10 % (at least 50 W) or voltage by 3 V, at most every 30 s, and the total about every 10 minutes (with its regular report), which keeps the server's work small. The server turns the total into hourly use (kept 7 days) and daily use (kept 12 months).
 
 ## Security
 
