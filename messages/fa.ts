@@ -280,6 +280,7 @@ export const fa: Messages = {
       air_quality_sensor: "سنسور کیفیت هوا",
       humidity_sensor: "سنسور رطوبت",
       light_sensor: "سنسور نور",
+      energy_meter: "کنتور هوشمند",
     },
     capabilities: {
       door_release: "باز کردن در",
@@ -305,6 +306,7 @@ export const fa: Messages = {
       illuminance_lux: "شدت روشنایی محیط",
       power_w: "توان لحظه‌ای",
       energy_kwh: "انرژی مصرفی",
+      voltage_v: "ولتاژ برق",
     },
     enumValues: {
       off: "خاموش",
@@ -326,7 +328,7 @@ export const fa: Messages = {
     },
     on: "روشن",
     off: "خاموش",
-    units: { percent: "٪", celsius: "°", fahrenheit: "°F", ppm: " ppm", lux: " لوکس", watt: " وات", kilowatt: " کیلووات", kwh: " کیلووات‌ساعت" },
+    units: { percent: "٪", celsius: "°", fahrenheit: "°F", ppm: " ppm", lux: " لوکس", watt: " وات", kilowatt: " کیلووات", kwh: " کیلووات‌ساعت", volt: " ولت" },
     waitingForReport: "در انتظار گزارش",
     offline: "آفلاین",
     awaitingPairing: "در انتظار جفت‌سازی",

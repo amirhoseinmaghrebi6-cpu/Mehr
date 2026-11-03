@@ -24,13 +24,15 @@ describe("device catalog", () => {
   });
 
   it("keeps sensor values read-only", () => {
-    for (const name of ["motion", "presence", "contact", "leak", "smoke", "co_ppm", "humidity", "power_w", "energy_kwh", "triggered"] as const) {
+    for (const name of ["motion", "presence", "contact", "leak", "smoke", "co_ppm", "humidity", "power_w", "energy_kwh", "voltage_v", "triggered"] as const) {
       expect(capabilities[name].writable).toBe(false);
     }
   });
 
   it("knows which capabilities a type may have", () => {
     expect(allowsCapability("socket", "power_w")).toBe(true);
+    expect(allowsCapability("energy_meter", "voltage_v")).toBe(true);
+    expect(deviceTypes.energy_meter.required).toEqual(["power_w", "energy_kwh"]);
     expect(allowsCapability("switch", "brightness")).toBe(false);
     expect(isDeviceType("dimmer")).toBe(true);
     expect(isDeviceType("toaster")).toBe(false);

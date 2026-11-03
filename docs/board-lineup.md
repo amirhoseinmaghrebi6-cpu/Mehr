@@ -2,7 +2,7 @@
 
 Status: proposal (2026-11-01), for the PCB designer to check against the real circuits. All of it is in the hardware catalog (`supabase/migrations/202611040001_chips_and_board_lineup.sql`, model codes `m2-…-rev-a`). A model no installed board uses can still change in a later migration; once boards use it, it is frozen and a changed PCB becomes a new revision.
 
-21 boards cover all 20 device types of the app. Each table lists every GPIO the board uses.
+22 boards cover all 21 device types of the app. Each table lists every GPIO the board uses.
 
 ## Common design rules
 
@@ -138,7 +138,7 @@ Channel: `door_opener`. From the app, one press releases the strike for 5 s.
 | 4 | relay (16 A for a socket) |
 | 5 | push button (short press: on/off; also the setup key) |
 
-Channel: `socket`. No power metering: the product shows no consumption figures.
+Channel: `socket`. No power metering: consumption is measured for the whole home only (M2-EM).
 
 ### M2-PM: water pump (ESP32-C3)
 
@@ -149,6 +149,24 @@ Channel: `socket`. No power metering: the product shows no consumption figures.
 | 6 | float switch, optional (open = tank empty: the board stops the pump by itself, against dry running) |
 
 Channel: `pump`.
+
+### M2-EM: whole-home energy meter (ESP32-C3)
+
+Sits in the electrical panel (DIN-rail case). A split-core current clamp goes around the incoming phase wire, so nothing is cut or rewired; the voltage is taken from the panel's phase and neutral.
+
+| GPIO | Function |
+|------|----------|
+| 4 | UART1 RX ← BL0942 TX |
+| 5 | UART1 TX → BL0942 RX |
+| 6 | push button (setup) |
+| 10 | status LED |
+
+- **Metering chip:** BL0942 (calibrated by the maker, UART at 4800 baud). Current from the clamp (e.g. SCT-013-000, 100 A : 50 mA) through a burden resistor; voltage through a resistor divider.
+- **Isolation:** the BL0942 and the chip share the mains neutral as ground. Either the whole board stays inside the closed DIN case (as in commercial panel meters), or the UART goes through two optocouplers and the chip gets an isolated supply. The PCB designer picks one; the firmware is the same.
+- **Calibration:** once per batch, against a known load (e.g. a 1 000 W heater) and a reference meter. The constants are firmware settings (`CONFIG_M2_METER_*`).
+- **Three phases:** one board per phase; the app adds the meters of a home together.
+
+Channel: `energy_meter`, with `power_w`, `energy_kwh` (the board's running total, kept in flash so a power cut does not lose it) and `voltage_v`. The board reports power when it changes by 5 % (at least 20 W), voltage by 3 V, and the total every 15 minutes. The server turns the total into hourly use (kept 7 days) and daily use (kept 12 months).
 
 ## Security
 
@@ -270,6 +288,7 @@ Channel: `co_sensor` (ppm). The buzzer sounds locally from 50 ppm and stops belo
 | `m2-cl-rev-a`, `m2-fn-rev-a` | Cooler, fan |
 | `m2-cu-rev-a`, `m2-gd-rev-a`, `m2-do-rev-a` | Curtain, parking door, door opener |
 | `m2-sk-rev-a`, `m2-pm-rev-a` | Smart socket, water pump |
+| `m2-em-rev-a` | Whole-home energy meter |
 | `m2-al-rev-a`, `m2-cam-rev-a` | Alarm panel, camera |
 | `m2-rs-rev-a`, `m2-rs-air-rev-a` | Room sensor, with air quality |
 | `m2-pr-rev-a`, `m2-ct-rev-a`, `m2-lk-rev-a`, `m2-sm-rev-a`, `m2-co-rev-a` | Presence, door and window, leak, smoke, carbon monoxide |

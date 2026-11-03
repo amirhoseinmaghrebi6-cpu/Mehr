@@ -23,6 +23,7 @@ import {
   ToggleRight,
   Warehouse,
   Wind,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { capabilities as capabilitiesCatalog, displayTemperature, type CapabilityName, type CapabilityState, type CapabilityValue, type Device, type DeviceType, type PhotoPreset, type TemperatureUnit } from "@m2smart/contracts";
@@ -53,6 +54,7 @@ export const deviceTypeInfo: Record<DeviceType, { icon: LucideIcon; tone: string
   air_quality_sensor: { icon: Wind, tone: "air" },
   humidity_sensor: { icon: Droplet, tone: "climate" },
   light_sensor: { icon: Sun, tone: "light" },
+  energy_meter: { icon: Zap, tone: "plug" },
 };
 
 export const typeLabel = (type: DeviceType, locale: Locale) => messages[locale].devices.types[type];
@@ -80,6 +82,7 @@ export function valueLabel(capability: CapabilityName, value: CapabilityValue | 
     illuminance_lux: m.units.lux,
     power_w: m.units.watt,
     energy_kwh: m.units.kwh,
+    voltage_v: m.units.volt,
   };
   const digits = capability === "energy_kwh" || capability === "temperature" ? 1 : 0;
   const shown = capability === "temperature" ? displayTemperature(value, temperatureUnit) : value;
@@ -168,10 +171,12 @@ export function isAlert(device: Device): boolean {
 }
 
 /**
- * The capabilities the app shows. Consumption readings (power, energy) are not shown anywhere:
- * the product has no energy feature.
+ * The capabilities the app shows. Consumption is measured for the whole home only: a meter shows its
+ * power and voltage (its running kWh total means nothing to people; the energy page shows hours and
+ * days), and a socket's own readings are not shown.
  */
-export const shownCapabilities = (device: Device) => device.capabilities.filter((state) => state.capability !== "power_w" && state.capability !== "energy_kwh");
+export const shownCapabilities = (device: Device) =>
+  device.capabilities.filter((state) => state.capability !== "energy_kwh" && (state.capability !== "power_w" || device.type === "energy_meter"));
 
 /** One line under the device name: its most telling values. */
 export function deviceSummary(device: Device, valueOf: (capability: CapabilityName) => CapabilityValue | null, locale: Locale, temperatureUnit: TemperatureUnit = "celsius"): string {

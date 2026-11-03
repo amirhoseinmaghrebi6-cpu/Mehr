@@ -42,10 +42,10 @@ begin
     select 1 from public.hardware_models as model
     where model.code like 'm2-%-rev-a'
       and (select count(*) from public.hardware_model_pins as pin where pin.model_id = model.id and pin.function = 'setup_button') <> 1
-  ) or (select count(*) from public.hardware_models where code like 'm2-%-rev-a') < 23 then
+  ) or (select count(*) from public.hardware_models where code like 'm2-%-rev-a') < 24 then
     raise exception 'FAIL a lineup model is missing or has no single setup key';
   end if;
-  raise notice 'PASS all 23 lineup models are there, each with one setup key';
+  raise notice 'PASS all 24 lineup models are there, each with one setup key';
 end $$;
 
 rollback;

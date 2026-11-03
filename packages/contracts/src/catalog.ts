@@ -55,7 +55,9 @@ export const capabilities = {
   temperature: { valueType: "number", unit: "°C", writable: false },
   illuminance_lux: { valueType: "number", min: 0, unit: "lx", writable: false },
   power_w: { valueType: "number", min: 0, unit: "W", writable: false },
+  /** A meter's running total since it was made (or last restarted); the server turns it into hours and days. */
   energy_kwh: { valueType: "number", min: 0, unit: "kWh", writable: false },
+  voltage_v: { valueType: "number", min: 0, unit: "V", writable: false },
 } as const satisfies Record<string, CapabilityDefinition>;
 
 export type CapabilityName = keyof typeof capabilities;
@@ -90,6 +92,8 @@ export const deviceTypes = {
   pump: { required: ["power"], optional: [] },
   camera: { required: ["power", "recording"], optional: [] },
   door_opener: { required: ["door_release"], optional: [] },
+  /** The whole home's consumption, measured in the electrical panel (one per phase). */
+  energy_meter: { required: ["power_w", "energy_kwh"], optional: ["voltage_v"] },
 } as const satisfies Record<string, { required: readonly CapabilityName[]; optional: readonly CapabilityName[] }>;
 
 export type DeviceType = keyof typeof deviceTypes;
@@ -113,6 +117,7 @@ export const deviceTypeCategory: Readonly<Record<DeviceType, ProductCategory>> =
   door_opener: "openings",
   socket: "power",
   pump: "power",
+  energy_meter: "power",
   alarm: "security",
   camera: "security",
   motion_sensor: "security",

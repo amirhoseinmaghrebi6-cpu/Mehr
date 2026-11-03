@@ -195,6 +195,7 @@ export const en = {
       air_quality_sensor: "Air quality sensor",
       humidity_sensor: "Humidity sensor",
       light_sensor: "Light sensor",
+      energy_meter: "Energy meter",
     },
     capabilities: {
       door_release: "Door release",
@@ -220,6 +221,7 @@ export const en = {
       illuminance_lux: "Light level",
       power_w: "Power now",
       energy_kwh: "Energy used",
+      voltage_v: "Mains voltage",
     },
     enumValues: {
       off: "Off",
@@ -242,7 +244,7 @@ export const en = {
     } as Record<string, [string, string]>,
     on: "On",
     off: "Off",
-    units: { percent: "%", celsius: "°C", fahrenheit: "°F", ppm: " ppm", lux: " lx", watt: " W", kilowatt: " kW", kwh: " kWh" },
+    units: { percent: "%", celsius: "°C", fahrenheit: "°F", ppm: " ppm", lux: " lx", watt: " W", kilowatt: " kW", kwh: " kWh", volt: " V" },
     waitingForReport: "Waiting for report",
     offline: "Offline",
     awaitingPairing: "Awaiting pairing",

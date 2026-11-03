@@ -280,6 +280,7 @@ export const ar: Messages = {
       air_quality_sensor: "مستشعر جودة الهواء",
       humidity_sensor: "مستشعر رطوبة",
       light_sensor: "مستشعر ضوء",
+      energy_meter: "عداد الطاقة",
     },
     capabilities: {
       door_release: "فتح الباب",
@@ -305,6 +306,7 @@ export const ar: Messages = {
       illuminance_lux: "شدة الضوء",
       power_w: "القدرة الآن",
       energy_kwh: "الطاقة المستهلكة",
+      voltage_v: "جهد الكهرباء",
     },
     enumValues: {
       off: "إيقاف",
@@ -326,7 +328,7 @@ export const ar: Messages = {
     },
     on: "مُشغَّل",
     off: "متوقف",
-    units: { percent: "٪", celsius: "°م", fahrenheit: "°ف", ppm: " جزء/مليون", lux: " لكس", watt: " واط", kilowatt: " كيلوواط", kwh: " كيلوواط ساعة" },
+    units: { percent: "٪", celsius: "°م", fahrenheit: "°ف", ppm: " جزء/مليون", lux: " لكس", watt: " واط", kilowatt: " كيلوواط", kwh: " كيلوواط ساعة", volt: " فولت" },
     waitingForReport: "بانتظار التقرير",
     offline: "غير متصل",
     awaitingPairing: "بانتظار الاقتران",
