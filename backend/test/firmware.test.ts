@@ -4,13 +4,14 @@
  * release is offered to the model's online boards on another version, and to a board when it comes
  * online; boards download it without an account, and only while it is active.
  */
+import { generateKeyPairSync, sign, verify, type KeyObject } from "node:crypto";
 import type { AdminFirmwareResponse, FirmwareRelease } from "@m2smart/contracts";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { syncIdentity } from "../src/auth/identity-webhook";
 import type { SessionCredential, SessionVerifier } from "../src/auth/session-verifier";
 import type { Broker } from "../src/broker/broker";
-import { offerUpdate, readImage } from "../src/firmware/releases";
+import { offerUpdate, openSigned, readImage } from "../src/firmware/releases";
 import { buildServer } from "../src/server";
 import { adminQuery, createApiPool, deleteUsers } from "./fixtures";
 
@@ -28,6 +29,18 @@ function image(version: string, model = MODEL, size = 4096): Buffer {
   buffer.write(version, 0x30, "latin1");
   buffer.write(`M2MODEL=${model};`, 0x400, "latin1");
   return buffer;
+}
+
+/** Our signing key (firmware/sign.mjs), and someone else's. */
+const ours = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+const theirs = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+
+/** The .m2fw file firmware/sign.mjs writes: image, DER signature, its length (2 bytes LE), "M2SIG1". */
+function signed(file: Buffer, key: KeyObject = ours.privateKey): Buffer {
+  const signature = sign("sha256", file, key);
+  const length = Buffer.alloc(2);
+  length.writeUInt16LE(signature.length);
+  return Buffer.concat([file, signature, length, Buffer.from("M2SIG1", "latin1")]);
 }
 
 const verifier: SessionVerifier = {
@@ -55,7 +68,7 @@ describe("firmware updates", () => {
     const response = await app.inject({ method, url, headers: user ? { authorization: `Bearer ${user}` } : {}, ...(payload ? { payload } : {}) });
     return { status: response.statusCode, body: response.headers["content-type"]?.includes("json") ? response.json() : response.rawPayload, headers: response.headers };
   };
-  const upload = (version: string, model = MODEL, user: "operator" | "owner" = "operator", file = image(version, model)) =>
+  const upload = (version: string, model = MODEL, user: "operator" | "owner" = "operator", file = signed(image(version, model))) =>
     call(user, "POST", "/v1/admin/firmware", { modelCode: model, image: file.toString("base64"), notes: `Version ${version}` });
 
   beforeAll(async () => {
@@ -68,7 +81,7 @@ describe("firmware updates", () => {
         insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, writable) select model_id, 'ch1', 'power', 'boolean', true from channel`, [code, `Firmware test ${code}`]);
     }
     pool = createApiPool();
-    app = buildServer({ logLevel: "silent", platformAdmins: [OPERATOR[1]] }, pool, { sessionVerifier: verifier, broker: () => broker });
+    app = buildServer({ logLevel: "silent", platformAdmins: [OPERATOR[1]] }, pool, { sessionVerifier: verifier, broker: () => broker, firmwareKey: ours.publicKey });
     await syncIdentity(pool, { id: OPERATOR[0], phone: OPERATOR[1], email: null, name: "Operator" });
     await syncIdentity(pool, { id: OWNER[0], phone: OWNER[1], email: null, name: "Owner" });
     const home = (await call("owner", "POST", "/v1/properties", { name: "Firmware home" })).body as { id: string };
@@ -86,6 +99,20 @@ describe("firmware updates", () => {
     await cleanup();
   });
 
+  it("opens a signed file only with our key", () => {
+    expect(openSigned(signed(image("1.2.0")), ours.publicKey)?.image.equals(image("1.2.0"))).toBe(true);
+    expect(openSigned(signed(image("1.2.0"), theirs.privateKey), ours.publicKey)).toBeNull();
+    expect(openSigned(image("1.2.0"), ours.publicKey)).toBeNull();
+    expect(openSigned(Buffer.from("M2SIG1"), ours.publicKey)).toBeNull();
+  });
+
+  it("refuses every upload while no signing key is configured", async () => {
+    const keyless = buildServer({ logLevel: "silent", platformAdmins: [OPERATOR[1]] }, pool, { sessionVerifier: verifier, broker: () => broker });
+    const response = await keyless.inject({ method: "POST", url: "/v1/admin/firmware", headers: { authorization: "Bearer operator" }, payload: { modelCode: MODEL, image: signed(image("1.9.0")).toString("base64") } });
+    await keyless.close();
+    expect(response.statusCode).toBe(503);
+  });
+
   it("reads the version and the model from the image itself", () => {
     expect(readImage(image("1.2.0"))).toEqual({ version: "1.2.0", modelCode: MODEL, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
     expect(readImage(Buffer.from("not a firmware at all, just text".repeat(10)))).toEqual({ error: "not_firmware" });
@@ -97,8 +124,14 @@ describe("firmware updates", () => {
   it("only operators upload, and only a firmware of the chosen model", async () => {
     expect((await upload("1.2.0", MODEL, "owner")).status).toBe(403);
     expect((await call(null, "GET", "/v1/admin/firmware")).status).toBe(401);
-    expect((await upload("1.2.0", OTHER_MODEL, "operator", image("1.2.0", MODEL))).status).toBe(400); // built for another board
-    expect((await upload("x", MODEL, "operator", Buffer.from("garbage".repeat(100)))).status).toBe(400);
+    expect((await upload("1.2.0", OTHER_MODEL, "operator", signed(image("1.2.0", MODEL)))).status).toBe(400); // built for another board
+    expect((await upload("x", MODEL, "operator", signed(Buffer.from("garbage".repeat(100))))).status).toBe(400);
+    // Unsigned, signed with another key, or changed after signing: refused (boards would refuse it).
+    expect((await upload("1.2.0", MODEL, "operator", image("1.2.0"))).status).toBe(400);
+    expect((await upload("1.2.0", MODEL, "operator", signed(image("1.2.0"), theirs.privateKey))).status).toBe(400);
+    const tampered = signed(image("1.2.0"));
+    tampered[0x500] ^= 1;
+    expect((await upload("1.2.0", MODEL, "operator", tampered)).status).toBe(400);
     const uploaded = await upload("1.2.0");
     expect(uploaded.status).toBe(201);
     release = uploaded.body as FirmwareRelease;
@@ -115,7 +148,10 @@ describe("firmware updates", () => {
   it("making it active offers it to the model's online boards on another version", async () => {
     expect((await call("owner", "PATCH", `/v1/admin/firmware/${release.id}`, { active: true })).status).toBe(403);
     expect((await call("operator", "PATCH", `/v1/admin/firmware/${release.id}`, { active: true })).status).toBe(204);
-    expect(published).toEqual([[boards.oldOnline, { version: "1.2.0", path: `/api/v1/firmware/${release.id}.bin`, sha256: release.sha256, size: 4096 }]]);
+    expect(published).toEqual([[boards.oldOnline, { version: "1.2.0", path: `/api/v1/firmware/${release.id}.bin`, sha256: release.sha256, size: 4096, sig: expect.any(String) }]]);
+    // The signature the board checks is our key's, of exactly the image it downloads.
+    const offered = published[0][1] as { sig: string };
+    expect(verify("sha256", image("1.2.0"), ours.publicKey, Buffer.from(offered.sig, "base64"))).toBe(true);
   });
 
   it("a board downloads it without an account", async () => {

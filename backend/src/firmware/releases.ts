@@ -8,7 +8,7 @@
  * The active release of a model is offered to every board of that model whose reported version
  * differs: to the online ones when it becomes active, and to each one when it comes online.
  */
-import { createHash } from "node:crypto";
+import { createHash, verify, type KeyObject } from "node:crypto";
 import type { BoardUpdate } from "@m2smart/contracts";
 import type { Pool } from "pg";
 import type { Broker } from "../broker/broker";
@@ -21,6 +21,27 @@ const APP_DESC_MAGIC = 0xabcd5432;
 const MODEL_MARKER = "M2MODEL=";
 
 export type FirmwareImage = { version: string; modelCode: string; sha256: string };
+
+/** End of a file signed by firmware/sign.mjs: image, DER signature, its length (2 bytes LE), this. */
+const SIGNED_TRAILER = Buffer.from("M2SIG1", "latin1");
+
+/**
+ * The image and its signature from a signed file, if our key (`publicKey`) signed it. Null for an
+ * unsigned file, a damaged one, or one signed with another key: boards would refuse it anyway.
+ */
+export function openSigned(file: Buffer, publicKey: KeyObject): { image: Buffer; signature: Buffer } | null {
+  const end = file.length - SIGNED_TRAILER.length;
+  if (end < 2 || !file.subarray(end).equals(SIGNED_TRAILER)) return null;
+  const length = file.readUInt16LE(end - 2);
+  if (length < 8 || length > 80 || end - 2 - length < 1) return null;
+  const image = file.subarray(0, end - 2 - length);
+  const signature = file.subarray(end - 2 - length, end - 2);
+  try {
+    return verify("sha256", image, publicKey, signature) ? { image, signature } : null;
+  } catch {
+    return null;
+  }
+}
 
 /** What the image is, or why it is not an M2smart firmware. */
 export function readImage(image: Buffer): FirmwareImage | { error: "not_firmware" | "no_model" } {
@@ -35,14 +56,14 @@ export function readImage(image: Buffer): FirmwareImage | { error: "not_firmware
   return { version, modelCode, sha256: createHash("sha256").update(image).digest("hex") };
 }
 
-type Release = { id: string; version: string; sha256: string; size_bytes: number };
-const message = (release: Release): BoardUpdate => ({ version: release.version, path: `/api/v1/firmware/${release.id}.bin`, sha256: release.sha256, size: release.size_bytes });
+type Release = { id: string; version: string; sha256: string; size_bytes: number; signature: string };
+const message = (release: Release): BoardUpdate => ({ version: release.version, path: `/api/v1/firmware/${release.id}.bin`, sha256: release.sha256, size: release.size_bytes, sig: release.signature });
 
 /** Offers the model's active release to one board that just came online, if it runs another version. */
 export async function offerUpdate(pool: Pool, broker: Broker, boardId: string, reportedVersion: string | undefined): Promise<boolean> {
   const { rows } = await withSystemTx(pool, (tx) =>
     tx.query<Release>(
-      `select release.id, release.version, release.sha256, release.size_bytes
+      `select release.id, release.version, release.sha256, release.size_bytes, release.signature
        from public.controllers as board
        join public.firmware_releases as release on release.model_id = board.model_id and release.active
        where board.id = $1 and board.hardware_uid is not null`,
@@ -59,7 +80,7 @@ export async function offerUpdate(pool: Pool, broker: Broker, boardId: string, r
 export async function rollOut(pool: Pool, broker: Broker, releaseId: string): Promise<number> {
   const { rows } = await withSystemTx(pool, (tx) =>
     tx.query<Release & { board_id: string }>(
-      `select board.id as board_id, release.id, release.version, release.sha256, release.size_bytes
+      `select board.id as board_id, release.id, release.version, release.sha256, release.size_bytes, release.signature
        from public.firmware_releases as release
        join public.controllers as board on board.model_id = release.model_id
        where release.id = $1 and release.active and board.online and board.hardware_uid is not null

@@ -19,18 +19,32 @@ What it does:
 | `main/setup_mode.c`, `main/setup_page.html` | Pairing mode and its page |
 | `main/claim.c` | `POST /api/v1/boards/claim` |
 | `main/cloud.c` | MQTT |
-| `main/ota.c` | Firmware updates and rollback |
+| `main/ota.c` | Firmware updates (signature check) and rollback |
 | `main/storage.c` | Flash: the `nvs` partition (erased by a factory reset) and `m2factory` (never erased) |
 
 ## Build
 
 The build runs in Espressif's Docker image, so nothing but Docker has to be installed. `build.sh` keeps the build folder and the compiler cache in Docker volumes, so after the first build (a few minutes) a build takes about half a minute. It copies what flashing needs to `firmware/dist/`.
 
-Before the first build, copy the board CA (see `certs/README.md`):
+Before the first build:
 
-```sh
-cp infra/prod/certs/ca/ca.crt firmware/certs/board_ca.pem
-```
+1. Copy the board CA (see `certs/README.md`):
+
+   ```sh
+   cp infra/prod/certs/ca/ca.crt firmware/certs/board_ca.pem
+   ```
+
+2. Make the firmware signing key, **once, ever**:
+
+   ```sh
+   node firmware/sign.mjs keygen
+   ```
+
+   It asks for a passphrase (12 characters or more) and writes:
+   - the private key, encrypted, to `firmware/keys/` (never committed);
+   - the public key to `firmware/certs/firmware_signing.pub.pem`, which every build embeds. Commit it.
+
+   Back up the private key and the passphrase on two offline USB sticks. Boards install only firmware signed with this key: without it, no board already sold can be updated again.
 
 ```sh
 sh firmware/build.sh t2          # one board, for production (m2smart.ir)
@@ -72,7 +86,8 @@ Factory batches (an identity per board) and flashing them one after another: [do
 
 1. Raise `PROJECT_VER` in `firmware/CMakeLists.txt`, for example `0.1.0` → `0.2.0`.
 2. Run `sh firmware/build.sh <board>` for production, once per board model.
-3. In the admin panel → Firmware, pick the board model, upload `firmware/dist/<board>/m2smart-board.bin` and publish it. The panel reads the version and the model from the file.
+3. Sign it: `node firmware/sign.mjs <board>`. It asks for the key's passphrase and writes `firmware/dist/<board>/m2smart-<board>-<version>.m2fw`. Set `M2_SIGNING_KEY` to sign with the key on a USB stick instead of `firmware/keys/`.
+4. In the admin panel → Firmware, pick the board model, upload the `.m2fw` file and publish it. The server refuses an unsigned file, and the boards check the signature again before installing.
 
 ## Try it with the dev stack
 

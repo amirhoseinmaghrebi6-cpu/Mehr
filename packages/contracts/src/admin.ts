@@ -99,11 +99,14 @@ export interface AdminFirmwareResponse {
 /** Largest image: the size of one firmware slot (firmware/partitions.csv). */
 export const FIRMWARE_MAX_BYTES = 0x190000;
 
-/** POST /v1/admin/firmware: the image as base64 (it is at most 1.6 MB). */
+/**
+ * POST /v1/admin/firmware: the signed file from firmware/sign.mjs (.m2fw: the image, at most
+ * 1.6 MB, then its signature) as base64.
+ */
 export const uploadFirmwareRequest = z
   .object({
     modelCode: z.string().regex(/^[a-z0-9][a-z0-9-]{1,63}$/),
-    image: z.string().min(1).max(Math.ceil((FIRMWARE_MAX_BYTES * 4) / 3) + 8),
+    image: z.string().min(1).max(Math.ceil(((FIRMWARE_MAX_BYTES + 128) * 4) / 3) + 8),
     notes: z.string().trim().max(500).default(""),
   })
   .strict();

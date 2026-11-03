@@ -16,6 +16,7 @@ describe("loadConfig", () => {
       kratosWebhookSecret: null,
       kratosAdminUrl: null,
       platformAdmins: [],
+      firmwarePublicKeyFile: null,
       sms: null,
       broker: null,
     });

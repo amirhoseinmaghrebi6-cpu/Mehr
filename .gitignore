@@ -21,6 +21,8 @@ firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/certs/board_ca.pem
 firmware/provision/
+# The firmware signing key (firmware/sign.mjs): never in git; keep a copy offline.
+firmware/keys/
 firmware/sdkconfig.dev
 firmware/dist/
 firmware/.last-build

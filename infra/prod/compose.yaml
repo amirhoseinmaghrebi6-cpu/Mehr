@@ -145,6 +145,11 @@ services:
       SMS_PATTERN_CODE: ${SMS_PATTERN_CODE:-}
       SMS_PATTERN_INVITATION: ${SMS_PATTERN_INVITATION:-}
       SMS_HOURLY_LIMIT: ${SMS_HOURLY_LIMIT:-300}
+      # Firmware uploads must be signed with the offline key (firmware/sign.mjs).
+      FIRMWARE_PUBLIC_KEY_FILE: /run/m2/firmware_signing.pub.pem
+    volumes:
+      # Public, not secret: copied from firmware/certs/ (README.md, "Firmware signing").
+      - ./certs/firmware_signing.pub.pem:/run/m2/firmware_signing.pub.pem:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4000/readyz"]
       interval: 5s

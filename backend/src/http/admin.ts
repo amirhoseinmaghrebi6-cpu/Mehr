@@ -8,6 +8,7 @@
  * user's RLS allows.
  */
 import { ADMIN_PAGE_SIZE, adminUpdateUserRequest, normalizePhone, type AdminBoardListResponse, type AdminOverview, type AdminUserListResponse, type ApiErrorResponse } from "@m2smart/contracts";
+import type { KeyObject } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { isInternalAddress } from "../auth/identity-webhook";
@@ -26,6 +27,8 @@ export type AdminServices = {
   identityAdmin: IdentityAdmin | null;
   broker: () => Broker | null;
   smsReady: boolean;
+  /** The public half of the firmware signing key (firmware/sign.mjs), or null. */
+  firmwareKey: KeyObject | null;
 };
 
 /** Blocked users are signed out everywhere: every session check answers "no session". */
@@ -193,5 +196,5 @@ export function registerAdminRoutes(app: FastifyInstance, pool: Pool, verifier: 
     return reply.code(204).send();
   });
 
-  registerFirmwareAdmin(app, pool, operator, services.broker);
+  registerFirmwareAdmin(app, pool, operator, services.broker, services.firmwareKey);
 }

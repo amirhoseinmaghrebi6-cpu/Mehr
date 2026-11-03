@@ -57,6 +57,8 @@ docker compose -f infra/prod/compose.yaml --env-file infra/prod/.env up -d --wai
 
 Check that `https://<domain>/login` opens, the demo works, and a real sign-in code arrives by SMS.
 
+**Firmware signing.** Copy `firmware/certs/firmware_signing.pub.pem` (from the development machine, made once by `node firmware/sign.mjs keygen`) to `infra/prod/certs/firmware_signing.pub.pem` before starting. It is public. The admin panel then accepts only firmware signed with its private half, and boards install nothing else. The private key never goes to the server.
+
 **Board CA.** `infra/prod/certs/ca/ca.crt` goes into the board firmware. Copy `ca/ca.key` somewhere safe and offline, then delete it from the server: whoever has it can make a broker certificate the boards trust. You need it again only to renew the MQTT certificate.
 
 ## Updating

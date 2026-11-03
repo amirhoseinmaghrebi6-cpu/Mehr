@@ -39,6 +39,9 @@ const configSchema = z.object({
   SMS_PATTERN_INVITATION: unsetWhenEmpty(z.string()),
   // Every message costs money: at most this many an hour in all (codes and invitations together).
   SMS_HOURLY_LIMIT: z.coerce.number().int().min(1).default(300),
+  // The public half of the firmware signing key (firmware/certs/firmware_signing.pub.pem): uploads
+  // must be signed with its private half, which stays offline.
+  FIRMWARE_PUBLIC_KEY_FILE: unsetWhenEmpty(z.string()),
 });
 
 export type Config = {
@@ -63,6 +66,8 @@ export type Config = {
   platformAdmins: string[];
   /** The SMS provider, or null until SMS_API_KEY, SMS_SENDER and SMS_PATTERN_CODE are all set. */
   sms: { url: string; apiKey: string; sender: string; patterns: { code: string; invitation: string | null }; hourlyLimit: number } | null;
+  /** The firmware signing key's public half (a PEM file), or null. */
+  firmwarePublicKeyFile: string | null;
   /** The boards' MQTT broker, or null when MQTT_URL is not set. */
   broker: { url: string; username: string; password: string } | null;
 };
@@ -101,6 +106,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     kratosWebhookSecret: value.KRATOS_WEBHOOK_SECRET ?? null,
     kratosAdminUrl: value.KRATOS_ADMIN_URL?.replace(/\/+$/, "") ?? null,
     platformAdmins: platformAdmins as string[],
+    firmwarePublicKeyFile: value.FIRMWARE_PUBLIC_KEY_FILE ?? null,
     sms: smsReady
       ? {
           url: value.SMS_API_URL.replace(/\/+$/, ""),

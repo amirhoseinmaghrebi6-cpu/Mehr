@@ -136,21 +136,26 @@ When the router or its password changes, the board goes offline; the app tells t
 
 A board gets new firmware over the air, from our own server.
 
-1. **Upload:** an operator uploads the image in the admin panel (Firmware).
+1. **Upload:** an operator uploads the **signed** file in the admin panel (Firmware).
+   - **Signing:** on the development machine, `node firmware/sign.mjs <board>` signs the image with our firmware key (ECDSA P-256) and writes `.m2fw`: the image, then the signature. The private key is encrypted with a passphrase and kept offline; it never reaches the server.
+   - The server checks the signature with the key's public half (`FIRMWARE_PUBLIC_KEY_FILE`) and refuses anything unsigned, signed with another key, or changed after signing.
    - The server reads the **version** from the image's ESP-IDF app description.
    - It reads the **board model** from the marker `M2MODEL=<code>;` that every firmware carries (`firmware/main/board.c`).
    - A file that is not our firmware, or one built for another model, is refused, so a wrong version or another board's firmware can never be sent.
 2. **Publish:** the operator makes a version active. One version per model is active at a time.
 3. **Offer:** the server sends `update` to every online board of that model that reported another version in its `status`.
    - A board that is offline gets it when it comes online.
-   - Payload: `{"version", "path", "sha256", "size"}`, where `path` is `/api/v1/firmware/{id}.bin`.
+   - Payload: `{"version", "path", "sha256", "size", "sig"}`, where `path` is `/api/v1/firmware/{id}.bin` and `sig` is the base64 signature.
 4. **Install:** the board downloads `path` from the server it claimed at, over HTTPS, and checks the size and the SHA-256 against the message.
+   - It then checks `sig` against the public key built into its firmware. Without our signature it installs nothing, so even someone who takes over the server, the broker or an operator's account cannot put their own firmware on the boards.
    - It writes the image to its other firmware slot; `esp_ota_end` also checks the image's own format and checksum.
    - Then it restarts. Relays and keys keep working during the download. A failed download changes nothing, and the offer comes again at the next connection.
 5. **Prove:** the new firmware is kept only once it reaches the broker. If it cannot within 5 minutes, or it crashes first, the board goes back to the firmware it had (ESP-IDF app rollback).
 6. **Done:** the board's next `status` reports the new version, and the panel counts boards by version.
 
 The image needs no account to download: it is the same code that is in every board. Only an active release can be downloaded.
+
+**The signing key** is made once (`node firmware/sign.mjs keygen`) and must never be lost: boards trust only its public half, which is in their firmware, so without the private key and its passphrase no board already sold can ever be updated. Keep two offline copies. Changing the key would need a firmware, signed with the old key, that carries the new public key.
 
 ## Factory reset
 

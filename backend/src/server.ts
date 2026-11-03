@@ -3,6 +3,8 @@
  *
  * Usage: pnpm api:dev (watch mode) or, after pnpm --filter @m2smart/api build, node dist/server.js
  */
+import { createPublicKey, type KeyObject } from "node:crypto";
+import { readFileSync } from "node:fs";
 import type { ApiErrorResponse } from "@m2smart/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Pool } from "pg";
@@ -53,6 +55,8 @@ export type ServerServices = {
   identityAdmin?: IdentityAdmin | null;
   /** Shown in the operator's panel: whether SMS codes can really be sent. */
   smsReady?: boolean;
+  /** The public half of the firmware signing key; without it firmware cannot be uploaded. */
+  firmwareKey?: KeyObject | null;
 };
 
 export function buildServer(config: ServerConfig, pool: Pool, services: ServerServices = {}): FastifyInstance {
@@ -100,7 +104,7 @@ export function buildServer(config: ServerConfig, pool: Pool, services: ServerSe
     registerEventRoutes(app, pool, sessionVerifier, services.homeEvents ?? null);
     registerActivityRoutes(app, pool, sessionVerifier);
     registerPhoneRoutes(app, pool, sessionVerifier, services.identityAdmin ?? null, services.sms ?? null);
-    registerAdminRoutes(app, pool, sessionVerifier, { admins, identityAdmin: services.identityAdmin ?? null, broker: services.broker ?? (() => null), smsReady: services.smsReady ?? false });
+    registerAdminRoutes(app, pool, sessionVerifier, { admins, identityAdmin: services.identityAdmin ?? null, broker: services.broker ?? (() => null), smsReady: services.smsReady ?? false, firmwareKey: services.firmwareKey ?? null });
   }
   registerBoardRoutes(app, pool, sessionVerifier, services.broker ?? (() => null));
   registerBlockedCheck(app, pool);
@@ -139,7 +143,14 @@ async function main(): Promise<void> {
   // Live updates hold one database connection of their own.
   let homeEvents: HomeEvents | null = null;
   const identityAdmin = config.kratosAdminUrl ? createKratosAdmin(config.kratosAdminUrl) : null;
-  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms, identityAdmin, smsReady: config.sms !== null, homeEvents: { subscribe: (id, onChange) => homeEvents?.subscribe(id, onChange) ?? (() => undefined), stop: async () => undefined } });
+  let firmwareKey: KeyObject | null = null;
+  try {
+    firmwareKey = config.firmwarePublicKeyFile ? createPublicKey(readFileSync(config.firmwarePublicKeyFile)) : null;
+  } catch (error) {
+    console.error(`FIRMWARE_PUBLIC_KEY_FILE cannot be read as a public key: ${(error as Error).message}`);
+    process.exit(1);
+  }
+  const app = buildServer(config, pool, { sessionVerifier, broker: () => broker, sms, identityAdmin, smsReady: config.sms !== null, firmwareKey, homeEvents: { subscribe: (id, onChange) => homeEvents?.subscribe(id, onChange) ?? (() => undefined), stop: async () => undefined } });
   logTarget = app;
 
   try {
@@ -148,6 +159,7 @@ async function main(): Promise<void> {
     if (!config.kratosWebhookSecret) app.log.warn("KRATOS_WEBHOOK_SECRET not set: identity webhook disabled; /v1/me still creates missing users.");
     if (config.devRoutes) app.log.warn("Development routes enabled. Never enable in production.");
     if (config.platformAdmins.length && !identityAdmin) app.log.warn("KRATOS_ADMIN_URL not set: the admin panel cannot block or delete accounts.");
+    if (!firmwareKey) app.log.warn("FIRMWARE_PUBLIC_KEY_FILE not set: firmware cannot be uploaded (firmware/sign.mjs keygen makes the key).");
     if (!config.sms) app.log.warn(`SMS provider not ready (SMS_API_KEY, SMS_SENDER and SMS_PATTERN_CODE are all needed): ${config.devRoutes ? "messages are only logged (development)" : "login codes cannot be sent"}.`);
   } catch (error) {
     const message = error instanceof UnsafeDatabaseRoleError ? error.message : `Cannot connect to PostgreSQL: ${(error as Error).message}`;

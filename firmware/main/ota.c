@@ -10,6 +10,8 @@
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "mbedtls/base64.h"
+#include "mbedtls/pk.h"
 #include "mbedtls/sha256.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -18,6 +20,9 @@
 #define CONFIRM_WITHIN_US (5LL * 60 * 1000 * 1000)
 
 static const char *TAG = "ota";
+/** The public half of our firmware signing key (firmware/sign.mjs); the private half never leaves the operator. */
+extern const char signing_key_start[] asm("_binary_firmware_signing_pub_pem_start");
+extern const char signing_key_end[] asm("_binary_firmware_signing_pub_pem_end");
 static esp_timer_handle_t unproven_timer;
 static volatile bool busy;
 
@@ -26,7 +31,25 @@ typedef struct {
     char url[200];
     char sha256[65];
     int size;
+    /** ECDSA P-256 signature (DER) of the image's SHA-256. */
+    unsigned char signature[80];
+    size_t signature_len;
 } offer_t;
+
+/**
+ * Whether our signing key signed this image. Whoever controls the server or the broker can send an
+ * offer with any SHA-256, but cannot sign: so only firmware we built and signed is ever installed.
+ */
+static bool signed_by_us(const unsigned char *digest, const offer_t *offer)
+{
+    mbedtls_pk_context key;
+    mbedtls_pk_init(&key);
+    // The embedded PEM ends with a NUL, which the parser needs counted.
+    bool ok = mbedtls_pk_parse_public_key(&key, (const unsigned char *)signing_key_start, signing_key_end - signing_key_start) == 0
+        && mbedtls_pk_verify(&key, MBEDTLS_MD_SHA256, digest, 32, offer->signature, offer->signature_len) == 0;
+    mbedtls_pk_free(&key);
+    return ok;
+}
 
 static void give_up(void *arg)
 {
@@ -97,6 +120,10 @@ static void install(void *arg)
             ESP_LOGE(TAG, "SHA-256 does not match: refused");
             ok = false;
         }
+        if (ok && !signed_by_us(digest, offer)) {
+            ESP_LOGE(TAG, "Not signed with our key: refused");
+            ok = false;
+        }
         // esp_ota_end checks the image itself (format and its own checksum) too.
         if (ok) ok = esp_ota_end(handle) == ESP_OK && esp_ota_set_boot_partition(slot) == ESP_OK;
         else esp_ota_abort(handle);
@@ -122,7 +149,8 @@ void m2_ota_offer(const char *data, int len)
     const cJSON *path = cJSON_GetObjectItem(json, "path");
     const cJSON *sha = cJSON_GetObjectItem(json, "sha256");
     const cJSON *size = cJSON_GetObjectItem(json, "size");
-    bool valid = cJSON_IsString(version) && cJSON_IsString(path) && cJSON_IsString(sha) && cJSON_IsNumber(size)
+    const cJSON *sig = cJSON_GetObjectItem(json, "sig");
+    bool valid = cJSON_IsString(version) && cJSON_IsString(path) && cJSON_IsString(sha) && cJSON_IsNumber(size) && cJSON_IsString(sig)
         && strncmp(path->valuestring, "/api/v1/firmware/", 17) == 0 && strlen(sha->valuestring) == 64 && size->valueint > 0;
     if (!valid || busy || strcmp(version->valuestring, esp_app_get_description()->version) == 0) {
         cJSON_Delete(json);
@@ -133,6 +161,13 @@ void m2_ota_offer(const char *data, int len)
     snprintf(offer->url, sizeof(offer->url), "%s%s", CONFIG_M2_API_URL, path->valuestring);
     strlcpy(offer->sha256, sha->valuestring, sizeof(offer->sha256));
     offer->size = size->valueint;
+    // An offer without a readable signature is not worth downloading.
+    if (mbedtls_base64_decode(offer->signature, sizeof(offer->signature), &offer->signature_len, (const unsigned char *)sig->valuestring, strlen(sig->valuestring)) != 0) {
+        ESP_LOGE(TAG, "Update offer without a valid signature: ignored");
+        free(offer);
+        cJSON_Delete(json);
+        return;
+    }
     cJSON_Delete(json);
     busy = true;
     xTaskCreate(install, "ota", 8192, offer, 4, NULL);

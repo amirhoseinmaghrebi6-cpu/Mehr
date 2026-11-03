@@ -85,7 +85,8 @@ export const boardReset = z.strictObject({});
 
 /**
  * server → board: a new firmware for its model (docs/board-protocol.md, "Firmware updates"). The
- * board downloads `path` from the server it claimed at (over HTTPS), checks the SHA-256, writes
+ * board downloads `path` from the server it claimed at (over HTTPS), checks the SHA-256 and our
+ * signature (firmware/sign.mjs: the private key never reaches the server), writes
  * it to its other firmware slot and restarts; it goes back to the old one if the new one cannot
  * reach the broker within 5 minutes.
  */
@@ -95,6 +96,8 @@ export const boardUpdate = z.strictObject({
   path: z.string().regex(/^\/api\/v1\/firmware\/[0-9a-f-]{36}\.bin$/),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   size: z.int().min(1),
+  /** Base64 of our ECDSA P-256 signature (DER) of the image; the board installs only what it verifies. */
+  sig: z.string().regex(/^[A-Za-z0-9+/]+=*$/).max(120),
 });
 export type BoardUpdate = z.infer<typeof boardUpdate>;
 

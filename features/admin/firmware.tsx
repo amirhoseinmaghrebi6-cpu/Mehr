@@ -98,7 +98,7 @@ export function FirmwareSection({ source, onToast }: { source: AdminSource; onTo
           <label className="form-field"><span>{t.model}</span>
             <select value={modelCode} onChange={(event) => setModelCode(event.target.value)}>{data?.models.map((model) => <option key={model.code} value={model.code}>{model.name}</option>)}</select>
           </label>
-          <label className="form-field"><span>{t.file}</span><input key={fileField} type="file" accept=".bin,application/octet-stream" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
+          <label className="form-field"><span>{t.file}</span><input key={fileField} type="file" accept=".m2fw,application/octet-stream" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
           <label className="form-field"><span>{t.notes}</span><input value={notes} maxLength={500} onChange={(event) => setNotes(event.target.value)} placeholder={t.notesPlaceholder} /></label>
           <button type="submit" className="button-primary" disabled={busy || !file || !modelCode}><Upload size={15} />{t.upload}</button>
         </form>

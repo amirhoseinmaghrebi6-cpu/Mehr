@@ -27,6 +27,11 @@ printf 'CONFIG_M2_BOARD_%s=y\n' "$upper" > "sdkconfig.board"
 [ -f "sdkconfig.$board" ] && cat "sdkconfig.$board" >> "sdkconfig.board"
 defaults="$defaults;sdkconfig.board"
 
+# Boards install only firmware signed with this key's private half (firmware/sign.mjs).
+if [ ! -f certs/firmware_signing.pub.pem ]; then
+  echo "No certs/firmware_signing.pub.pem: run node firmware/sign.mjs keygen once (firmware/README.md)." >&2
+  exit 1
+fi
 project=$(pwd -W 2>/dev/null || pwd)
 volume="m2-fw-$board-$mode"
 MSYS_NO_PATHCONV=1 docker run --rm -e IDF_CCACHE_ENABLE=1 \

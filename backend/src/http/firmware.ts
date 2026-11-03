@@ -10,12 +10,13 @@
  * active release can be downloaded.
  */
 import { FIRMWARE_MAX_BYTES, updateFirmwareRequest, uploadFirmwareRequest, type AdminFirmwareResponse, type ApiErrorResponse, type FirmwareRelease } from "@m2smart/contracts";
+import type { KeyObject } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import type { VerifiedSession } from "../auth/session-verifier";
 import type { Broker } from "../broker/broker";
 import { withSystemTx } from "../db/tx";
-import { readImage, rollOut } from "../firmware/releases";
+import { openSigned, readImage, rollOut } from "../firmware/releases";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const send = (reply: FastifyReply, status: number, error: ApiErrorResponse["error"]) => reply.code(status).send({ error } satisfies ApiErrorResponse);
@@ -42,6 +43,8 @@ export function registerFirmwareAdmin(
   pool: Pool,
   operator: (request: FastifyRequest, reply: FastifyReply) => Promise<VerifiedSession | null>,
   broker: () => Broker | null,
+  /** The public half of the firmware signing key; without it nothing can be uploaded. */
+  signingKey: KeyObject | null,
 ): void {
   app.get("/v1/admin/firmware", async (request, reply) => {
     if (!(await operator(request, reply))) return reply;
@@ -70,8 +73,14 @@ export function registerFirmwareAdmin(
     if (!(await operator(request, reply))) return reply;
     const body = uploadFirmwareRequest.safeParse(request.body ?? {});
     if (!body.success) return send(reply, 400, "invalid_request");
-    const image = Buffer.from(body.data.image, "base64");
-    if (!image.length || image.length > FIRMWARE_MAX_BYTES) return send(reply, 400, "invalid_request");
+    if (!signingKey) {
+      request.log.error("FIRMWARE_PUBLIC_KEY_FILE not set: firmware cannot be uploaded");
+      return send(reply, 503, "internal_error");
+    }
+    // Only a file signed with our key: boards would refuse anything else, so it is refused here first.
+    const signed = openSigned(Buffer.from(body.data.image, "base64"), signingKey);
+    if (!signed || signed.image.length > FIRMWARE_MAX_BYTES) return send(reply, 400, "invalid_request");
+    const image = signed.image;
     const read = readImage(image);
     // Not an M2smart firmware, or built for another board than the model chosen.
     if ("error" in read || read.modelCode !== body.data.modelCode) return send(reply, 400, "invalid_request");
@@ -79,12 +88,12 @@ export function registerFirmwareAdmin(
       tx.query<ReleaseRow>(
         `with model as (select id, code from public.hardware_models where code = $1),
          added as (
-           insert into public.firmware_releases (model_id, version, sha256, size_bytes, image, notes)
-           select id, $2, $3, $4, $5, $6 from model
+           insert into public.firmware_releases (model_id, version, sha256, size_bytes, image, notes, signature)
+           select id, $2, $3, $4, $5, $6, $7 from model
            on conflict (model_id, version) do nothing
            returning *)
          select ${RELEASE_COLUMNS} from added as release join model on model.id = release.model_id`,
-        [body.data.modelCode, read.version, read.sha256, image.length, image, body.data.notes],
+        [body.data.modelCode, read.version, read.sha256, image.length, image, body.data.notes, signed.signature.toString("base64")],
       ),
     );
     // No such model, or this version was uploaded before.
