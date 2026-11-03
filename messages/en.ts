@@ -22,6 +22,7 @@ export const en = {
   },
 
   nav: {
+    help: "Help & support",
     overview: "Overview",
     rooms: "Rooms",
     devices: "Devices",
@@ -52,7 +53,6 @@ export const en = {
     language: "Language",
     notifications: "Activity",
     help: "Help & support",
-    helpToast: "M2smart support is here whenever you need it",
     accountSettings: "Account settings",
     signOut: "Sign out",
     memberFallback: "M2smart member",
@@ -100,6 +100,7 @@ export const en = {
 
   dashboard: {
     sectionCopy: {
+      help: "Short answers to the questions people ask most.",
       overview: "A thoughtful look at how your home is feeling.",
       rooms: "Spaces that move with the rhythm of your day.",
       devices: "Every little thing, exactly where you need it.",
@@ -686,6 +687,19 @@ export const en = {
     someone: "Someone",
     didNotHappen: "did not happen",
     inProgress: "in progress",
+  },
+
+  help: {
+    title: "Common questions",
+    faq: [
+      { question: "How do I add a board?", answer: "On the Devices page, tap “Add a device” and pick the product. Then hold the board’s setup key (on a touch switch: its first key) for 7–10 seconds, join the Wi-Fi network whose name starts with “M2smart” and enter your home Wi-Fi there. Only the home’s owner or admins can add a board." },
+      { question: "A device says it is not connected. What do I do?", answer: "Check that the board has power and that your home Wi-Fi works. If you changed your router or its Wi-Fi password, hold the setup key for 7–10 seconds, join the “M2smart” network and choose “Change only the Wi-Fi”: the board stays in your home as it is." },
+      { question: "Do the switches work when the internet is down?", answer: "Yes, the keys on the switches always work. The app and scenarios need the board to be connected, and they work again by themselves when the connection returns." },
+      { question: "How do I give someone access to my home?", answer: "On the Members page, invite their mobile number as an admin or a member. An admin can change the home, rooms, devices and scenarios and invite others. A member can use every device and run scenarios but cannot change anything." },
+      { question: "When do scenarios run?", answer: "At the times you set, in your home’s time zone, even when your phone is off. If a board is not connected at that moment, it only carries the action out if it reconnects soon after." },
+      { question: "How do I return a board to its factory state?", answer: "Unplug the board and plug it in again. Within 3 minutes, hold its setup key for more than 15 seconds. The board leaves the app and keeps nothing; to use it again, pair it like a new board." },
+      { question: "I forgot my password.", answer: "On the sign-in page, choose “Forgot password?”. You sign in with a code we text to your phone, then choose a new password." },
+    ],
   },
 
   settings: {

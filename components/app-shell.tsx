@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  ArrowUpRight,
   BedDouble,
   Bell,
   Building2,
@@ -350,7 +349,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="help-link" type="button" onClick={() => showToast(m.shell.helpToast)}><CircleHelp size={17} /><span>{m.shell.help}</span><ArrowUpRight size={14} /></button>
+          <button className={`help-link${!adminView && section === "help" ? " is-active" : ""}`} type="button" onClick={() => navigate("help")} aria-current={!adminView && section === "help" ? "page" : undefined}><CircleHelp size={17} /><span>{m.shell.help}</span></button>
           <div className="profile-row"><span className="profile-avatar">{nameOf(displayName).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><span className="profile-copy"><strong>{nameOf(displayName)}</strong><small>{roleCaption ?? m.shell.memberFallback}</small></span><button className="profile-menu" type="button" aria-label={m.shell.accountSettings} onClick={() => navigate("settings")}><MoreHorizontal size={19} /></button><form action={signOutAction}><button className="profile-logout" type="submit" aria-label={m.shell.signOut} title={m.shell.signOut}><LogOut size={16} /></button></form></div>
         </div>
       </aside>
@@ -429,7 +428,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
 
       <AnimatePresence>
         {mobileMoreOpen && <motion.div className="mobile-more-menu" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}>
-          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
+          {([["security", ShieldCheck], ["cameras", Activity], ["notifications", Bell], ["members", Users], ["settings", Settings], ["help", CircleHelp]] as const).map(([id, Icon]) => <button type="button" key={id} onClick={() => navigate(id)}><Icon size={18} /><span>{m.nav[id]}</span></button>)}
           {platformAdmin && <Link href="/admin" onClick={() => setMobileMoreOpen(false)}><Gauge size={18} /><span>{m.admin.open}</span></Link>}
           <button type="button" onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}<span>{m.shell.switchTheme}</span></button>
           <div className="mobile-more-language"><LanguageMenu className="mobile-language-button" /></div>
@@ -635,5 +634,5 @@ function MobileNavigationItem({ id, icon: Icon, active, onClick }: { id: Dashboa
 }
 
 function isDashboardSection(section: string | undefined): section is DashboardSection {
-  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "members", "settings"].includes(section ?? "");
+  return ["overview", "rooms", "devices", "scenes", "security", "cameras", "notifications", "members", "settings", "help"].includes(section ?? "");
 }

@@ -27,7 +27,7 @@ import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
 /** A home's time zone (homes saved by older demo sessions have none: Tehran). */
 export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
 
-export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings";
+export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings" | "help";
 
 
 type Props = {
@@ -305,6 +305,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "notifications") return <ActivitySection {...safety} loadActivity={props.loadActivity} timeZone={homeTimeZone(props.property)} />;
   if (section === "settings") return <SettingsSection demo={demo} property={props.property} accountPanel={props.accountPanel} />;
   if (section === "members") return <>{props.membersPanel}</>;
+  if (section === "help") return <HelpSection />;
   if (section === "scenes") {
     return (
       <ScenarioList
@@ -324,6 +325,18 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "security") return <SecuritySection {...safety} />;
   if (section === "cameras") return <CameraSection {...safety} demo={demo} roomName={props.roomName} />;
   return null;
+}
+
+function HelpSection() {
+  const { m } = useI18n();
+  return (
+    <section className="settings-layout">
+      <div className="surface-panel">
+        <div className="panel-intro"><span className="panel-overline">{m.nav.help}</span><h2>{m.help.title}</h2></div>
+        <div className="help-list">{m.help.faq.map((item) => <details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div>
+      </div>
+    </section>
+  );
 }
 
 function SettingsSection({ demo, property, accountPanel }: { demo: boolean; property: Property; accountPanel?: React.ReactNode }) {

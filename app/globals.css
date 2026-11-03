@@ -352,6 +352,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .quiet-panel h2 { margin-top: 16px; }
 .quiet-meta { display: flex; align-items: center; gap: 6px; margin-top: 16px; color: var(--muted); font-size: 9px; }
 .settings-layout { display: grid; max-width: 860px; }
+.help-link.is-active { background: var(--accent-soft); color: var(--accent-deep); font-weight: 650; }
+.help-list { display: grid; border-top: 1px solid var(--line); }
+.help-list details { border-bottom: 1px solid var(--line); }
+.help-list summary { padding: 13px 2px; color: var(--ink); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.help-list p { margin: 0 2px 14px; color: var(--ink-soft); font-size: 12px; line-height: 1.75; }
 .settings-list { padding: 4px 17px; }
 .settings-row { display: flex; width: 100%; min-height: 66px; align-items: center; gap: 12px; border: 0; border-top: 1px solid var(--line); background: transparent; cursor: pointer; text-align: start; }
 .settings-row:first-child { border-top: 0; }
