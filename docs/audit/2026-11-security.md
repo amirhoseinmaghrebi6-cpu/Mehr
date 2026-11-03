@@ -18,6 +18,7 @@ Status: **PASS** = checked by a test that ran; **NOT TESTED** = done or reviewed
 | A6 | P2 | Someone who pulls the broker secret out of their own board could flood the database through its report topic. | The API handles at most 20 messages a second per board and drops the rest. | NOT TESTED |
 | A8 | P1 | Firmware images were not signed. Whoever controlled an operator account, the server or the broker could put their own firmware on every board, permanently. | **Fixed 2026-11-03.** `firmware/sign.mjs`: an ECDSA P-256 key, encrypted with a passphrase and kept offline. The admin panel takes only the signed `.m2fw`; the server checks it, and the board checks the signature again with the public key built into its firmware before installing. | PASS: API tests refuse unsigned, foreign-key and tampered files. A real t2 image signed by the tool passes mbedTLS's check, the board's own code path run on a PC, and a changed byte is refused. On a real board: NOT TESTED. |
 | A9 | P1 | Operator accounts had one factor (an SMS code or a password). A stolen SIM would open the admin panel: blocking and deleting users, uploading firmware. | **Fixed 2026-11-03.** The admin panel needs a code from an authenticator app (TOTP through Kratos). The API refuses `/v1/admin/*` without it (`two_factor_required`), and once linked, the app can be removed only from a session that gave a code. | PASS: API tests (every admin route at the first step); browser test against real Kratos (link with the QR's key, wrong codes refused, a new sign-in needs a code, demo); the admin-panel browser test passes the step. |
+| A11 | P1 | Scale: the broker kept every board's account and role in one JSON file (Mosquitto dynamic security) and rewrote all of it on every change. A pairing took 0.22 s at 1 000 boards and 2.1 s (p95) at 5 000, and grew without bound. | **Fixed 2026-11-03.** Accounts live in PostgreSQL (`broker` schema, one row per board, deleted with its board). Mosquitto checks them through mosquitto-go-auth and a login (`m2_broker`) that may only call two lookup functions. The API cuts a board's live connection by client takeover when its secret changes or it is removed. Logins are cached 5 s and topic rights 30 s, so messages are not database queries. | PASS: broker tests (isolation, wrong secret, replaced secret, removal) and the rest of the API tests. Bench: a pairing takes 10 ms at 1 000, 9 ms at 10 000 and 9 ms at 50 000 accounts. 2 000 boards connected at once in 3.8 s. The 101 simulated dev boards all came back online. |
 | A7 | P2 | Open redirect: after sign-in, `next=/\evil.com` sent the browser to another site. | Only a same-origin path is accepted (`lib/safe-next.ts`). | PASS (browser test: four attacks stay on the site; a normal link still works) |
 
 Earlier on the same day the firmware also got the protocol's duplicate-command and reconnect-delay rules (commit f588644). It had been reconnecting every 5 s for good, even when refused.
@@ -26,7 +27,6 @@ Earlier on the same day the firmware also got the protocol's duplicate-command a
 
 | # | Priority | Finding | Recommendation |
 |---|----------|---------|----------------|
-| B3 | P1 | Scale: the broker keeps every board's account and role in one JSON file (Mosquitto dynamic security) and rewrites all of it on every pairing. With hundreds of thousands of boards this becomes slow. | Measure it in phase 2 (load test). If it is too slow, move broker authentication to the database (an auth plugin) or to a broker that does this natively. |
 | B4 | P2 | Password sign-in has no per-account lockout, only nginx's limit per address. | Accepted for now (12-character minimum). Operators also need their authenticator code (A9). |
 | B5 | P3 | A board's setup Wi-Fi is open for the 5 minutes after someone holds its key. Someone nearby could read the Wi-Fi password sent to it, or change a paired board's Wi-Fi. | Accepted: it needs physical access to the key and a 5-minute window. Closing it would need a password printed on each board. |
 | B6 | P3 | A session revoked in Kratos keeps working for up to 30 s (the API's cache). | Accepted. |
@@ -81,7 +81,17 @@ So one API process serves about 300–350 requests a second without errors, and 
 | 1 000 | 0.22 s / 0.26 s | 1.4 MB |
 | 5 000 | 0.37 s / 2.1 s | 6.5 MB |
 
-Mosquitto's CPU was full and the run toward 10 000 was too slow to finish. Removing the test accounts took minutes for the same reason. Connecting 200 boards at once and reading a report from each took under a second: the connections are not the problem, the account file is. **B3 is confirmed**, and the fix (broker accounts checked against the database) comes next.
+Mosquitto's CPU was full and the run toward 10 000 was too slow to finish. Removing the test accounts took minutes for the same reason. Connecting 200 boards at once and reading a report from each took under a second: the connections were not the problem, the account file was.
+
+**After A11** (accounts in PostgreSQL):
+
+| Board accounts | One pairing: median / p95 |
+|----------------|---------------------------|
+| 1 000 | 10 ms / 16 ms |
+| 10 000 | 9 ms / 12 ms |
+| 50 000 | 9 ms / 15 ms |
+
+2 000 boards connecting at the same moment all got in within 3.8 s, each login checked in the database. Removing the 50 000 bench boards with their accounts took 14 s.
 
 ## Blocked until the server exists
 

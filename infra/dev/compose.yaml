@@ -23,21 +23,22 @@ services:
       retries: 10
       start_period: 10s
 
+  # Mosquitto 2.0 with mosquitto-go-auth: accounts are checked in PostgreSQL (schema broker).
   mosquitto:
-    image: eclipse-mosquitto:2.0.22@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21
+    image: iegomez/mosquitto-go-auth:3.0.0-mosquitto_2.0.18@sha256:138cb22c7846427a158788c5bd90eaaddd4eb5ab58ab571b4369f3b654a286cb
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      MQTT_API_USERNAME: ${MQTT_API_USERNAME:?set MQTT_API_USERNAME in infra/dev/.env}
-      MQTT_API_PASSWORD: ${MQTT_API_PASSWORD:?set MQTT_API_PASSWORD in infra/dev/.env}
-    # On the first start, creates the accounts file with the API's admin account; board accounts
-    # are added by the API later and live in the same file (in the data volume).
+      M2_BROKER_DB_PASSWORD: ${M2_BROKER_DB_PASSWORD:?set M2_BROKER_DB_PASSWORD in infra/dev/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in infra/dev/.env}
+    # The config with the database login filled in.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ ! -f /mosquitto/data/dynamic-security.json ]; then
-          mosquitto_ctrl dynsec init /mosquitto/data/dynamic-security.json "$MQTT_API_USERNAME" "$MQTT_API_PASSWORD"
-          chown mosquitto:mosquitto /mosquitto/data/dynamic-security.json
-        fi
-        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+        sed -e "s/__BROKER_DB_PASSWORD__/$M2_BROKER_DB_PASSWORD/" -e "s/__DATABASE__/$POSTGRES_DB/" /mosquitto/config/mosquitto.conf > /tmp/mosquitto.conf
+        chown -R mosquitto:mosquitto /mosquitto/data
+        exec /usr/sbin/mosquitto -c /tmp/mosquitto.conf
     ports:
       # A DevKit on the home network needs the broker: set MQTT_HOST_BIND=0.0.0.0 in .env while testing.
       - "${MQTT_HOST_BIND:-127.0.0.1}:${MQTT_HOST_PORT:-18830}:1883"
@@ -45,8 +46,9 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     healthcheck:
-      # Healthy when the broker accepts the API's login.
-      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -u \"$MQTT_API_USERNAME\" -P \"$MQTT_API_PASSWORD\" -t m2/health -m 1"]
+      # Healthy when the broker answers a login (refusing a made-up one). The API's own account only
+      # exists after pnpm db:migrate, which needs the stack up first.
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -u healthcheck -P none -t m2/health -m 1 2>&1 | grep -qi 'not authori'"]
       interval: 5s
       timeout: 5s
       retries: 10

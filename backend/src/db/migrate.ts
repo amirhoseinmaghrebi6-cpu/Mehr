@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Client } from "pg";
+import { brokerPasswordHash } from "../broker/accounts";
 import { connectAdmin, REPO_ROOT, runTool, ToolError } from "./admin";
 
 const BOOTSTRAP_FILE = join(REPO_ROOT, "infra/postgres/bootstrap.sql");
@@ -51,12 +52,30 @@ async function bootstrap(client: Client): Promise<void> {
   const sql = readSql(BOOTSTRAP_FILE);
   await inTransaction(client, async () => {
     // Local settings: visible to the bootstrap's DO blocks, gone after commit.
-    await client.query("select set_config('m2.api_password', $1, true), set_config('m2.migrator_password', $2, true)", [
+    await client.query("select set_config('m2.api_password', $1, true), set_config('m2.migrator_password', $2, true), set_config('m2.broker_password', $3, true)", [
       process.env.M2_API_DB_PASSWORD ?? "",
       process.env.M2_MIGRATOR_DB_PASSWORD ?? "",
+      process.env.M2_BROKER_DB_PASSWORD ?? "",
     ]);
     await client.query(sql);
   });
+}
+
+/**
+ * The API's login on the boards' broker (broker.service_accounts), so the broker accepts the API
+ * before the API first starts. From MQTT_API_USERNAME/MQTT_API_PASSWORD (production) or
+ * MQTT_USERNAME/MQTT_PASSWORD (backend/.env.local); nothing when neither is set.
+ */
+async function saveApiBrokerAccount(client: Client): Promise<void> {
+  const username = process.env.MQTT_API_USERNAME ?? process.env.MQTT_USERNAME;
+  const password = process.env.MQTT_API_PASSWORD ?? process.env.MQTT_PASSWORD;
+  if (!username || !password) return;
+  await client.query(
+    `insert into broker.service_accounts (username, password_hash) values ($1, $2)
+     on conflict (username) do update set password_hash = excluded.password_hash, updated_at = now()`,
+    [username, brokerPasswordHash(password)],
+  );
+  console.log("Broker service account saved.");
 }
 
 function planPending(migrations: Migration[], applied: Map<string, string>): Migration[] {
@@ -108,6 +127,7 @@ async function migrate(): Promise<void> {
     }
     console.log(`Applied ${pending.length} migration(s).`);
   } finally {
+    await saveApiBrokerAccount(client).catch((error: Error) => console.error(`Broker account not saved: ${error.message}`));
     await client.end();
   }
 }

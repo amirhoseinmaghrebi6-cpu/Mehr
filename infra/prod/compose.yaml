@@ -43,6 +43,10 @@ services:
       DATABASE_ADMIN_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       M2_API_DB_PASSWORD: ${M2_API_DB_PASSWORD:?}
       M2_MIGRATOR_DB_PASSWORD: ${M2_MIGRATOR_DB_PASSWORD:?}
+      M2_BROKER_DB_PASSWORD: ${M2_BROKER_DB_PASSWORD:?}
+      # The API's login on the broker, saved in the database for the broker to check.
+      MQTT_API_USERNAME: ${MQTT_API_USERNAME:?}
+      MQTT_API_PASSWORD: ${MQTT_API_PASSWORD:?}
     command: ["node", "backend/dist/db/migrate.js"]
 
   # One-shot: the kratos role and database (idempotent), then exits.
@@ -98,20 +102,23 @@ services:
       timeout: 5s
       retries: 20
 
+  # Mosquitto 2.0 with mosquitto-go-auth: board accounts are checked in PostgreSQL (schema broker),
+  # so pairing stays one row however many boards there are.
   mosquitto:
     <<: *restart
-    image: eclipse-mosquitto:2.0.22
+    image: iegomez/mosquitto-go-auth:3.0.0-mosquitto_2.0.18
+    depends_on: { migrate: { condition: service_completed_successfully } }
     environment:
       MQTT_API_USERNAME: ${MQTT_API_USERNAME:?}
       MQTT_API_PASSWORD: ${MQTT_API_PASSWORD:?}
+      M2_BROKER_DB_PASSWORD: ${M2_BROKER_DB_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ ! -f /mosquitto/data/dynamic-security.json ]; then
-          mosquitto_ctrl dynsec init /mosquitto/data/dynamic-security.json "$MQTT_API_USERNAME" "$MQTT_API_PASSWORD"
-          chown mosquitto:mosquitto /mosquitto/data/dynamic-security.json
-        fi
-        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+        sed -e "s/__BROKER_DB_PASSWORD__/$M2_BROKER_DB_PASSWORD/" -e "s/__DATABASE__/$POSTGRES_DB/" /mosquitto/config/mosquitto.conf > /tmp/mosquitto.conf
+        chown -R mosquitto:mosquitto /mosquitto/data
+        exec /usr/sbin/mosquitto -c /tmp/mosquitto.conf
     ports:
       - "${MQTTS_PORT:-8883}:8883"
     volumes:

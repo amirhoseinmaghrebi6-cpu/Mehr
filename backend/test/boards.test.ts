@@ -49,6 +49,16 @@ const verifier: SessionVerifier = {
 const silentLog = { info: () => undefined, error: () => undefined };
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Whether the broker refuses this login within its login cache time (5 s, infra/dev/mosquitto/mosquitto.conf). */
+async function refusedSoon(username: string, password: string): Promise<boolean> {
+  for (let i = 0; i < 14; i++) {
+    const refused = await mqtt.connectAsync(loadConfig().broker!.url, { username, password, reconnectPeriod: 0 }).then(async (client) => (await client.endAsync(), false), () => true);
+    if (refused) return true;
+    await wait(500);
+  }
+  return false;
+}
+
 async function cleanup(): Promise<void> {
   await adminQuery("delete from public.properties where created_by = any($1::uuid[])", [ALL_USERS]);
   await adminQuery("delete from public.manufactured_boards where hardware_uid = any($1::text[])", [[UID, UID_2, UID_3]]);
@@ -106,7 +116,7 @@ describe("pairing and factory reset", () => {
       button as (insert into public.hardware_model_pins (model_id, gpio, function, role) select id, 35, 'setup_button', 'setup' from model)
       insert into public.hardware_model_capabilities (model_id, channel_key, capability, value_type, min_value, max_value, step, unit, writable) select model_id, 'light', 'brightness', 'integer', 0, 100, 1, '%', true from channel`);
     pool = createApiPool();
-    broker = await connectBroker(brokerConfig, silentLog);
+    broker = await connectBroker(brokerConfig, silentLog, pool);
     followBoardStatus(broker, pool, silentLog);
     followBoardResets(broker, pool, silentLog);
     app = buildServer({ logLevel: "silent" }, pool, { sessionVerifier: verifier, broker: () => broker });
@@ -232,7 +242,7 @@ describe("pairing and factory reset", () => {
       const second = (await claim(code)).body;
       expect(second.boardId).toBe(waiting.boardId);
       expect(second.brokerSecret).not.toBe(first.brokerSecret);
-      await expect(mqtt.connectAsync(brokerConfig.url, { username: first.boardId, password: first.brokerSecret, reconnectPeriod: 0 })).rejects.toThrow();
+      expect(await refusedSoon(first.boardId, first.brokerSecret)).toBe(true);
       await (await mqtt.connectAsync(brokerConfig.url, { username: second.boardId, password: second.brokerSecret, reconnectPeriod: 0 })).endAsync();
       expect((await claim(code, UID_2)).status).toBe(401);
       // The board no longer waits: no new code for it.
@@ -325,12 +335,17 @@ describe("pairing and factory reset", () => {
       // Only the registry row stays: the board can be paired again, with a new code.
       expect(await count("public.manufactured_boards where hardware_uid = $1", [UID])).toBe(1);
       await client.endAsync(true).catch(() => undefined);
-      await expect(mqtt.connectAsync(brokerConfig.url, { username: board.id, password: brokerSecret, reconnectPeriod: 0 })).rejects.toThrow();
+      expect(await refusedSoon(board.id, brokerSecret)).toBe(true);
     });
 
     it("one board cannot reset another", async () => {
       const paired = await pairInto("ownerA", homeA);
-      const stranger = "7e5f0001-0000-4000-8000-0000000000aa";
+      // A real board of another home (a broker account belongs to a board).
+      const [hub] = await adminQuery<{ id: string }>(
+        "insert into public.hubs (property_id, name, hardware_id) values ($1, 'Stranger hub', $2) returning id",
+        [homeB.id, `test-stranger-${homeB.id}`],
+      );
+      const [{ stranger }] = await adminQuery<{ stranger: string }>("select public.provision_controller($1, $2, 'TEST-STRANGER-1', 'Stranger') as stranger", [hub.id, MODEL]);
       await broker.setBoardSecret(stranger, "secret-of-a-stranger-board");
       const client = await mqtt.connectAsync(brokerConfig.url, { username: stranger, password: "secret-of-a-stranger-board", reconnectPeriod: 0 });
       await client.publishAsync(boardTopic(paired.boardId, "reset"), "{}", { qos: 1 });
@@ -338,6 +353,7 @@ describe("pairing and factory reset", () => {
       expect(await count("public.controllers where id = $1", [paired.boardId])).toBe(1);
       await client.endAsync();
       await broker.removeBoard(stranger);
+      await adminQuery("delete from public.hubs where id = $1", [hub.id]);
     });
   });
 
@@ -382,7 +398,7 @@ describe("pairing and factory reset", () => {
       expect((await devicesOf("ownerA", homeA)).some((device) => device.boardId === paired.boardId)).toBe(false);
       expect(await count("public.controllers where id = $1", [paired.boardId])).toBe(0);
       expect(await count("public.device_states where device_id = any($1::uuid[])", [ids])).toBe(0);
-      await expect(mqtt.connectAsync(brokerConfig.url, { username: paired.boardId, password: brokerSecret, reconnectPeriod: 0 })).rejects.toThrow();
+      expect(await refusedSoon(paired.boardId, brokerSecret)).toBe(true);
       expect((await call("adminA", "DELETE", `${boards(homeA)}/${paired.boardId}`)).status).toBe(404);
       // The physical board can be paired again, with a new code.
       expect((await pairInto("ownerA", homeA)).brokerSecret).toEqual(expect.any(String));

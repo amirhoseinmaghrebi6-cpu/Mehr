@@ -180,7 +180,7 @@ async function main(): Promise<void> {
   const startBroker = async () => {
     if (!config.broker) return app.log.warn("MQTT_URL not set: no board connection; boards never come online.");
     try {
-      broker = await connectBroker(config.broker, app.log);
+      broker = await connectBroker(config.broker, app.log, pool);
       followBoardStatus(broker, pool, app.log);
       followBoardResets(broker, pool, app.log);
       stopBridge = startCommandBridge(pool, broker, app.log);

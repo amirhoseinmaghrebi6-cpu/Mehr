@@ -72,15 +72,20 @@ docker compose -f infra/dev/compose.yaml exec postgres psql -U m2smart -d m2smar
 mqtt://127.0.0.1:18830   (plaintext; every client logs in)
 ```
 
-The API's account (`MQTT_API_USERNAME` / `MQTT_API_PASSWORD` in `infra/dev/.env`) is created on the first start; the API creates one account per board at pairing. Accounts live in the `mosquitto-data` volume. List them:
+The broker is Mosquitto with the mosquitto-go-auth plugin.
+- **Where the accounts live:** in PostgreSQL, in the `broker` schema. The broker reads them through its own database login, `m2_broker`, whose password is `M2_BROKER_DB_PASSWORD` in `infra/dev/.env` and `backend/.env.local`.
+- **The API's account:** `pnpm db:migrate` saves it from `MQTT_USERNAME` / `MQTT_PASSWORD`. The API saves it again when it starts.
+- **Board accounts:** the API adds one per board at pairing. Each belongs to its board, so removing the board removes it.
+
+List the boards that have an account:
 
 ```sh
-docker compose -f infra/dev/compose.yaml exec mosquitto sh -c 'mosquitto_ctrl -u "$MQTT_API_USERNAME" -P "$MQTT_API_PASSWORD" dynsec listClients'
+docker compose -f infra/dev/compose.yaml exec postgres psql -U m2smart -d m2smart -c "select board_id, updated_at from broker.board_accounts"
 ```
 
 ### Using a Docker registry mirror inside Iran
 
-Both images are official Docker Hub images, so a Docker Hub mirror (pull-through cache) is enough. Add the mirror to the Docker daemon config:
+The images are on Docker Hub, so a Docker Hub mirror (pull-through cache) is enough. Add the mirror to the Docker daemon config:
 
 - **Linux:** `/etc/docker/daemon.json`, then `sudo systemctl restart docker`
 - **Docker Desktop:** Settings → Docker Engine, then Apply & restart

@@ -1,6 +1,7 @@
 /**
- * The boards' MQTT broker against the dev stack: every board has its own account and can use only
- * its own topics, in its own home or any other; the API learns from the broker when a board comes
+ * The boards' MQTT broker against the dev stack (accounts in PostgreSQL, checked by
+ * mosquitto-go-auth): every board has its own account and can use only its own topics, in its own
+ * home or any other; the API learns from the broker when a board comes
  * online or drops off. Needs MQTT_URL, MQTT_USERNAME and MQTT_PASSWORD in backend/.env.local.
  */
 import { boardTopic } from "@m2smart/contracts";
@@ -74,7 +75,7 @@ describe("boards on the MQTT broker", () => {
     }
     [boardA, boardB] = boards;
     pool = createApiPool();
-    broker = await connectBroker(config, silentLog);
+    broker = await connectBroker(config, silentLog, pool);
     followBoardStatus(broker, pool, silentLog);
     await broker.setBoardSecret(boardA, "secret-of-board-a");
     await broker.setBoardSecret(boardB, "secret-of-board-b");
@@ -135,17 +136,27 @@ describe("boards on the MQTT broker", () => {
     expect((await adminQuery<{ online: boolean }>("select bool_or(online) as online from public.devices where controller_id = $1", [boardA]))[0].online).toBe(false);
   });
 
+  /** Whether the broker refuses this login within its login cache time (5 s, infra/dev/mosquitto/mosquitto.conf). */
+  const refusedSoon = async (username: string, password: string) => {
+    for (let i = 0; i < 14; i++) {
+      const refused = await mqtt.connectAsync(config.url, { username, password, reconnectPeriod: 0 }).then(async (client) => (await client.endAsync(), false), () => true);
+      if (refused) return true;
+      await wait(500);
+    }
+    return false;
+  };
+
   it("closes a board's connection when its secret is replaced, and the old secret stops working", async () => {
     const board = await connectBoard(boardB, "secret-of-board-b");
     const closed = new Promise<void>((resolve) => board.once("close", () => resolve()));
     await broker.setBoardSecret(boardB, "new-secret-of-board-b");
     await closed;
-    await expect(mqtt.connectAsync(config.url, { username: boardB, password: "secret-of-board-b", reconnectPeriod: 0 })).rejects.toThrow();
+    expect(await refusedSoon(boardB, "secret-of-board-b")).toBe(true);
     await (await connectBoard(boardB, "new-secret-of-board-b")).endAsync();
   });
 
   it("removes a board's account", async () => {
     await broker.removeBoard(boardB);
-    await expect(mqtt.connectAsync(config.url, { username: boardB, password: "new-secret-of-board-b", reconnectPeriod: 0 })).rejects.toThrow();
+    expect(await refusedSoon(boardB, "new-secret-of-board-b")).toBe(true);
   });
 });

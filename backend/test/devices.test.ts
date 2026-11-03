@@ -151,7 +151,7 @@ describe("devices and commands", () => {
     coolerA = devicesA.find((device) => device.type === "cooler")!;
     cameraA = devicesA.find((device) => device.type === "camera")!;
 
-    broker = await connectBroker(loadConfig().broker!, silentLog);
+    broker = await connectBroker(loadConfig().broker!, silentLog, pool);
     followBoardStatus(broker, pool, silentLog);
     stopBridge = startCommandBridge(pool, broker, silentLog, { pollMs: 25 });
     lampB = (await devicesOf("ownerB", homeB)).find((device) => device.name === "Lamp 1")!;

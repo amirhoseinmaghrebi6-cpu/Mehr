@@ -19,7 +19,7 @@ Status: the messages, the database, broker accounts, online/offline status and t
 |------|-------|
 | Transport | MQTT 3.1.1 over TLS, to our own broker; the firmware trusts our own certificate authority |
 | Username | the board id it received at pairing |
-| Password | the broker secret it received at pairing |
+| Password | the broker secret it received at pairing (the server keeps only its hash, in the database, where the broker checks it) |
 | Client id | the board id |
 | Keep-alive | 30 s |
 | QoS | 1 for every message |

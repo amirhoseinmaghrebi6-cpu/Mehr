@@ -2,23 +2,21 @@
  * The API's connection to the MQTT broker the ESP32 boards connect to (there is no hub; see
  * docs/board-protocol.md).
  *
- * The API is the only client besides the boards. It also manages the boards' broker accounts
- * through Mosquitto's dynamic security plugin: every board logs in with its board id as the
- * username and has its own role that names exactly its own topics (Mosquitto 2.0 has no
- * per-username patterns for publishing). The broker keeps the accounts; the database stores no
- * broker secret.
+ * The API is the only client besides the boards. Every board logs in with its board id as the
+ * username and the broker secret it got at pairing. The accounts live in the database
+ * (broker/accounts.ts), where the broker checks them (mosquitto-go-auth): a board may use only its
+ * own topics, and a board without an account can neither log in nor publish. The API logs in with
+ * a service account, a superuser on the broker.
  */
 import { randomUUID } from "node:crypto";
 import { allBoardsTopic, boardTopic, parseBoardTopic, type BoardMessageKind, type ServerMessageKind } from "@m2smart/contracts";
 import mqtt, { type MqttClient } from "mqtt";
+import type { Pool } from "pg";
 import { RecentCounter } from "../http/recent";
+import { deleteBoardAccount, saveBoardAccount, saveServiceAccount } from "./accounts";
 
 type Log = { info: (object: object, message: string) => void; error: (object: object, message: string) => void };
 
-const CONTROL = "$CONTROL/dynamic-security/v1";
-const boardRole = (boardId: string) => `m2-board-${boardId}`;
-const API_ROLE = "m2-api-bridge";
-const CONTROL_TIMEOUT_MS = 5_000;
 /**
  * Messages a board may send a second. A real board sends a few (a key press, a report); anyone who
  * pulled the secret out of their own board could otherwise flood the database through it.
@@ -43,9 +41,9 @@ export type Broker = {
   close(): Promise<void>;
 };
 
-type ControlCommand = { command: string } & Record<string, unknown>;
-
-export async function connectBroker(options: BrokerOptions, log: Log): Promise<Broker> {
+export async function connectBroker(options: BrokerOptions, log: Log, pool: Pool): Promise<Broker> {
+  // The API's own login, from its configuration, before it logs in with it.
+  await saveServiceAccount(pool, options.username, options.password);
   const client: MqttClient = await mqtt.connectAsync(options.url, {
     username: options.username,
     password: options.password,
@@ -55,12 +53,10 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
     reconnectPeriod: 2_000,
   });
   const handlers = new Map<InboundKind, Array<(boardId: string, payload: unknown) => void>>();
-  const waiting = new Map<string, { resolve: () => void; reject: (error: Error) => void; ignore: RegExp | null }>();
   const perBoard = new RecentCounter(1000, 200_000);
 
   client.on("error", (error) => log.error({ err: { message: error.message } }, "MQTT broker connection error"));
   client.on("message", (topic, message) => {
-    if (topic === `${CONTROL}/response`) return onControlResponse(message.toString());
     const parsed = parseBoardTopic(topic);
     if (!parsed || parsed.kind === "cmd" || parsed.kind === "update") return;
     if (perBoard.count(parsed.boardId) >= BOARD_MESSAGES_PER_SECOND) return;
@@ -76,73 +72,24 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
     for (const handler of handlers.get(parsed.kind) ?? []) handler(parsed.boardId, payload);
   });
 
-  function onControlResponse(text: string): void {
-    let responses: Array<{ command?: string; error?: string; correlationData?: string }> = [];
-    try {
-      responses = (JSON.parse(text) as { responses?: typeof responses }).responses ?? [];
-    } catch {
-      return;
-    }
-    for (const response of responses) {
-      const entry = response.correlationData ? waiting.get(response.correlationData) : undefined;
-      if (!entry) continue;
-      waiting.delete(response.correlationData!);
-      if (response.error && !entry.ignore?.test(response.error)) entry.reject(new Error(`Broker refused ${response.command}: ${response.error}`));
-      else entry.resolve();
-    }
-  }
-
-  /** Runs one dynamic-security command; errors matching `ignore` (e.g. "already exists") count as success. */
-  function control(command: ControlCommand, ignore: RegExp | null = null): Promise<void> {
-    const correlationData = randomUUID();
-    return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        waiting.delete(correlationData);
-        reject(new Error(`Broker did not answer ${command.command}`));
-      }, CONTROL_TIMEOUT_MS);
-      waiting.set(correlationData, {
-        resolve: () => (clearTimeout(timer), resolve()),
-        reject: (error) => (clearTimeout(timer), reject(error)),
-        ignore,
-      });
-      client.publish(CONTROL, JSON.stringify({ commands: [{ ...command, correlationData }] }), { qos: 1 }, (error) => {
-        if (!error) return;
-        clearTimeout(timer);
-        waiting.delete(correlationData);
-        reject(error);
-      });
-    });
-  }
-
   const subscribeAll = () => client.subscribeAsync(INBOUND.map((kind) => allBoardsTopic(kind)), { qos: 1 });
-
-  await client.subscribeAsync(`${CONTROL}/response`, { qos: 1 });
-  const exists = /already exists|already in/i;
-  // The API reads every board's messages and sends commands.
-  await control({ command: "createRole", rolename: API_ROLE }, exists);
-  await control({
-    command: "modifyRole",
-    rolename: API_ROLE,
-    acls: [
-      { acltype: "publishClientSend", topic: "m2/v1/boards/#", allow: true },
-      { acltype: "subscribePattern", topic: "m2/v1/boards/#", allow: true },
-    ],
-  });
-  // The first time, the broker closes the connection of a client whose roles change (ours), so the
-  // answer may never arrive: then the reconnect is the sign that it worked.
-  await Promise.race([
-    control({ command: "addClientRole", username: options.username, rolename: API_ROLE }, exists).catch(() => undefined),
-    new Promise<void>((resolve) => client.once("connect", () => resolve())),
-  ]);
-  await client.subscribeAsync(`${CONTROL}/response`, { qos: 1 });
   await subscribeAll();
   // After a reconnect the broker has forgotten the subscriptions (clean session).
   client.on("connect", () => {
-    void client.subscribeAsync(`${CONTROL}/response`, { qos: 1 }).then(subscribeAll).catch((error: Error) => log.error({ err: { message: error.message } }, "MQTT subscribe failed"));
+    void subscribeAll().catch((error: Error) => log.error({ err: { message: error.message } }, "MQTT subscribe failed"));
   });
   log.info({ url: options.url }, "Connected to the MQTT broker");
 
-  const notFound = /not found/i;
+  /**
+   * Cuts the board's live connection: a client that logs in with the same client id takes the
+   * session over (MQTT), and the broker drops the board. The board then has to log in again, which
+   * its old secret, or no account, no longer allows. The API's account may use any client id.
+   */
+  const disconnect = async (boardId: string) => {
+    const takeover = await mqtt.connectAsync(options.url, { username: options.username, password: options.password, clientId: boardId, clean: true, reconnectPeriod: 0, connectTimeout: 5_000 });
+    await takeover.endAsync();
+  };
+
   return {
     on(kind, handler) {
       handlers.set(kind, [...(handlers.get(kind) ?? []), handler]);
@@ -151,29 +98,17 @@ export async function connectBroker(options: BrokerOptions, log: Log): Promise<B
       await client.publishAsync(boardTopic(boardId, kind), payload === null ? "" : JSON.stringify(payload), { qos: 1, retain: publishOptions.retain ?? false });
     },
     async setBoardSecret(boardId, secret) {
-      // Deleting first closes a connection that still uses the old secret.
-      await control({ command: "deleteClient", username: boardId }, notFound);
-      await control({ command: "deleteRole", rolename: boardRole(boardId) }, notFound);
-      // The board may send on its own four topics and receive only its own commands and updates.
-      await control({
-        command: "createRole",
-        rolename: boardRole(boardId),
-        acls: [
-          ...INBOUND.map((kind) => ({ acltype: "publishClientSend", topic: boardTopic(boardId, kind), allow: true })),
-          { acltype: "subscribeLiteral", topic: boardTopic(boardId, "cmd"), allow: true },
-          { acltype: "subscribeLiteral", topic: boardTopic(boardId, "update"), allow: true },
-        ],
-      });
-      await control({ command: "createClient", username: boardId, password: secret, roles: [{ rolename: boardRole(boardId) }] });
+      await saveBoardAccount(pool, boardId, secret);
+      // A connection that still uses the old secret goes.
+      await disconnect(boardId);
     },
     async removeBoard(boardId) {
-      await control({ command: "deleteClient", username: boardId }, notFound);
-      await control({ command: "deleteRole", rolename: boardRole(boardId) }, notFound);
+      // Usually gone already: the account belongs to the board's row (on delete cascade).
+      await deleteBoardAccount(pool, boardId);
+      await disconnect(boardId);
       await client.publishAsync(boardTopic(boardId, "status"), "", { qos: 1, retain: true });
     },
     async close() {
-      for (const entry of waiting.values()) entry.reject(new Error("Broker connection closed"));
-      waiting.clear();
       await client.endAsync();
     },
   };

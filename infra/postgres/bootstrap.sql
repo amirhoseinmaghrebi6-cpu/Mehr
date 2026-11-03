@@ -9,7 +9,7 @@
 -- This is platform setup, not an app migration, and is not recorded in schema_migrations.
 --
 -- Optional login passwords are passed in by the runner as the session settings
--- m2.api_password and m2.migrator_password; when unset, the role has no password.
+-- m2.api_password, m2.migrator_password and m2.broker_password; when unset, the role has no password.
 
 -- Request roles, as on Supabase. NOINHERIT: a session gets their rights only via SET ROLE.
 do $$
@@ -35,6 +35,12 @@ begin
   if not exists (select from pg_roles where rolname = 'm2_api') then
     create role m2_api login noinherit nosuperuser nocreatedb nocreaterole nobypassrls;
   end if;
+
+  -- The MQTT broker's login (mosquitto-go-auth): it may only call the broker.* lookup functions
+  -- (supabase/migrations/202611070001_broker_accounts.sql) and reads no table.
+  if not exists (select from pg_roles where rolname = 'm2_broker') then
+    create role m2_broker login noinherit nosuperuser nocreatedb nocreaterole nobypassrls;
+  end if;
 end;
 $$;
 
@@ -44,12 +50,16 @@ do $$
 declare
   api_password text := nullif(current_setting('m2.api_password', true), '');
   migrator_password text := nullif(current_setting('m2.migrator_password', true), '');
+  broker_password text := nullif(current_setting('m2.broker_password', true), '');
 begin
   if api_password is not null then
     execute format('alter role m2_api password %L', api_password);
   end if;
   if migrator_password is not null then
     execute format('alter role m2_migrator password %L', migrator_password);
+  end if;
+  if broker_password is not null then
+    execute format('alter role m2_broker password %L', broker_password);
   end if;
 end;
 $$;

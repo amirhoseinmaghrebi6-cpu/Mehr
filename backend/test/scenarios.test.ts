@@ -230,7 +230,7 @@ describe("scenarios", () => {
       const created = (await call("ownerA", "POST", base(homeA), { kind: "themed", name: "Watch", actions: [on(cameraA), on(cameraA, true, "recording")] })).body as Scenario;
       loadBackendEnv();
       const brokerConfig = loadConfig().broker!;
-      const broker = await connectBroker(brokerConfig, silentLog);
+      const broker = await connectBroker(brokerConfig, silentLog, pool);
       followBoardStatus(broker, pool, silentLog);
       const stopBridge = startCommandBridge(pool, broker, silentLog, { pollMs: 25 });
       const simulator = startBoardSimulator(pool, broker, brokerConfig.url, silentLog, { boardPrefix: "TEST-SCN-A-", defaultDelayMs: 0, delays: {}, networkDelayMs: [0, 30], rescanMs: 200 });
