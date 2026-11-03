@@ -82,14 +82,14 @@ export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier:
       if (Number(open[0].count) >= MAX_INVITATIONS_PER_HOME) throw conflict();
       // Already invited: 409 (unique per home and number).
       const { rows } = await tx.query<InvitationRow>(
-        "insert into public.property_invitations (property_id, phone, role, invited_by) values ($1, $2, $3, auth.uid()) returning id, phone, role, created_at",
+        "insert into public.property_invitations (property_id, phone, role, invited_by) values ($1, $2, $3, (select auth.uid())) returning id, phone, role, created_at",
         [propertyId, body.phone, body.role],
       );
       // Tell them by SMS. Best effort: the invitation stands even if the message does not go out.
       if (sms && invitationTexts.count(session.userId) < INVITATION_SMS_PER_HOUR) {
         invitationTexts.add(session.userId);
         const { rows: names } = await tx.query<{ inviter: string; home: string }>(
-          "select coalesce((select full_name from public.profiles where user_id = auth.uid()), '') as inviter, name as home from public.properties where id = $1",
+          "select coalesce((select full_name from public.profiles where user_id = (select auth.uid())), '') as inviter, name as home from public.properties where id = $1",
           [propertyId],
         );
         const log = request.log;
@@ -166,7 +166,7 @@ export function registerMemberRoutes(app: FastifyInstance, pool: Pool, verifier:
       const { rows } = await tx.query<PropertyRow & { role: PropertyRole }>(
         `select ${PROPERTY_COLUMNS}, membership.role
          from public.properties as property
-         join public.property_members as membership on membership.property_id = property.id and membership.user_id = auth.uid()
+         join public.property_members as membership on membership.property_id = property.id and membership.user_id = (select auth.uid())
          where property.id = $1`,
         [propertyId],
       );

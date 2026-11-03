@@ -52,7 +52,7 @@ export function registerHomeRoutes(app: FastifyInstance, pool: Pool, verifier: S
         `select ${PROPERTY_COLUMNS}, membership.role
          from public.property_members as membership
          join public.properties as property on property.id = membership.property_id
-         where membership.user_id = auth.uid()
+         where membership.user_id = (select auth.uid())
          order by property.created_at, property.name`,
       );
       return { properties: rows.map((row) => toProperty(row, row.role)) };
@@ -63,7 +63,7 @@ export function registerHomeRoutes(app: FastifyInstance, pool: Pool, verifier: S
     handle(request, reply, 201, async (tx): Promise<Property> => {
       const body = parse(createPropertyRequest, request.body);
       const { rows: owned } = await tx.query<{ count: string }>(
-        "select count(*) from public.property_members where user_id = auth.uid() and role = 'owner'",
+        "select count(*) from public.property_members where user_id = (select auth.uid()) and role = 'owner'",
       );
       if (Number(owned[0].count) >= MAX_HOMES_PER_USER) throw new HttpError(409, "conflict");
 

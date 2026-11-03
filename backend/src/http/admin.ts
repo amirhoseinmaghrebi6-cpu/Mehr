@@ -33,14 +33,30 @@ export type AdminServices = {
   firmwareKey: KeyObject | null;
 };
 
+/**
+ * Whether each user is blocked, kept a few seconds: one database check per user, not one per
+ * request (the load test showed it doubling the database work). Blocking and unblocking in this
+ * process forget the entry at once.
+ * ponytail: per API process; with several copies, a block takes up to BLOCKED_TTL_MS on the others.
+ */
+const BLOCKED_TTL_MS = 10_000;
+const blockedCache = new Map<string, { blocked: boolean; until: number }>();
+
 /** Blocked users are signed out everywhere: every session check answers "no session". */
 export function refuseBlocked(inner: SessionVerifier, pool: Pool): SessionVerifier {
   return {
     async verify(credential) {
       const session = await inner.verify(credential);
       if (!session) return null;
-      const { rows } = await withSystemTx(pool, (tx) => tx.query<{ blocked: boolean }>("select public.platform_is_blocked($1) as blocked", [session.userId]));
-      return rows[0]?.blocked ? null : session;
+      const now = Date.now();
+      let entry = blockedCache.get(session.userId);
+      if (!entry || entry.until <= now) {
+        const { rows } = await withSystemTx(pool, (tx) => tx.query<{ blocked: boolean }>("select public.platform_is_blocked($1) as blocked", [session.userId]));
+        entry = { blocked: rows[0]?.blocked === true, until: now + BLOCKED_TTL_MS };
+        if (blockedCache.size >= 50_000) blockedCache.clear();
+        blockedCache.set(session.userId, entry);
+      }
+      return entry.blocked ? null : session;
     },
   };
 }
@@ -175,6 +191,7 @@ export function registerAdminRoutes(app: FastifyInstance, pool: Pool, verifier: 
       return send(reply, 503, "auth_unavailable");
     }
     await withSystemTx(pool, (tx) => tx.query("select public.platform_set_blocked($1, $2)", [request.params.userId, body.data.blocked]));
+    blockedCache.delete(request.params.userId);
     request.log.info({ userId: request.params.userId, blocked: body.data.blocked }, "Operator changed an account");
     return reply.code(204).send();
   });

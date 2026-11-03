@@ -191,7 +191,8 @@ describe("pairing and factory reset", () => {
       expect(body.setupUrl).toBe(`http://192.168.4.1/?code=${normalizeSetupCode(body.code)}`);
       const minutes = (new Date(body.expiresAt).getTime() - Date.now()) / 60_000;
       expect(minutes).toBeGreaterThan(9);
-      expect(minutes).toBeLessThanOrEqual(10);
+      // The database (in Docker) and this machine keep their own clocks: a few ms apart.
+      expect(minutes).toBeLessThanOrEqual(10.01);
       const [row] = await adminQuery<{ code_hash: string }>("select code_hash from public.board_setup_codes where controller_id = $1", [waiting.boardId]);
       expect(row.code_hash).toBe(sha256(normalizeSetupCode(body.code)!));
       // Asking again gives a new code; the earlier one stops working.

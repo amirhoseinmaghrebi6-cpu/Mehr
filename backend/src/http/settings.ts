@@ -33,7 +33,7 @@ export function registerSettingsRoutes(app: FastifyInstance, pool: Pool, verifie
     const session = await signedIn(request, reply);
     if (!session) return reply;
     const settings = await withUserTx(pool, { userId: session.userId }, async (tx) => {
-      const { rows } = await tx.query<SettingsRow>("select language, calendar, temperature_unit, palette from public.profiles where user_id = auth.uid()");
+      const { rows } = await tx.query<SettingsRow>("select language, calendar, temperature_unit, palette from public.profiles where user_id = (select auth.uid())");
       return toSettings(rows[0]);
     });
     return reply.send(settings);
@@ -52,7 +52,7 @@ export function registerSettingsRoutes(app: FastifyInstance, pool: Pool, verifie
            calendar = coalesce($2, calendar),
            temperature_unit = coalesce($3, temperature_unit),
            palette = coalesce($4, palette)
-         where user_id = auth.uid()
+         where user_id = (select auth.uid())
          returning language, calendar, temperature_unit, palette`,
         [body.language ?? null, body.calendar ?? null, body.temperatureUnit ?? null, body.palette ?? null],
       );

@@ -32,13 +32,21 @@ export async function requireSession(
 }
 
 export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: SessionVerifier, platformAdmins: string[] = []): void {
+  // The identity each user was last synced with: the app asks /v1/me on every page, and the mirror
+  // row only needs writing when something changed (or after a restart).
+  const synced = new Map<string, string>();
   app.get("/v1/me", async (request, reply) => {
     const session = await requireSession(request, reply, verifier);
     if (!session) return reply;
 
     // Recovers a missed registration webhook; a no-op when the mirror row is already current.
+    const identity = JSON.stringify(session.identity);
     try {
-      await syncIdentity(pool, { id: session.userId, ...session.identity });
+      if (synced.get(session.userId) !== identity) {
+        await syncIdentity(pool, { id: session.userId, ...session.identity });
+        if (synced.size >= 50_000) synced.clear();
+        synced.set(session.userId, identity);
+      }
     } catch (error) {
       if (error instanceof IdentityConflictError) {
         request.log.error({ userId: session.userId }, error.message);
@@ -50,14 +58,14 @@ export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: Sess
     // Everything below runs as the user, so RLS decides what is visible.
     const body = await withUserTx(pool, { userId: session.userId }, async (tx): Promise<MeResponse> => {
       const profile = await tx.query<{ full_name: string; language: Language; calendar: Calendar; temperature_unit: TemperatureUnit; palette: Palette }>(
-        "select full_name, language, calendar, temperature_unit, palette from public.profiles where user_id = auth.uid()",
+        "select full_name, language, calendar, temperature_unit, palette from public.profiles where user_id = (select auth.uid())",
       );
       const preferences = profile.rows[0];
       const organizations = await tx.query<{ id: string; name: string; role: OrganizationRole }>(
         `select organization.id, organization.name, membership.role
          from public.organization_members as membership
          join public.organizations as organization on organization.id = membership.organization_id
-         where membership.user_id = auth.uid()
+         where membership.user_id = (select auth.uid())
          order by membership.created_at, organization.name`,
       );
       return {

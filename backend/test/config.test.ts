@@ -10,7 +10,7 @@ describe("loadConfig", () => {
       host: "127.0.0.1",
       port: 4000,
       databaseUrl: "postgres://m2_api:pw@127.0.0.1:15432/m2smart",
-      databasePoolMax: 10,
+      databasePoolMax: 20,
       logLevel: "info",
       kratosPublicUrl: "http://127.0.0.1:4433",
       kratosWebhookSecret: null,

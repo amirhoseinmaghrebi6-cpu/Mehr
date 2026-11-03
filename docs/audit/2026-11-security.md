@@ -45,6 +45,44 @@ Earlier on the same day the firmware also got the protocol's duplicate-command a
 | XSS | No `dangerouslySetInnerHTML` or `innerHTML` with user data. The board's setup page writes network names as text. A strict CSP, HSTS, `frame-ancestors 'none'` and `nosniff` are in place. | NOT TESTED (read) |
 | Secrets in logs | Cookies, tokens and webhook secrets are redacted from request logs. Phone numbers are shortened in the SMS log. | NOT TESTED (read) |
 
+## Load test (phase 2, 2026-11-03)
+
+On the development machine, a Windows PC with Docker Desktop, not a server. The numbers show where things break, not a server's exact capacity. The tools are in `backend/bench/`.
+
+### API (k6, `bench/api-load.js`)
+
+Each virtual user is someone with the app open. Every 1–3 s they read their account, homes and devices, and now and then they switch a light. The test used 40 real accounts with real Kratos sessions, and boards played by the dev simulator. It ran against the production build of the API (`node dist/server.js`), directly, without nginx.
+
+| Run | Users at peak | Requests/s | Reads p95 | Commands p95 | Errors |
+|-----|---------------|------------|-----------|--------------|--------|
+| Before | 300 | 84 | 4.9 s | 5.0 s | 0.65 % (database pool exhausted) |
+| After A10 | 300 | 257 | 0.15 s | 0.21 s | 0 |
+| After A10, capacity | 1 000 | 343 | 2.6 s | 2.6 s | 0 |
+
+So one API process serves about 300–350 requests a second without errors, and responses stay fast up to about 300 people using the app at that rate. Real users ask far less often: they open the app a few times a day. Past that, run more API copies behind nginx, after moving the in-memory limits to the database (B7).
+
+**A10 (P1, fixed): the database did all the work.**
+- PostgreSQL was at 300 % CPU while the API used 20 %.
+- Every page reads the user's organizations, but `organization_members` had no index on `user_id`. Under row-level security, PostgreSQL scanned every membership row and ran the policy's function on each one: the cost grew with every user.
+- Fixes:
+  - the index (migration `202611060001`);
+  - queries ask for `(select auth.uid())`, evaluated once, so indexes apply;
+  - each query is a prepared statement, which saves planning;
+  - one round trip instead of two to start each transaction;
+  - the blocked-account check is cached for 10 s, and blocking forgets the entry at once;
+  - `/v1/me` writes the identity only when it changed;
+  - the connection pool is 20 by default.
+- Status: PASS (224 API tests and the SQL tests; load test as above).
+
+### Broker (`bench/broker-scale.ts`)
+
+| Board accounts | One pairing: median / p95 | Account file |
+|----------------|---------------------------|--------------|
+| 1 000 | 0.22 s / 0.26 s | 1.4 MB |
+| 5 000 | 0.37 s / 2.1 s | 6.5 MB |
+
+Mosquitto's CPU was full and the run toward 10 000 was too slow to finish. Removing the test accounts took minutes for the same reason. Connecting 200 boards at once and reading a report from each took under a second: the connections are not the problem, the account file is. **B3 is confirmed**, and the fix (broker accounts checked against the database) comes next.
+
 ## Blocked until the server exists
 
 - **Real TLS on the domain** (certificate, protocols) and the real Kratos session cookie (Secure, HttpOnly).

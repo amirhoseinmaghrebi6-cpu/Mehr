@@ -11,7 +11,7 @@ const configSchema = z.object({
   DATABASE_URL: z
     .string({ error: "is required (postgres://m2_api:<password>@host:port/db)" })
     .regex(/^postgres(ql)?:\/\//, { error: "must be a postgres:// URL" }),
-  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(20),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   // Kratos public API, used to check sessions (/sessions/whoami). Never the admin API.
   KRATOS_PUBLIC_URL: z.url({ protocol: /^https?$/, error: "must be an http(s) URL" }).default("http://127.0.0.1:4433"),

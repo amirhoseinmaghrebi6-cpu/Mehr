@@ -11,6 +11,7 @@
  * connection returns to the pool it is plain m2_api again with no claims. This also stays
  * correct behind a transaction-mode pooler such as PgBouncer.
  */
+import { createHash } from "node:crypto";
 import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 /** Who the work runs as. Filled from a verified session in Phase 2D. */
@@ -22,6 +23,14 @@ export type TxClient = {
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Every query runs as a named prepared statement, so each connection plans it once and reuses
+ * the plan. Planning with the row-level security policies took about 8 ms a query against 2 ms to
+ * run it (load test, 2026-11-03), and kept the database's CPU full. PostgreSQL re-plans by itself
+ * when the role a plan was made for changes, so RLS stays exact.
+ */
+const statementName = (text: string) => `m2_${createHash("sha1").update(text).digest("hex").slice(0, 24)}`;
 
 async function inTransaction<T>(pool: Pool, setup: (client: PoolClient) => Promise<void>, work: (tx: TxClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -39,7 +48,7 @@ async function inTransaction<T>(pool: Pool, setup: (client: PoolClient) => Promi
     await client.query("begin");
     try {
       await setup(client);
-      const tx: TxClient = { query: (text, values) => client.query(text, values) };
+      const tx: TxClient = { query: (text, values) => client.query({ name: statementName(text), text, values }) };
       const result = await work(tx);
       await client.query("commit");
       broken = false;
@@ -62,9 +71,9 @@ export function withUserTx<T>(pool: Pool, principal: Principal, work: (tx: TxCli
   const claims = JSON.stringify({ sub: principal.userId, role: "authenticated" });
   return inTransaction(
     pool,
+    // One round trip: set_config('role', …, true) is SET LOCAL ROLE.
     async (client) => {
-      await client.query("set local role authenticated");
-      await client.query("select set_config('request.jwt.claims', $1, true)", [claims]);
+      await client.query("select set_config('role', 'authenticated', true), set_config('request.jwt.claims', $1, true)", [claims]);
     },
     work,
   );
@@ -74,8 +83,7 @@ export function withSystemTx<T>(pool: Pool, work: (tx: TxClient) => Promise<T>):
   return inTransaction(
     pool,
     async (client) => {
-      await client.query("set local role service_role");
-      await client.query("select set_config('request.jwt.claims', '', true)");
+      await client.query("select set_config('role', 'service_role', true), set_config('request.jwt.claims', '', true)");
     },
     work,
   );

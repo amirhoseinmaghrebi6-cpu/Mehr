@@ -55,7 +55,7 @@ export function requireUuid(value: string): string {
 export async function roleIn(tx: TxClient, propertyId: string): Promise<PropertyRole> {
   requireUuid(propertyId);
   const { rows } = await tx.query<{ role: string }>(
-    "select role from public.property_members where property_id = $1 and user_id = auth.uid()",
+    "select role from public.property_members where property_id = $1 and user_id = (select auth.uid())",
     [propertyId],
   );
   const role = rows[0]?.role;
