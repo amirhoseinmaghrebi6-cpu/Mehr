@@ -53,6 +53,25 @@ Error messages are shown in English and Persian. Kratos or the API being unreach
   - Passwords need at least 12 characters.
   - The `profile` settings method is off, so a phone number cannot be changed without an SMS check.
 
+## Operators' second step
+
+The admin panel reaches every account and the firmware of every board, so a phone number alone, which a stolen SIM gives away, must not open it.
+
+- **What it asks for:** a code from an authenticator app (TOTP: Google Authenticator, Microsoft Authenticator, FreeOTP …) on top of the normal sign-in.
+- **Enforcement:** the API refuses every `/v1/admin/*` route to a session without that step (`403 two_factor_required`; the session's `aal` is `aal2` only after it). `GET /v1/me` returns `session.aal`, so the web app knows when to ask.
+- **First time:** `/admin` shows a QR code and its key, made by Kratos, to set up the app. The app's first code links it and also opens the panel. Linking needs a sign-in in the last 15 minutes.
+- **After that:** each new sign-in asks for one code before the panel opens. The QR is never shown again: once an app is linked, Kratos lets settings change (removing or replacing the app, the password) only from a session that had the second step.
+- **Set it up right away:** every operator should link an app at their first sign-in. Until they do, someone who takes over their number could link their own app.
+- **Lost phone:** someone with access to the server removes the operator's authenticator through Kratos's admin API (inside the server only), and the operator then links a new one:
+
+  ```sh
+  docker compose -f infra/prod/compose.yaml exec api node -e "fetch('http://kratos:4434/admin/identities/<identity id>/credentials/totp', { method: 'DELETE' }).then((r) => console.log(r.status))"
+  ```
+
+  The identity id is the operator's user id in the admin panel's People list; 204 means it is removed. The same call, against `127.0.0.1:4434`, is what the browser test uses in development.
+- **Other users:** the second step is not offered to them. Kratos's `session.whoami.required_aal` stays `aal1`, so the rest of the app needs only the normal sign-in.
+- **The demo:** it plays the same screen in the browser, where any six digits work.
+
 ## SMS delivery
 
 Kratos's courier sends SMS over HTTP.

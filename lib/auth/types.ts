@@ -10,6 +10,8 @@ export type Principal = {
   authMethod: AuthMethod;
   /** One of the operators (PLATFORM_ADMIN_PHONES on the API): may open the admin panel. */
   platformAdmin: boolean;
+  /** This session had the second sign-in step (an authenticator app code); the admin panel needs it. */
+  secondStep: boolean;
   /** Who vouches for this session. A LAN hub-issued session will be "hub" later. */
   issuer: "cloud";
 };
@@ -41,6 +43,18 @@ export type AuthErrorCode =
   | "blocked";
 
 export type Failure = { ok: false; error: AuthErrorCode };
+
+/**
+ * The second sign-in step (an authenticator app, TOTP) for operators. `linked`: an app is set up,
+ * so the user only types its code; otherwise `setup` holds what to scan to set one up.
+ */
+export type TwoFactorFlow =
+  | { available: false }
+  | { available: true; linked: true }
+  | { available: true; linked: false; setup: { flowId: string; qr: string; secret: string } };
+
+export type TwoFactorInput = { step: "link"; flowId: string; code: string } | { step: "verify"; code: string };
+export type TwoFactorResult = { ok: true } | Failure;
 
 /**
  * What a sign-in screen can offer:

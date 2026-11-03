@@ -1,6 +1,8 @@
 /**
  * The operator's panel: /v1/admin/*, for the numbers in PLATFORM_ADMIN_PHONES only (403 for
- * everyone else). Counts, people and boards, never what is inside a home; an operator can block,
+ * everyone else), and only with the second sign-in step: a code from the operator's authenticator
+ * app (session aal2; 403 two_factor_required otherwise). A phone number alone (a SIM swap) is not
+ * enough to reach every account and the firmware of every board. Counts, people and boards, never what is inside a home; an operator can block,
  * unblock and delete a user, but never another operator or themself.
  *
  * Reads and changes go through the platform_* database functions as service_role
@@ -71,6 +73,10 @@ export function registerAdminRoutes(app: FastifyInstance, pool: Pool, verifier: 
     if (!session) return null;
     if (!isPlatformAdmin(session, services.admins)) {
       await send(reply, 403, "forbidden");
+      return null;
+    }
+    if (session.aal !== "aal2") {
+      await send(reply, 403, "two_factor_required");
       return null;
     }
     return session;

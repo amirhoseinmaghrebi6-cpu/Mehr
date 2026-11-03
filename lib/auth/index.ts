@@ -78,6 +78,16 @@ export const auth: AuthGateway = {
     return guard(() => kratosAdapter.setPassword(input.password));
   },
 
+  async startTwoFactor() {
+    if (!kratosAdapter.isConfigured()) return { available: false };
+    return (await guard(() => kratosAdapter.twoFactorFlow())) as Awaited<ReturnType<AuthGateway["startTwoFactor"]>>;
+  },
+
+  async submitTwoFactor(input) {
+    if (!kratosAdapter.isConfigured()) return setup;
+    return guard(() => (input.step === "link" ? kratosAdapter.linkAuthenticator(input.flowId, input.code) : kratosAdapter.verifyAuthenticatorCode(input.code)));
+  },
+
   async signOut() {
     await demoAdapter.endSession();
     if (kratosAdapter.isConfigured()) await guard(() => kratosAdapter.signOut());

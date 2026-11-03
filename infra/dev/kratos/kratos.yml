@@ -32,6 +32,12 @@ selfservice:
         haveibeenpwned_enabled: false
         min_password_length: 12
         identifier_similarity_check_enabled: true
+    # A code from an authenticator app (TOTP): the second step operators need for the admin panel
+    # (the API requires it on /v1/admin/*). Everyone else may ignore it.
+    totp:
+      enabled: true
+      config:
+        issuer: M2smart
     # Off: it would let a signed-in user change their phone number without an SMS check. The
     # number is changed through the API instead, after an SMS code to the new number (docs/auth.md).
     profile:
@@ -119,6 +125,11 @@ identity:
 
 session:
   lifespan: 720h
+  # A session counts after the first step everywhere; the API asks for the second step (aal2) only
+  # where it matters (the admin panel). Changing settings, including removing the authenticator,
+  # needs the highest step the account has (Kratos's default for the settings flow).
+  whoami:
+    required_aal: aal1
   cookie:
     same_site: Lax
 

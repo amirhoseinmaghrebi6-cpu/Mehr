@@ -1213,8 +1213,22 @@ a.profile-menu { color: var(--muted); }
 .account-reauth p { margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
 .account-reauth .button-primary { justify-self: start; }
 
+/* The admin panel's second step (features/admin/two-factor.tsx). */
+.two-factor-panel { max-width: 460px; }
+.two-factor-form { display: grid; gap: 12px; justify-items: start; }
+.two-factor-form h2 { margin: 0; font-size: 17px; }
+.two-factor-form p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.two-factor-form .form-field { width: 100%; }
+.two-factor-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--accent-pale); color: var(--accent); }
+.two-factor-steps { margin: 0; padding-inline-start: 18px; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.two-factor-qr { justify-self: center; width: 200px; height: 200px; padding: 8px; border-radius: 8px; background: #fff; image-rendering: pixelated; }
+.two-factor-secret { display: grid; gap: 4px; }
+.two-factor-secret code { padding: 6px 8px; border-radius: 6px; background: var(--surface-soft); color: var(--ink); font-size: 12px; letter-spacing: 1px; word-break: break-all; }
+.two-factor-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 20px; letter-spacing: 4px; text-align: center; }
+
 /* Operator's panel → Firmware. */
 .firmware-upload { display: grid; max-width: 460px; gap: 10px; margin-top: 10px; }
 .firmware-upload input[type="file"] { height: auto; padding: 8px 10px; }
 .firmware-upload .button-primary { justify-self: start; }
 .firmware-model .admin-status { flex: 0 0 auto; }
+

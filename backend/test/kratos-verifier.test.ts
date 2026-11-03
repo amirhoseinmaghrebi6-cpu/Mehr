@@ -43,6 +43,12 @@ describe("Kratos session verifier", () => {
     lastHeaders = {};
   });
 
+  it("reads the assurance level: aal2 only after the second step", async () => {
+    expect((await createKratosVerifier(baseUrl).verify({ kind: "token", value: "t" }))?.aal).toBe("aal1");
+    reply = { status: 200, body: whoami({ authenticator_assurance_level: "aal2" }) };
+    expect((await createKratosVerifier(baseUrl).verify({ kind: "token", value: "t" }))?.aal).toBe("aal2");
+  });
+
   it("returns the session for a valid token and sends it as X-Session-Token", async () => {
     const session = await createKratosVerifier(baseUrl).verify({ kind: "token", value: "tok-1" });
     expect(session).toMatchObject({

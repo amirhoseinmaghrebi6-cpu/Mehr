@@ -25,7 +25,7 @@ export function isKratosCookie(name: string): boolean {
 export class KratosUnavailableError extends Error {}
 
 export type KratosMessage = { id: number; text: string; type: string };
-export type KratosNode = { group: string; attributes: { name?: string; value?: unknown }; messages?: KratosMessage[] };
+export type KratosNode = { group: string; attributes: { name?: string; value?: unknown; id?: string; src?: string; text?: { text?: string } }; messages?: KratosMessage[] };
 export type KratosFlow = { id: string; state?: string; ui: { messages?: KratosMessage[]; nodes: KratosNode[] } };
 export type KratosResponse = { status: number; body: Record<string, unknown> | null };
 

@@ -23,6 +23,8 @@ const errorCodes: Record<ApiErrorResponse["error"], GatewayErrorCode> = {
   internal_error: "unavailable",
   reauth_required: "reauth",
   rate_limited: "rate_limited",
+  // The admin page asks for the second step before the panel calls the API.
+  two_factor_required: "forbidden",
 };
 
 /** One request to the API under /api/v1, with a timeout; errors become GatewayErrors. */

@@ -8,7 +8,7 @@
 import type { MeResponse } from "@m2smart/contracts";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import type { AuthErrorCode, Failure, LoginResult, Principal, RecoveryResult, RegistrationResult } from "@/lib/auth/types";
+import type { AuthErrorCode, Failure, LoginResult, Principal, RecoveryResult, RegistrationResult, TwoFactorFlow, TwoFactorResult } from "@/lib/auth/types";
 import { normalizePhone } from "@/lib/auth/phone";
 import {
   apiInternalUrl,
@@ -62,12 +62,12 @@ async function isBlocked(phone: string): Promise<boolean> {
   }
 }
 
-async function createFlow(kind: "login" | "registration" | "settings"): Promise<KratosFlow | null> {
-  const response = await kratosRequest(`/self-service/${kind}/browser`);
+async function createFlow(kind: "login" | "registration" | "settings", query = ""): Promise<KratosFlow | null> {
+  const response = await kratosRequest(`/self-service/${kind}/browser${query}`);
   return response.status === 200 ? (response.body as unknown as KratosFlow) : null;
 }
 
-async function loadFlow(kind: "login" | "registration", flowId: string): Promise<KratosFlow | null> {
+async function loadFlow(kind: "login" | "registration" | "settings", flowId: string): Promise<KratosFlow | null> {
   if (!/^[0-9a-f-]{36}$/i.test(flowId)) return null;
   const response = await kratosRequest(`/self-service/${kind}/flows?id=${flowId}`);
   return response.status === 200 ? (response.body as unknown as KratosFlow) : null;
@@ -111,6 +111,7 @@ export const kratosAdapter = {
       displayName: me.user.displayName,
       authMethod: me.session.authMethods.includes("password") ? "password" : "sms_code",
       platformAdmin: me.user.platformAdmin === true,
+      secondStep: me.session.aal === "aal2",
       issuer: "cloud",
     };
   },
@@ -173,6 +174,45 @@ export const kratosAdapter = {
     if (!flow) return fail("reauth-required");
     const response = await submit("settings", flow, { method: "password", password });
     return response.status === 200 ? { ok: true } : failureFrom(response, "settings");
+  },
+
+  /**
+   * The second step for this user. A settings flow shows either the authenticator to set up (a QR
+   * code and its secret) or that one is linked. Kratos refuses a settings flow at the first step
+   * once an authenticator is linked (it asks for the highest step the account has), which also
+   * means "linked".
+   */
+  async twoFactorFlow(): Promise<TwoFactorFlow> {
+    const response = await kratosRequest("/self-service/settings/browser");
+    // Refused for a higher step (403, or 422 with a link to the aal2 login, by Kratos version).
+    if (response.status !== 200 && JSON.stringify(response.body ?? {}).includes("aal2")) return { available: true, linked: true };
+    if (response.status !== 200) return { available: false };
+    const flow = response.body as unknown as KratosFlow;
+    const totp = flow.ui.nodes.filter((node) => node.group === "totp");
+    if (totp.some((node) => node.attributes.name === "totp_unlink")) return { available: true, linked: true };
+    const qr = totp.find((node) => node.attributes.id === "totp_qr")?.attributes.src;
+    const secret = totp.find((node) => node.attributes.id === "totp_secret_key")?.attributes.text?.text;
+    if (!qr?.startsWith("data:image/") || !secret) return { available: false };
+    return { available: true, linked: false, setup: { flowId: flow.id, qr, secret } };
+  },
+
+  /** Links the authenticator app whose first code the user typed (needs a recent sign-in). */
+  async linkAuthenticator(flowId: string, code: string): Promise<TwoFactorResult> {
+    const flow = await loadFlow("settings", flowId);
+    if (!flow) return fail("flow-expired");
+    const response = await submit("settings", flow, { method: "totp", totp_code: code });
+    if (response.status === 200) return { ok: true };
+    if (response.status === 403) return fail("reauth-required");
+    return fail(response.status === 400 ? "code-invalid" : "update-failed");
+  },
+
+  /** The second step: the session becomes aal2 with a code from the linked authenticator. */
+  async verifyAuthenticatorCode(code: string): Promise<TwoFactorResult> {
+    const flow = await createFlow("login", "?aal=aal2");
+    if (!flow) return fail("flow-expired");
+    const response = await submit("login", flow, { method: "totp", totp_code: code });
+    if (response.status === 200) return { ok: true };
+    return fail(response.status === 400 ? "code-invalid" : "flow-expired");
   },
 
   async signOut(): Promise<void> {

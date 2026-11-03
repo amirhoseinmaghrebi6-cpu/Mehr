@@ -22,6 +22,8 @@ export type VerifiedSession = {
   authenticatedAt?: Date;
   /** Methods used to authenticate this session, e.g. ["code"] or ["password"]. */
   authMethods: string[];
+  /** Assurance level: "aal2" after a second step (an authenticator app code). Missing means aal1. */
+  aal?: "aal1" | "aal2";
   identity: { phone: string | null; email: string | null; name: string | null };
   issuer: "cloud";
 };

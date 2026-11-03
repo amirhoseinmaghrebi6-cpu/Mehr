@@ -75,7 +75,7 @@ export function registerMeRoute(app: FastifyInstance, pool: Pool, verifier: Sess
           temperatureUnit: preferences?.temperature_unit ?? "celsius",
           palette: preferences?.palette ?? "sage",
         },
-        session: { authMethods: session.authMethods, expiresAt: session.expiresAt.toISOString() },
+        session: { authMethods: session.authMethods, aal: session.aal ?? "aal1", expiresAt: session.expiresAt.toISOString() },
       };
     });
 

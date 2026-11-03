@@ -27,9 +27,12 @@ const ids = Object.values(USERS).map(([id]) => id);
 
 const verifier: SessionVerifier = {
   async verify(credential: SessionCredential) {
-    const user = USERS[credential.value as UserKey];
+    // "operator" has given the second sign-in step (aal2); "operator:aal1" has only the first.
+    const [key, level] = credential.value.split(":");
+    const user = USERS[key as UserKey];
     if (!user) return null;
-    return { userId: user[0], sessionId: `s-${user[0]}`, expiresAt: new Date(Date.now() + 3_600_000), authMethods: ["code"], identity: { phone: user[1], email: null, name: null }, issuer: "cloud" };
+    const aal = level === "aal1" ? "aal1" : "aal2";
+    return { userId: user[0], sessionId: `s-${user[0]}`, expiresAt: new Date(Date.now() + 3_600_000), authMethods: ["code"], aal, identity: { phone: user[1], email: null, name: null }, issuer: "cloud" };
   },
 };
 
@@ -94,6 +97,21 @@ describe("operator's panel API", () => {
     expect((await call("owner", "DELETE", `/v1/admin/users/${USERS.member[0]}`)).status).toBe(403);
     expect(((await call("operator", "GET", "/v1/me")).body as MeResponse).user.platformAdmin).toBe(true);
     expect(((await call("owner", "GET", "/v1/me")).body as MeResponse).user.platformAdmin).toBe(false);
+  });
+
+  it("needs the second sign-in step (an authenticator code) for every admin route", async () => {
+    const firstStepOnly = async (method: "GET" | "PATCH" | "DELETE", url: string, payload?: object) => {
+      const response = await app.inject({ method, url, headers: { authorization: "Bearer operator:aal1" }, ...(payload ? { payload } : {}) });
+      return { status: response.statusCode, error: response.json().error };
+    };
+    for (const url of ["/v1/admin/overview", "/v1/admin/users", "/v1/admin/boards", "/v1/admin/firmware"]) {
+      expect(await firstStepOnly("GET", url), url).toEqual({ status: 403, error: "two_factor_required" });
+    }
+    expect(await firstStepOnly("PATCH", `/v1/admin/users/${USERS.member[0]}`, { blocked: true })).toEqual({ status: 403, error: "two_factor_required" });
+    expect(await firstStepOnly("DELETE", `/v1/admin/users/${USERS.member[0]}`)).toEqual({ status: 403, error: "two_factor_required" });
+    // The app still learns it is an operator, so it can ask for the code.
+    const me = (await app.inject({ method: "GET", url: "/v1/me", headers: { authorization: "Bearer operator:aal1" } })).json() as MeResponse;
+    expect([me.user.platformAdmin, me.session.aal]).toEqual([true, "aal1"]);
   });
 
   it("shows counts, people and boards, but nothing from inside a home", async () => {

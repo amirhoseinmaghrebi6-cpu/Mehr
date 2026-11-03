@@ -13,6 +13,7 @@ const whoamiSchema = z.object({
   expires_at: z.string().min(1),
   authenticated_at: z.string().optional(),
   authentication_methods: z.array(z.object({ method: z.string() })).optional(),
+  authenticator_assurance_level: z.string().optional(),
   identity: z.object({
     id: z.uuid(),
     traits: z.object({
@@ -58,6 +59,7 @@ export function createKratosVerifier(publicUrl: string, fetchImpl: typeof fetch 
         expiresAt,
         ...(session.authenticated_at && { authenticatedAt: new Date(session.authenticated_at) }),
         authMethods: session.authentication_methods?.map((entry) => entry.method) ?? [],
+        aal: session.authenticator_assurance_level === "aal2" ? "aal2" : "aal1",
         identity: {
           phone: session.identity.traits.phone ?? null,
           email: session.identity.traits.email ?? null,

@@ -47,7 +47,7 @@ const verifier: SessionVerifier = {
   async verify(credential: SessionCredential) {
     const user = credential.value === "operator" ? OPERATOR : credential.value === "owner" ? OWNER : null;
     if (!user) return null;
-    return { userId: user[0], sessionId: `s-${user[0]}`, expiresAt: new Date(Date.now() + 3_600_000), authMethods: ["code"], identity: { phone: user[1], email: null, name: null }, issuer: "cloud" };
+    return { userId: user[0], sessionId: `s-${user[0]}`, expiresAt: new Date(Date.now() + 3_600_000), authMethods: ["code"], aal: "aal2", identity: { phone: user[1], email: null, name: null }, issuer: "cloud" };
   },
 };
 const published: Array<[string, unknown]> = [];

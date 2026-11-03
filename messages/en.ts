@@ -472,6 +472,31 @@ export const en = {
 
   admin: {
     open: "Admin panel",
+    twoFactor: {
+      overline: "SECOND STEP",
+      why: "The admin panel reaches every account and the firmware of every board, so it needs a code from your authenticator app as well as your sign-in.",
+      setupTitle: "Set up your authenticator app",
+      steps: [
+        "Install an authenticator app on your phone, e.g. Google Authenticator or Microsoft Authenticator.",
+        "In the app, add an account and scan this code (or type the key below).",
+        "Type the six-digit code the app shows.",
+      ],
+      qrAlt: "QR code for your authenticator app",
+      secretLabel: "Key, if you cannot scan:",
+      codeLabel: "Six-digit code from the app",
+      link: "Turn on",
+      promptTitle: "Code from your authenticator app",
+      promptText: "Open your authenticator app and type the six-digit code for M2smart.",
+      linked: "Your authenticator app is set up. Now type its current code once to open the panel.",
+      verify: "Open the panel",
+      demoNote: "In the demo any six digits work.",
+      errors: {
+        "code-invalid": "That code is not right. Codes change every 30 seconds: type the current one.",
+        "flow-expired": "This took too long. Try again.",
+        "update-failed": "It could not be turned on. Try again.",
+        unavailable: "The sign-in service is not available right now. Try again shortly.",
+      },
+    },
     title: "Admin panel",
     subtitle: "The whole service at a glance. Nothing from inside anyone’s home is shown here.",
     tabs: { overview: "Overview", users: "People", boards: "Boards", firmware: "Firmware" },

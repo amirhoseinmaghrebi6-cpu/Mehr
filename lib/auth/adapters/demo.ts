@@ -54,7 +54,8 @@ export const demoAdapter = {
     const session = await verifyDemoSessionToken(cookieStore.get(DEMO_COOKIE_NAME)?.value);
     if (!session) return null;
     // The demo also shows the operator's panel, over sample data only (services/demo-admin.ts).
-    return { userId: session.userId, sessionId: null, displayName: "M2smart Demo", authMethod: "demo", platformAdmin: true, issuer: "cloud" };
+    // The demo's own second step is played in the browser (features/admin/two-factor.tsx).
+    return { userId: session.userId, sessionId: null, displayName: "M2smart Demo", authMethod: "demo", platformAdmin: true, secondStep: false, issuer: "cloud" };
   },
 
   /** Middleware variant: reads the cookie from the incoming request. */

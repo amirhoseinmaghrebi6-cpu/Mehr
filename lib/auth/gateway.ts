@@ -9,6 +9,9 @@ import type {
   RegistrationFlow,
   RegistrationInput,
   RegistrationResult,
+  TwoFactorFlow,
+  TwoFactorInput,
+  TwoFactorResult,
 } from "@/lib/auth/types";
 
 /**
@@ -31,6 +34,10 @@ export interface AuthGateway {
 
   startRecovery(): Promise<RecoveryFlow>;
   submitRecovery(input: RecoveryInput): Promise<RecoveryResult>;
+
+  /** The second sign-in step: set up an authenticator app, or type its code (operators). */
+  startTwoFactor(): Promise<TwoFactorFlow>;
+  submitTwoFactor(input: TwoFactorInput): Promise<TwoFactorResult>;
 
   signOut(): Promise<void>;
 }
