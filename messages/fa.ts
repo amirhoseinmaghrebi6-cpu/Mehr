@@ -785,6 +785,8 @@ export const fa: Messages = {
   },
 
   settings: {
+    look: "ظاهر (روی این دستگاه)",
+    looks: { plain: "ساده", glass: "شیشه‌ای" },
     palette: "رنگ‌بندی",
     paletteNote: "هر رنگ‌بندی حالت روشن و تیره دارد؛ با دکمه‌ی ماه بین آن‌ها جابه‌جا شوید.",
     palettes: { sage: "سبز زیتونی", ocean: "آبی اقیانوسی", violet: "بنفش", rose: "رُز", sand: "خاکی گرم", graphite: "گرافیت" },

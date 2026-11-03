@@ -703,6 +703,8 @@ export const en = {
   },
 
   settings: {
+    look: "Look (on this device)",
+    looks: { plain: "Simple", glass: "Glass" },
     palette: "Colours",
     paletteNote: "Each palette has a light and a dark mode; switch between them with the moon button.",
     palettes: { sage: "Sage", ocean: "Ocean", violet: "Violet", rose: "Rose", sand: "Sand", graphite: "Graphite" },

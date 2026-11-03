@@ -33,7 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { can, defaultSettings, type CapabilityName, type CapabilityValue, type Device, type Room, type Scenario, type UpdateSettingsRequest, type UserSettings } from "@m2smart/contracts";
-import { DashboardView, homeTimeZone, type DashboardSection } from "@/features/dashboard/dashboard-view";
+import { DashboardView, homeTimeZone, type DashboardSection, type Look } from "@/features/dashboard/dashboard-view";
 import { InvitationBanner, MembersSection } from "@/features/members/members";
 import { AccountSection } from "@/features/account/account";
 import { ScenarioEditorDialog } from "@/features/scenarios/scenarios";
@@ -87,6 +87,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
   const router = useRouter();
   const { locale, m, rtl, calendar, temperatureUnit, palette, setPreferences } = useI18n();
   const [theme, setTheme] = useState<Theme>("light");
+  const [look, setLook] = useState<Look>("plain");
   const [section, setSection] = useState<DashboardSection>("overview");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<{ message: string; tone: "ok" | "warn" } | null>(null);
@@ -212,6 +213,7 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
     try {
       const storedTheme = window.localStorage.getItem("m2smart-theme") ?? window.localStorage.getItem("mehr-theme");
       if (storedTheme === "light" || storedTheme === "dark") setTheme(storedTheme);
+      if (window.localStorage.getItem("m2smart-look") === "glass") setLook("glass");
     } catch {
       // Storage unavailable: keep the light theme.
     }
@@ -224,6 +226,14 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
       // The theme still applies to this page.
     }
   }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.look = look;
+    try {
+      window.localStorage.setItem("m2smart-look", look);
+    } catch {
+      // The look still applies to this page.
+    }
+  }, [look]);
 
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -387,6 +397,8 @@ export function AppShell({ userId, displayName, demoMode = false, platformAdmin 
               membersPanel={<MembersSection gateway={gateway} property={property} nameOf={nameOf} onToast={showToast} onLeft={() => { const remaining = (properties ?? []).filter((item) => item.id !== property.id); home.setProperties(remaining); if (remaining[0]) changeProperty(remaining[0].id); else router.push("/dashboard"); }} />}
               accountPanel={<AccountSection gateway={gateway} demo={demoMode} onToast={showToast} />}
               displayName={displayName}
+              look={look}
+              onLook={setLook}
               rooms={rooms}
               devices={visibleDevices}
               hiddenDevices={hiddenDevices}

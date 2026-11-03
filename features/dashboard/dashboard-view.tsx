@@ -27,6 +27,9 @@ import { formatDate, formatNumber, messages, type Messages } from "@/lib/i18n";
 /** A home's time zone (homes saved by older demo sessions have none: Tehran). */
 export const homeTimeZone = (property: Property) => property.timeZone ?? defaultTimeZone;
 
+export const looks = ["plain", "glass"] as const;
+export type Look = (typeof looks)[number];
+
 export type DashboardSection = "overview" | "rooms" | "devices" | "scenes" | "security" | "cameras" | "notifications" | "members" | "settings" | "help";
 
 
@@ -65,6 +68,8 @@ type Props = {
   onEditScenario: (scenario: Scenario | "new") => void;
   onToggleScenario: (scenario: Scenario, enabled: boolean) => void;
   onNavigate: (section: DashboardSection) => void;
+  look: Look;
+  onLook: (look: Look) => void;
   onClearSearch: () => void;
   onAddRoom: () => void;
   onEditRoom: (room: Room) => void;
@@ -303,7 +308,7 @@ function SectionContent(props: Props & { roomName: (device: Device) => string })
   if (section === "devices") return <DeviceCollection {...props} title={m.dashboard.everyDevice} />;
   const safety = { devices: props.devices, valueOf: props.valueOf, nameOf: props.nameOf, onOpenDevice: props.onOpenDevice };
   if (section === "notifications") return <ActivitySection {...safety} loadActivity={props.loadActivity} timeZone={homeTimeZone(props.property)} />;
-  if (section === "settings") return <SettingsSection demo={demo} property={props.property} accountPanel={props.accountPanel} />;
+  if (section === "settings") return <SettingsSection demo={demo} property={props.property} accountPanel={props.accountPanel} look={props.look} onLook={props.onLook} />;
   if (section === "members") return <>{props.membersPanel}</>;
   if (section === "help") return <HelpSection />;
   if (section === "scenes") {
@@ -339,7 +344,7 @@ function HelpSection() {
   );
 }
 
-function SettingsSection({ demo, property, accountPanel }: { demo: boolean; property: Property; accountPanel?: React.ReactNode }) {
+function SettingsSection({ demo, property, accountPanel, look, onLook }: { demo: boolean; property: Property; accountPanel?: React.ReactNode; look: Look; onLook: (look: Look) => void }) {
   const { locale, m, calendar, temperatureUnit, palette, setPreferences } = useI18n();
   const t = m.settings;
   const choice = <T extends string>(label: string, options: readonly T[], value: T, name: (option: T) => string, onPick: (option: T) => void) => (
@@ -359,6 +364,7 @@ function SettingsSection({ demo, property, accountPanel }: { demo: boolean; prop
         {choice(t.language, languages, locale, (option) => messages[option].meta.languageName, (language) => setPreferences({ language }))}
         {choice(t.calendar, calendars, calendar, (option) => t.calendars[option], (next) => setPreferences({ calendar: next }))}
         {choice(t.temperature, temperatureUnits, temperatureUnit, (option) => t.temperatureUnits[option], (next) => setPreferences({ temperatureUnit: next }))}
+        {choice(t.look, looks, look, (option) => t.looks[option], onLook)}
         <section className="segmented-section">
           <span className="panel-overline">{t.palette}</span>
           <div className="palette-picker" role="radiogroup" aria-label={t.palette}>

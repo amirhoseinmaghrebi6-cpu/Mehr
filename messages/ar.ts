@@ -785,6 +785,8 @@ export const ar: Messages = {
   },
 
   settings: {
+    look: "المظهر (على هذا الجهاز)",
+    looks: { plain: "بسيط", glass: "زجاجي" },
     palette: "الألوان",
     paletteNote: "لكل لوحة ألوان وضع فاتح ووضع داكن؛ بدّل بينهما بزر القمر.",
     palettes: { sage: "زيتوني", ocean: "أزرق محيطي", violet: "بنفسجي", rose: "وردي", sand: "رملي دافئ", graphite: "غرافيت" },
